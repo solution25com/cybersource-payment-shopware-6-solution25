@@ -38,7 +38,7 @@ Once the plugin is released, you can install it using the following command:
 ```bash
 bin/console plugin:install --activate PluginName
 ```  
-Step-by-step installation instructions will be provided upon release.  
+For step-by-step installation instructions, please refer to the [Cybersource Installation Guide](https://github.com/solution25com/cybersource-payment-shopware-6-solution25/blob/main/CYBERSOURCE_INSTALLATION_GUIDE.pdf).  
 
 ## 🚀 Developers & Contributions
 If you want to contribute to the development, feel free to fork the repository and submit pull requests.

@@ -1,0 +1,447 @@
+Feature story,Test Case,Steps,Pre-conditions,Exepcted Result,Actual Result,Bugs,Comments
+Environment Setup & Configurations,Verify admin side configuration,"Open XAMPP & Docker.
+Start Below Module in XAMPP
+
+Apache
+
+MySQL","Install XAMPP Control Panel.
+
+Install Docker.",Both modules should be started successfully,,,
+,,"Open command Prompt.
+
+Run below command to start Docker.
+
+docker run --rm -p 80:80 dockware/dev:latest",,Docker should be started successfully,,,
+,,"Open localhost admin in browser
+
+ADMIN URL: http://localhost/admin
+
+Login into localhost admin with following creds
+
+User Name - admin
+
+Password - shopware
+
+Expand Extensions section from sidebar.
+
+Select My Extensions option.
+
+Click on Upload Extension button.
+
+Select 'CyberSource for Shopware6' extension & upload it.
+
+Install uploaded 'CyberSource for Shopware6' extension",,User should be able upload & installed successfully.,,,
+,,"Go to Configuration section for installed 'CyberSource for Shopware6' extension.
+
+Go to 'Sandbox Account Keys' section.
+
+Add valid below details.
+
+Organization ID (E.g. hpatel2_1709877878)
+
+Access KEY (E.g. 57374834-66e9-4072-99ca-3908359e715a)
+
+Shared Secret Key (E.g. vwuK6kgQ9BSyFx8v1KW+SZnFky+9TBrNnTsnqLTsWRE=)
+
+Save Changes",,User should be able save changes.,,,
+,,"Click on 'Storefront' from Sales Channels sidebar section.
+
+Go to 'Payment and shipping' section
+
+Select Below method from 'Payment methods' dropdown.
+
+CreditCard | CyberSource for Shopware6
+
+Select Default payment method
+
+CreditCard | CyberSource for Shopware6
+
+Save Changes",,"User should be able to Payment methods
+
+User should be able to set default Payment method",,,
+,,Click on Eye icon for storefront Sales channel.,,"User is taken to below DEMO store URL is opened
+
+SHOP URL: http://localhost",,,
+,Verify storefront customer side,"Open localhost admin in browser
+
+ADMIN URL: http://localhost/admin
+
+Login into localhost admin with following creds
+
+User Name - admin
+
+Password - shopware
+
+Click on Eye icon for storefront Sales channel.","Make sure that following application running in background
+
+Below modules has been started in XAMPP
+
+Apache
+
+My SQL
+
+Container should be started in Docker.
+
+Our Payment plugin should be installed in extension & set in payment method","User is taken to below DEMO store URL is opened
+
+SHOP URL: http://localhost",,,
+,,"Login into DEMO store shop with valid creds.
+
+SHOP URL: http://localhost
+
+Add product into cart
+
+Proceed checkout page.","Open terminal through Action for running container.
+
+Following command must be run before login into DEMO store.
+./bin/build-administration.sh
+./bin/build-storefront.sh
+./bin/console cache:clear","User should be able login into DEMO store site.
+
+Validation message should be displayed for required credit fields
+
+Order successfully placed message should be displayed.
+
+Save card details message should be displayed if 'Save card on file' selected.
+
+Validation message should be displayed for failed save card details.
+
+User should be able to placed order even if failed save card details.",,,
+,,"Place order by choosing…
+
+Any payment method on checkout page
+
+Credit Card (CyberSource Payment)
+
+Cash on delivery
+
+Paid in advance
+
+Invoice
+
+Any Shipping method on checkout page
+
+Standard
+
+Express",,"User should be able placed order with any payment method.
+
+User should be able placed order with any Shipping method.",,,
+,Verify Docker configuration,"Open command Prompt.
+
+Run below command to start Docker.
+
+docker run --rm -p 80:80 dockware/dev:latest","Make sure that following application running in background
+
+Below modules has been started in XAMPP
+
+Apache
+
+My SQL
+
+Install Docker
+
+Our Payment plugin should be installed in extension & set in payment method",Docker should be stated successfully.,,,
+,,"Go to Containers section.
+
+Open terminal through Action for running container.
+
+Run below command.
+./bin/build-administration.sh
+./bin/build-storefront.sh
+./bin/console cache:clear",,Command should be executed successfully.,,,
+,Verify Cybersource test Login Portal,"Open below cybersource test login portal.
+
+Test Login admin Portal - https://ubctest.cybersource.com/ebc2/
+
+Login into admin portal with valid creds.
+
+Username - hpatel2
+
+Password - Codal@123","Make sure that following application running in background
+
+Below modules has been started in XAMPP
+
+Apache
+
+My SQL
+
+Container should be started in Docker.
+
+Our Payment plugin should be installed in extension & set in payment method",User should be logged in successfully.,,,
+,,"Expand 'Transaction Management' section from sidebar.
+
+Select 'Transactions' option.",,"Order level Transactions logs has been fetched in this section.
+
+Line items should be listed in Transactions logs
+
+Transactions logs should be listed for following actions.
+
+Card Authorization
+
+Card Settlement
+
+Card credit",,,
+Implement auth and auth_capture payment options,Verify Transaction type options.,"Login into localhost admin.
+
+Upload & installed CyberSource for Shopware6 extension
+
+Go to CyberSource for Shopware6 Configuration.",,"Following two transaction types configuration options should be displayed.
+
+Auth only
+
+Auth and Capture
+
+By default 'Auth only' option should be displayed as selected.
+
+Admin should be able to select any transaction type.",,,
+,Verify Transaction for 'Auth only' Transaction type.,"Login into localhost admin.
+
+Go to CyberSource for Shopware6 Configuration.
+
+Select 'Auth only' Transaction type.
+
+Save changes",,Auth only' Transaction type should be displayed as selected.,,,
+,,"Open DEMO Store site.
+
+Place order with Credit card | CyberSource for Shopware6 Payment Method",,Order placed successfully.,,,
+,,"Login into CyberSource admin portal with valid creds.
+
+URL - https://ubctest.cybersource.com/ebc2/
+
+Expand 'Transaction Management' section from sidebar.
+
+Select 'Transactions' option.",,"Following type of Transaction logs should be displayed for placed order.
+
+Card Authorization",,,
+,,"Go to localhost admin.
+
+Expand 'Orders' section from sidebar.
+
+Select 'Overview' option.
+
+Open placed order log.
+
+Go to Details section.",,"Payment Status should be displayed as 'Authorized' for placed order.
+
+'Capture' button should be displayed.",,,
+,,Click on 'Capture' button.,,"Payment Status should be displayed as 'Paid' for placed order.
+
+'Refund' button should be displayed.",,,
+,,"Go to CyberSource admin portal.
+
+Expand 'Transaction Management' section from sidebar.
+
+Select 'Transactions' option.",,"Following type of Transaction logs should be displayed for placed order.
+
+Card Settlement",,,
+,Verify Transaction for 'Auth and Capture' Transaction type.,"Login into localhost admin.
+
+Go to CyberSource for Shopware6 Configuration.
+
+Select 'Auth and Capture' Transaction type.
+
+Save changes",,Auth and Capture' Transaction type should be displayed as selected.,,,
+,,"Open DEMO Store site.
+
+Place order with Credit card | CyberSource for Shopware6 Payment Method",,Order placed successfully.,,,
+,,"Login into CyberSource admin portal with valid creds.
+
+URL - https://ubctest.cybersource.com/ebc2/
+
+Expand 'Transaction Management' section from sidebar.
+
+Select 'Transactions' option.",,"Following type of Transaction logs should be displayed for placed order.
+
+Card Authorization
+
+Card Settlement",,,
+,,"Go to localhost admin.
+
+Expand 'Orders' section from sidebar.
+
+Select 'Overview' option.
+
+Open placed order log.
+
+Go to Details section.",,"Payment Status should be displayed as 'Paid' for placed order.
+
+'Refund' button should be displayed.",,,
+Save cards to cybersource,Verify 'Save card on file' option for Logged in user.,"Open DEMO Store site.
+
+Login into site with valid user.
+
+Add any products into cart.
+
+Proceed to checkout Page.
+
+Select Credit card | CyberSource for Shopware6 Payment Method",,Save card on file' option should be displayed.,,,
+,,"Entered credit card details.
+
+Select 'Save card on file' option
+
+Place order",,"Order should be placed successfully.
+
+Card details should be saved with logged user.
+
+Order placed & card details save message should be displayed.",,,
+,,"Add any products into cart.
+
+Proceed to checkout Page.
+
+Select Credit card | CyberSource for Shopware6 Payment Method",,"Previously save card option should be displayed.
+
+Credit card ending in …. <last 4 digits>
+
+'New credit card' option should be displayed.
+
+Below fields should be displayed on 'New credit card' option selection
+
+Card Number
+
+EXP Date
+
+CVC
+
+Save card on file",,,
+,Verify 'Save card on file' option visibility for guest user.,"Open DEMO Store site.
+
+Add any products into cart.
+
+Proceed to checkout Page.
+
+Select Credit card | CyberSource for Shopware6 Payment Method",Make sure that Guest user try to place an order,‘Save card on file' option won’t be displayed.,,,
+,,"Entered details in following fields
+
+Card Number
+
+EXP Date
+
+CVC
+
+Place order",,Guest user should be able to placed order with added card.,,,
+,Verify place an order with previously saved card.,"Open DEMO Store site.
+
+Login into site with valid user.
+
+Add any products into cart.
+
+Proceed to checkout Page.
+
+Select Credit card | CyberSource for Shopware6 Payment Method",Make sure that login user have saved credit card details.,"Previously save card option should be displayed.
+
+Credit card ending in …. <last 4 digits>
+
+'New credit card' option should be displayed.",,,
+,,"Previously save card option should be displayed.
+
+Credit card ending in …. <last 4 digits>
+
+Place order",,User should be able to placed order with saved card.,,,
+,Verify place an order with newly credit card even if user have saved card.,"Open DEMO Store site.
+
+Login into site with valid user.
+
+Add any products into cart.
+
+Proceed to checkout Page.
+
+Select Credit card | CyberSource for Shopware6 Payment Method",Make sure that login user have saved credit card details.,"Previously save card option should be displayed.
+
+Credit card ending in …. <last 4 digits>
+
+'New credit card' option should be displayed. on file",,,
+,,"Select 'New credit card' option.
+
+Entered details in following fields
+
+Card Number
+
+EXP Date
+
+CVC
+
+Save card on file",,"User should be able to placed order with newly added card.
+
+Newly added credit card details should be saved with that user.
+
+Previously saved details should be updated with newly save card details.
+
+No validation message should be displayed when user try to save previously saved credit card details.
+
+User should be able to place order with newly added credit card details without choosing ‘Save card on file’",,,
+,Verify card details in Transaction logs,"Open DEMO Store site.
+
+Login into site with valid user.
+
+Add any products into cart.
+
+Proceed to checkout Page.
+
+Select Credit card | CyberSource for Shopware6 Payment Method
+
+Place order.",,Order should be placed successfully.,,,
+,,"Login into CyberSource admin portal with valid creds.
+
+URL - https://ubctest.cybersource.com/ebc2/
+
+Expand 'Transaction Management' section from sidebar.
+
+Select 'Transactions' option.",,"Card details should be displayed in transactions logs if order placed with…
+
+Save card details
+
+Newly added card details
+
+Updated card details if previously save card",,,
+Refunds,Verify Refund button for placed order,"Login into localhost admin.
+
+Go to CyberSource for Shopware6 Configuration.
+
+Select any Transaction type.
+
+Auth only
+
+Auth and Capture
+
+Save changes",,Transaction type should be displayed as selected.,,,
+,,"Open DEMO Store site.
+
+Place order with Credit card | CyberSource for Shopware6 Payment Method",,Order placed successfully.,,,
+,,"Go to localhost admin.
+
+Expand 'Orders' section from sidebar.
+
+Select 'Overview' option.
+
+Open placed order log.
+
+Go to Details section.",,"When 'Auth and Capture' Transaction type is selected..
+
+Payment Status should be displayed as 'Paid' for placed order.
+
+'Refund' button should be displayed.
+
+When 'Auth only' Transaction type is selected..
+
+Payment Status should be displayed as 'Authorized' for placed order.
+
+'Capture' button should be displayed.
+
+Payment Status should be displayed as 'Paid' for placed order after click on 'Capture' button.
+
+'Refund' button should be displayed.",,,
+,,Click on ‘Refund’ button,,Payment Status should be displayed as 'Refunded' for placed order.,,,
+,,"Go to CyberSource admin portal.
+
+Expand 'Transaction Management' section from sidebar.
+
+Select 'Transactions' option.",,"Following type of Transaction logs should be displayed for placed order.
+
+Card Credit
+
+Entire order amount should be refunded of placed order.",,,
+Order modification,"Price Increased, Warning Modal Displayed",Admin clicks on the save button.,"Preconditions: Admin user is modifying an order with updated price, paid or partially refunded, and payment method is Cybersource.","A warning modal should appear, informing the admin that the price has been updated and further charging the customer is not possible. Admin should be prevented from updating the order.",,,
+,"Price Decreased, Refund Option Modal Displayed",Admin clicks on the save button.,"Preconditions: Admin user is modifying an order with reduced price, paid or partially refunded, and payment method is Cybersource.","A warning modal should appear, informing the admin that the price has been reduced. Admin should be prompted with an option to initiate a refund to the Cybersource card.",,,
+,Admin Initiates Refund for Reduced Price,"Admin selects ""Yes"" to initiate a refund.",Preconditions: Admin user is prompted with a refund option modal for a reduced price order.,The system should initiate a refund of the delta amount to the Cybersource card upon successful refund. The order should be saved after the refund is successful.,,,
+,Admin Chooses Not to Refund for Reduced Price,"Admin selects ""No"" to not initiate a refund.",Preconditions: Admin user is prompted with a refund option modal for a reduced price order.,The system should proceed with the native save method and close the modal without initiating a refund. The order should be saved with the reduced price.,,,
+,Order Modification with Unchanged Price,Admin clicks on the save button.,Preconditions: Admin user is modifying an order without changing the price.,No warning modal should appear as there is no change in price. Admin should be able to update the order without any restrictions.,,,

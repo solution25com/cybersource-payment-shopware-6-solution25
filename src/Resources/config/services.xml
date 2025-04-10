@@ -27,9 +27,14 @@
 
         <service id="CyberSource\Shopware6\Gateways\CreditCard">
             <argument type="service" id="CyberSource\Shopware6\Service\ConfigurationService" />
+            <argument type="service" id="CyberSource\Shopware6\Validation\CardValidator" />
+            <argument type="service" id="CyberSource\Shopware6\Library\RequestObject\PaymentAuthFactory" />
             <argument type="service" id="CyberSource\Shopware6\Library\CyberSourceFactory" />
             <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler" />
             <argument type="service" id="order_transaction.repository"/>
+            <argument type="service" id="customer.repository"/>
+            <argument type="service" id="request_stack"/>
+            <argument type="service" id="translator" />
             <tag name="shopware.payment.method.sync" />
         </service>
 
@@ -43,21 +48,16 @@
         <!-- Controllers -->
         <service id="CyberSource\Shopware6\Controllers\CyberSourceController" public="true">
             <argument type="service" id="order_transaction.repository"/>
-            <argument type="service" id="order.repository"/>
-            <argument type="service" id="CyberSource\Shopware6\Service\ConfigurationService"/>
-            <argument type="service" id="CyberSource\Shopware6\Library\CyberSourceFactory"/>
-            <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler"/>
-            <argument type="service" id="translator"/>
-            <argument type="service" id="Shopware\Core\Checkout\Cart\SalesChannel\CartService"/>
-            <argument type="service" id="Shopware\Core\Checkout\Order\SalesChannel\OrderService"/>
-            <argument type="service" id="Shopware\Core\System\StateMachine\StateMachineRegistry"/>
-            <argument type="service" id="logger"/>
+            <argument type="service" id="CyberSource\Shopware6\Service\ConfigurationService" />
+            <argument type="service" id="CyberSource\Shopware6\Library\CyberSourceFactory" />
+            <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler" />
+            <argument type="service" id="translator" />
             <call method="setContainer">
                 <argument type="service" id="service_container"/>
             </call>
         </service>
-        <service id="CyberSource\Shopware6\Migration\Migration1744014980AddCustomPaymentStates">
-            <tag name="shopware.migration"/>
-        </service>
+        <!-- Controllers -->
+
+
     </services>
 </container>

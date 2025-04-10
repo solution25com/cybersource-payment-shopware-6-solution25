@@ -6,16 +6,15 @@ namespace CyberSource\Shopware6\Objects;
 
 class Card
 {
-    private readonly string $transientToken;
+    private readonly string $number;
+    private readonly int $securityCode;
     private readonly int $expirationMonth;
     private readonly int $expirationYear;
 
-    public function __construct(
-        string $transientToken,
-        int $expirationMonth,
-        int $expirationYear
-    ) {
-        $this->transientToken = $transientToken;
+    public function __construct(string $number, int $expirationMonth, int $expirationYear, int $securityCode)
+    {
+        $this->number = $number;
+        $this->securityCode = $securityCode;
         $this->expirationMonth = $expirationMonth;
         $this->expirationYear = $expirationYear;
     }
@@ -23,25 +22,24 @@ class Card
     public function toArray(): array
     {
         return [
-            'tokenInformation' => [
-                'transientTokenJwt' => $this->transientToken
-            ],
             'paymentInformation' => [
                 'card' => [
-                    'expirationMonth' => str_pad((string) $this->expirationMonth, 2, '0', STR_PAD_LEFT),
-                    'expirationYear' => (string) $this->expirationYear
-                ]
-            ]
+                    'expirationYear' => $this->convertTwoDigitYearToFourDigit($this->expirationYear),
+                    'number' => $this->number,
+                    'securityCode' => $this->securityCode,
+                    'expirationMonth' => $this->expirationMonth,
+                ],
+            ],
         ];
     }
 
     public function toInstrumentArray(): array
     {
-        return [];
-//            'card' => [
-//                'number' => $this->number,
-//            ],
-//        ];
+        return [
+            'card' => [
+                'number' => $this->number,
+            ],
+        ];
     }
 
     public function toPaymentInstrumentCardArray(): array
@@ -144,7 +142,7 @@ class Card
         }
 
         // No need to throw an exception here as we have already caught exceptions
-        // on the Cybersource save card REST API endpoint in the main file.
+        // on the CybersourceSw6Solution25 save card REST API endpoint in the main file.
         return '';
     }
 }

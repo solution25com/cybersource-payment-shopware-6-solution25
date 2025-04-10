@@ -10,10 +10,13 @@ class CardMapper
 {
     public static function mapToCard(array $cardInformation): Card
     {
-        return new Card(
-            $cardInformation['transientToken'],
-            (int) $cardInformation['cardExpirationMonth'],
-            (int) $cardInformation['cardExpirationYear']
-        );
+        $cardExpiryData = explode("/", $cardInformation['expirationDate']);
+        $number = (string) $cardInformation['cardNumber'];
+        $securityCode = (int) $cardInformation['securityCode'];
+
+        $expirationMonth = (int) $cardExpiryData[0];
+        $expirationYear = (int) $cardExpiryData[1];
+
+        return new Card($number, $expirationMonth, $expirationYear, $securityCode);
     }
 }

@@ -33,7 +33,8 @@ use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStat
 class CreditCardTest extends TestCase
 {
     private OrderTransactionStateHandler $orderTransactionStateHandler;
-    private EntityRepository $mockEntityRepo;
+
+    private EntityRepository $orderTransactionRepo;
 
     private $requestDataBag;
     protected function setUp(): void
@@ -46,7 +47,7 @@ class CreditCardTest extends TestCase
         $this->orderTransactionStateHandler->expects($this->any())
                 ->method('paid');
 
-        $this->mockEntityRepo = $this->getMockBuilder(EntityRepository::class)
+        $this->orderTransactionRepo = $this->getMockBuilder(EntityRepository::class)
             ->disableOriginalConstructor()
             ->getMock();
 
@@ -124,11 +125,10 @@ class CreditCardTest extends TestCase
             $mockPaymentAuthFactory,
             $mockCyberSourceFactory,
             $this->orderTransactionStateHandler,
-            $this->mockEntityRepo,
-            $this->mockEntityRepo,
+            $this->orderTransactionRepo,
+            $this->orderTransactionRepo,
             $mockRequestStack,
-            $mockTranslaterInterface,
-            $this->mockEntityRepo,
+            $mockTranslaterInterface
         );
 
         $paymentHandler->pay($transaction, $this->requestDataBag, $salesChannelContext);
@@ -190,11 +190,10 @@ class CreditCardTest extends TestCase
             $mockPaymentAuthFactory,
             $mockCyberSourceFactory,
             $this->orderTransactionStateHandler,
-            $this->mockEntityRepo,
-            $this->mockEntityRepo,
+            $this->orderTransactionRepo,
+            $this->orderTransactionRepo,
             $mockRequestStack,
-            $mockTranslaterInterface,
-            $this->mockEntityRepo
+            $mockTranslaterInterface
         );
 
         $paymentHandler->pay($transaction, $this->requestDataBag, $salesChannelContext);
@@ -260,11 +259,10 @@ class CreditCardTest extends TestCase
             $mockPaymentAuthFactory,
             $mockCyberSourceFactory,
             $this->orderTransactionStateHandler,
-            $this->mockEntityRepo,
-            $this->mockEntityRepo,
+            $this->orderTransactionRepo,
+            $this->orderTransactionRepo,
             $mockRequestStack,
-            $mockTranslaterInterface,
-            $this->mockEntityRepo
+            $mockTranslaterInterface
         );
 
         $this->expectException(InvalidRequestException::class);
@@ -310,11 +308,10 @@ class CreditCardTest extends TestCase
             $mockPaymentAuthFactory,
             $mockCyberSourceFactory,
             $this->orderTransactionStateHandler,
-            $this->mockEntityRepo,
-            $this->mockEntityRepo,
+            $this->orderTransactionRepo,
+            $this->orderTransactionRepo,
             $mockRequestStack,
-            $mockTranslaterInterface,
-            $this->mockEntityRepo
+            $mockTranslaterInterface
         );
 
         $this->expectException(APIException::class);
@@ -431,11 +428,10 @@ class CreditCardTest extends TestCase
             $mockPaymentAuthFactory,
             $mockCyberSourceFactory,
             $this->orderTransactionStateHandler,
-            $this->mockEntityRepo,
+            $this->orderTransactionRepo,
             $mockEntityRepository,
             $mockRequestStack,
-            $mockTranslaterInterface,
-            $this->mockEntityRepo
+            $mockTranslaterInterface
         );
 
         $paymentHandler->pay($transaction, $databgRequest, $salesChannelContext);
@@ -578,11 +574,10 @@ class CreditCardTest extends TestCase
             $mockPaymentAuthFactory,
             $mockCyberSourceFactory,
             $this->orderTransactionStateHandler,
-            $this->mockEntityRepo,
+            $this->orderTransactionRepo,
             $mockEntityRepository,
             $mockRequestStack,
-            $mockTranslaterInterface,
-            $this->mockEntityRepo
+            $mockTranslaterInterface
         );
 
         $paymentHandler->pay($transaction, $databgRequest, $salesChannelContext);
@@ -730,11 +725,10 @@ class CreditCardTest extends TestCase
             $mockPaymentAuthFactory,
             $mockCyberSourceFactory,
             $this->orderTransactionStateHandler,
-            $this->mockEntityRepo,
+            $this->orderTransactionRepo,
             $mockEntityRepository,
             $mockRequestStack,
-            $mockTranslaterInterface,
-            $this->mockEntityRepo
+            $mockTranslaterInterface
         );
 
         $paymentHandler->pay($transaction, $databgRequest, $salesChannelContext);
@@ -881,11 +875,10 @@ class CreditCardTest extends TestCase
             $mockPaymentAuthFactory,
             $mockCyberSourceFactory,
             $this->orderTransactionStateHandler,
-            $this->mockEntityRepo,
+            $this->orderTransactionRepo,
             $mockEntityRepository,
             $mockRequestStack,
-            $mockTranslaterInterface,
-            $this->mockEntityRepo
+            $mockTranslaterInterface
         );
 
         $paymentHandler->pay($transaction, $databgRequest, $salesChannelContext);
@@ -1031,11 +1024,10 @@ class CreditCardTest extends TestCase
             $mockPaymentAuthFactory,
             $mockCyberSourceFactory,
             $this->orderTransactionStateHandler,
-            $this->mockEntityRepo,
+            $this->orderTransactionRepo,
             $mockEntityRepository,
             $mockRequestStack,
-            $mockTranslaterInterface,
-            $this->mockEntityRepo
+            $mockTranslaterInterface
         );
 
         $paymentHandler->pay($transaction, $databgRequest, $salesChannelContext);

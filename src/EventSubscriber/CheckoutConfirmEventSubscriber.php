@@ -50,7 +50,7 @@ class CheckoutConfirmEventSubscriber implements EventSubscriberInterface
         }
         $templateVariables = new CheckoutTemplateCustomData();
         $templateVariables->assign([
-            'template' => '@Storefront/cybersource_shopware6/credit-card-iframe.html.twig',
+            'template' => '@Storefront/cybersource_shopware6/credit-card.html.twig',
             'savedCards' => $savedCards,
             'isGuestLogin' => $isGuestLogin,
         ]);

@@ -1,6 +1,3 @@
-![Cybersourcezzzzzz](https://github.com/user-attachments/assets/868b6374-f95a-4d73-a33f-41c97a8a5271)
-
-
 # Cybersource Payment - Shopware 6 Plugin - Coming Soon
 
 ## ✨ Coming Soon - Shopware 6 Plugin
@@ -41,7 +38,7 @@ Once the plugin is released, you can install it using the following command:
 ```bash
 bin/console plugin:install --activate PluginName
 ```  
-For step-by-step installation instructions, please refer to the [Cybersource Installation Guide](https://github.com/solution25com/cybersource-payment-shopware-6-solution25/blob/main/INSTALLATION.md).  
+For step-by-step installation instructions, please refer to the [Cybersource Installation Guide](https://github.com/solution25com/cybersource-payment-shopware-6-solution25/blob/main/CYBERSOURCE_INSTALLATION_GUIDE.pdf).  
 
 ## 🚀 Developers & Contributions
 If you want to contribute to the development, feel free to fork the repository and submit pull requests.

@@ -1,0 +1,63 @@
+<?xml version="1.0" ?>
+
+<container xmlns="http://symfony.com/schema/dic/services"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
+
+    <services>
+        <service id="CyberSource\Shopware6\Validation\CardValidator"
+            class="CyberSource\Shopware6\Validation\CardValidator">
+            <argument type="service" id="translator" />
+        </service>
+
+        <service id="CyberSource\Shopware6\Service\ConfigurationService">
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+            <argument type="service" id="translator" />
+        </service>
+        
+        <service id="CyberSource\Shopware6\Library\RequestObject\PaymentAuthFactory"
+            class="CyberSource\Shopware6\Library\RequestObject\PaymentAuthFactory">
+            <argument type="service" id="translator" />
+        </service>
+
+        <service id="CyberSource\Shopware6\Library\CyberSourceFactory"
+            class="CyberSource\Shopware6\Library\CyberSourceFactory">
+            <argument type="service" id="translator" />
+        </service>
+
+        <service id="CyberSource\Shopware6\Gateways\CreditCard">
+            <argument type="service" id="CyberSource\Shopware6\Service\ConfigurationService" />
+            <argument type="service" id="CyberSource\Shopware6\Library\CyberSourceFactory" />
+            <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler" />
+            <argument type="service" id="order_transaction.repository"/>
+            <tag name="shopware.payment.method.sync" />
+        </service>
+
+        <!-- Event Subscribers -->
+        <service id="CyberSource\Shopware6\EventSubscriber\CheckoutConfirmEventSubscriber">
+            <argument type="service" id="customer.repository"/>
+            <tag name="kernel.event_subscriber"/>
+        </service>
+        <!-- End Event Subscribers -->
+
+        <!-- Controllers -->
+        <service id="CyberSource\Shopware6\Controllers\CyberSourceController" public="true">
+            <argument type="service" id="order_transaction.repository"/>
+            <argument type="service" id="order.repository"/>
+            <argument type="service" id="CyberSource\Shopware6\Service\ConfigurationService"/>
+            <argument type="service" id="CyberSource\Shopware6\Library\CyberSourceFactory"/>
+            <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler"/>
+            <argument type="service" id="translator"/>
+            <argument type="service" id="Shopware\Core\Checkout\Cart\SalesChannel\CartService"/>
+            <argument type="service" id="Shopware\Core\Checkout\Order\SalesChannel\OrderService"/>
+            <argument type="service" id="Shopware\Core\System\StateMachine\StateMachineRegistry"/>
+            <argument type="service" id="logger"/>
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+        </service>
+        <service id="CyberSource\Shopware6\Migration\Migration1744014980AddCustomPaymentStates">
+            <tag name="shopware.migration"/>
+        </service>
+    </services>
+</container>

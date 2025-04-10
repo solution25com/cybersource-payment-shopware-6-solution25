@@ -1,0 +1,32 @@
+{
+    "cybersource_shopware6": {
+        "refund": {
+            "buttonTitle": "Refund",
+            "successMessage": "Refund processed successfully."
+        },
+        "capture": {
+            "buttonTitle": "Capture",
+            "successMessage": "Your capture was successful."
+        },
+        "exception": {
+            "API_ERROR": "Authorization System or issuer system inoperative",
+            "REFUND_TRANSACTION_NOT_ALLOWED": "Refund allowed only for order with Paid payment status.",
+            "CYBERSOURCE_REFUND_AMOUNT_INCORRECT": "Order refund amount is not valid."
+        },
+        "orderSave": {
+            "buttonTitle": "Save"
+        },
+        "orderSaveConfirmationModal": {
+            "headline": "Warning",
+            "increased": {
+                "description":"It seems the total price has been updated with increased value, please revert price to original as it's not possible to capture",
+                "cancelButton": "Ok"
+            },
+            "decreased": {
+                "description":"It seems the price has been decreased from ${previousTotalAmount}, do you want to process refund for the difference?",
+                "cancelButton": "No, Just save the order",
+                "confirmButton": "Yes, please refund the remaining"
+            }
+        }
+    }
+}

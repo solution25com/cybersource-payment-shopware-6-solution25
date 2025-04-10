@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/shopware/trunk/src/Core/System/SystemConfig/Schema/config.xsd">
+
+    <card>
+        <title>Environment</title>
+        <title lang="de-DE">Environment</title>
+
+        <input-field type="bool">
+            <name>isProductionActive</name>
+            <label>Promote to Production</label>
+            <label lang="de-DE">Promote to Production</label>
+            <helpText>Capture and process payments on your live Cybersource account.</helpText>
+            <helpText lang="de-DE">Capture and process payments on your live Cybersource account.</helpText>
+        </input-field>
+    </card>
+
+    <card>
+        <title>Live Account Keys</title>
+        <title lang="de-DE">Live Account Keys</title>
+
+        <input-field>
+            <name>liveOrganizationID</name>
+            <label>Organization ID</label>
+            <label lang="de-DE">OrganizationID</label>
+            <helpText>You can create this from Dashboard -&gt; Create Key -&gt; Key Generation in your CyberSource account.</helpText>
+        </input-field>
+
+        <input-field>
+            <name>liveAccessKey</name>
+            <label>Access KEY</label>
+            <label lang="de-DE">AccessKey</label>
+            <helpText>You can create this from Dashboard -&gt; Create Key -&gt; Key Generation in your CyberSource account.</helpText>
+        </input-field>
+
+        <input-field>
+            <name>liveSharedSecretKey</name>
+            <label>Shared Secret Key</label>
+            <label lang="de-DE">Shared Secret Key</label>
+            <helpText>You can create this from Dashboard -&gt; Create Key -&gt; Key Generation in your CyberSource account.</helpText>
+        </input-field>
+    </card>
+
+    <card>
+        <title>Sandbox Account Keys</title>
+        <title lang="de-DE">Sandbox Account Keys</title>
+
+        <input-field>
+            <name>sandboxOrganizationID</name>
+            <defaultValue>testrest</defaultValue>
+            <label>Organization ID</label>
+            <label lang="de-DE">OrganizationID</label>
+            <placeholder>testrest</placeholder>
+            <helpText>You can create this from Dashboard -&gt; Create Key -&gt; Key Generation in your CyberSource account.</helpText>
+        </input-field>
+
+        <input-field>
+            <name>sandboxAccessKey</name>
+            <defaultValue>08c94330-f618-42a3-b09d-e1e43be5efda</defaultValue>
+            <label>Access KEY</label>
+            <label lang="de-DE">AccessKey</label>
+            <placeholder>08c94330-f618-42a3-b09d-e1e43be5efda</placeholder>
+            <helpText>You can create this from Dashboard -&gt; Create Key -&gt; Key Generation in your CyberSource account.</helpText>
+        </input-field>
+
+        <input-field>
+            <name>sandboxSharedSecretKey</name>
+            <defaultValue>yBJxy6LjM2TmcPGu+GaJrHtkke25fPpUX+UY6/L/1tE=</defaultValue>
+            <label>Shared Secret Key</label>
+            <label lang="de-DE">Shared Secret Key</label>
+            <placeholder>yBJxy6LjM2TmcPGu+GaJrHtkke25fPpUX+UY6/L/1tE=</placeholder>
+            <helpText>You can create this from Dashboard -&gt; Create Key -&gt; Key Generation in your CyberSource account.</helpText>
+        </input-field>
+    </card>
+
+    <card>
+        <title>Transaction Type</title>
+        <title lang="de-DE">Art der Transaktion</title>
+        <input-field type="single-select">
+            <name>transactionType</name>
+            <label>Transaction Type</label>
+            <label lang="de-DE">Art der Transaktion</label>
+            <helpText>Select any one transaction type</helpText>
+            <helpText lang="de-DE">Wählen Sie einen beliebigen Transaktionstyp aus</helpText>
+            <options>
+                <option>
+                    <id>auth</id>
+                    <name>Auth Only</name>
+                    <name lang="de-DE">Authentifizierung nur</name>
+                </option>
+                <option>
+                    <id>auth_capture</id>
+                    <name>Auth and Capture</name>
+                    <name lang="de-DE">Authentifizierung und Erfassung</name>
+                </option>
+            </options>
+            <defaultValue>auth</defaultValue>
+        </input-field>
+    </card>
+
+    <!-- TODO : JWT authentication implementation specific settings-->
+    <!--
+    <card>
+    <title>JWT Authentication Configuration</title>
+        <title lang="de-DE">API Authentication Configuration</title>
+        <component name="sw-media-field">
+            <name>jwtP12File</name>
+            <label>Select a P12 file to upload</label>
+        </component>
+    </card>
+    -->
+</config>

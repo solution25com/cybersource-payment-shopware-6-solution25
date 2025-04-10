@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!--
+  ~
+  ~ CyberSource for Shopware6 plugin
+  ~
+  ~ @author CyberSource <support@cybersource.com>
+  -->
+
+<ruleset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="PHP_CodeSniffer"
+         xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/squizlabs/PHP_CodeSniffer/master/phpcs.xsd">
+    <exclude-pattern>vendor/*</exclude-pattern>
+    <exclude-pattern>*.js</exclude-pattern>
+    <exclude-pattern>*.css</exclude-pattern>
+    <file>.</file>
+    <rule ref="PSR12">
+        <exclude-pattern>*.js</exclude-pattern>
+        <exclude-pattern>*.css</exclude-pattern>
+    </rule>
+</ruleset>

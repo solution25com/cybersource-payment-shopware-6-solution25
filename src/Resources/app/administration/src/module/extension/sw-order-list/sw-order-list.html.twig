@@ -1,0 +1,17 @@
+{% block sw_order_detail_details_payment_method_select %}
+    {% parent %}
+    <div class="cybersource-controls" v-if="isCyberSourceCreditCardPaymentMethod()">
+        <div class="refund-controls">
+            <sw-button-process v-if="(paymentStatus === 'open' || paymentStatus === 'authorized') && cybersourceTransactionId !== '' "
+                @click="onCaptureAction(cybersourceTransactionId)" :isLoading="buttonLoading">
+                {{ $tc('cybersource_shopware6.capture.buttonTitle') }}
+            </sw-button-process>
+        </div>
+
+        <div class="refund-controls">
+            <sw-button-process v-if="paymentStatus === 'paid' || paymentStatus === 'refunded_partially'" @click="onRefundAction(cybersourceTransactionId)" :isLoading="buttonLoading">
+             {{ $tc('cybersource_shopware6.refund.buttonTitle') }}
+            </sw-button-process>
+        </div>
+    </div>
+{% endblock %}

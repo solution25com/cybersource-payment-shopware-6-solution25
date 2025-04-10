@@ -1,0 +1,89 @@
+{% if page.extensions.cybersource_shopware6.isGuestLogin == '0' %}
+    <div class="saved-cards" id="saved-cards">
+        {% for savedCard in page.extensions.cybersource_shopware6.savedCards %}
+            {% for key, savedCardData in savedCard %}
+                <div class="form-check payment-method-radio">
+                    <input form="confirmOrderForm" class="form-check-input payment-method-input" type="radio" name="cybersource_shopware6_saved_card" id="{{ key }}" value="{{ key }}">
+
+                    <label class="form-check-label payment-method-label" for="{{ key }}">
+
+                        <div class="payment-method-description">
+                            <strong>
+                                {{ 'cybersource_shopware6.credit_card.existingCardLabel' | trans }} {{ savedCardData.last4Digits }}
+                            </strong>
+                            <p title="CyberSource Payment">{{ 'cybersource_shopware6.credit_card.existingCardDescription' | trans }}</p>
+                        </div>
+                    </label>
+                </div>
+            {% endfor %}
+        {% endfor %}
+
+        <div class="form-check payment-method-radio cybersource_shopware6_new_card_container">
+            <input form="confirmOrderForm" class="form-check-input payment-method-input" type="radio" name="cybersource_shopware6_saved_card" id="cybersource_shopware6_new_credit_card" value="cybersource_shopware6_new_credit_card">
+
+            <label class="form-check-label payment-method-label" for="cybersource_shopware6_new_credit_card">
+
+                <div class="payment-method-description">
+                    <strong>
+                        New credit card
+                    </strong>
+                    <p title="CyberSource Payment">CyberSource Payment</p>
+                </div>
+            </label>
+        </div>
+    </div>
+{% endif %}
+
+<div class="confirm-payment-creditcard cybersource_shopware6_container cybersource-payment-base"  id="cybersource-payment-base"  data-cybersource-payment-base="true">
+    <div class="row">
+        <div class="col-sm-6">
+            <div class="card checkout-card">
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="cybersource_shopware6_card_no">{{ 'cybersource_shopware6.credit_card.cardNumber' | trans }}</label>
+                        <input type="text" id="cybersource_shopware6_card_no" name="cybersource_shopware6_card_no" class="form-control" form="confirmOrderForm" placeholder="{{ 'cybersource_shopware6.credit_card.cardNumberPlaceholderText' | trans }}" data-error-msg="{{ 'cybersource_shopware6.credit_card.cardNumberErrorMessage' | trans }}" data-required-msg="{{ 'cybersource_shopware6.credit_card.cardNumberRequiredMessage' | trans }}" required>
+                        <small class="form-text text-muted error-container"></small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="cybersource_shopware6_expiry_date">{{ 'cybersource_shopware6.credit_card.expiryDate' | trans }} </label></label>
+                                <input type="text" id="cybersource_shopware6_expiry_date" name="cybersource_shopware6_expiry_date" maxlength="5" class="form-control" form="confirmOrderForm" placeholder="{{ 'cybersource_shopware6.credit_card.expiryDatePlaceholderText' | trans }}" data-error-msg="{{ 'cybersource_shopware6.credit_card.expiryDateErrorMessage' | trans }}" data-required-msg="{{ 'cybersource_shopware6.credit_card.expiryDateRequiredMessage' | trans }}" required>
+                                <small class="form-text text-muted error-container"></small>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="cybersource_shopware6_security_code">{{ 'cybersource_shopware6.credit_card.securityCode' | trans }} </label></label>
+                                <input type="text" id="cybersource_shopware6_security_code" name="cybersource_shopware6_security_code" maxlength="4" class="form-control" form="confirmOrderForm" placeholder="{{ 'cybersource_shopware6.credit_card.securityCodePlaceholderText' | trans }}" data-error-msg="{{ 'cybersource_shopware6.credit_card.securityErrorMessage' | trans }}" data-required-msg="{{ 'cybersource_shopware6.credit_card.securityRequiredMessage' | trans }}" required>
+                                <small class="form-text text-muted error-container"></small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% if page.extensions.cybersource_shopware6.isGuestLogin == '0' %}
+        <div class="row">
+            <div class="col-sm-6">
+                <div class="form-group">
+                    <div class="form-check cybersource_shopware6_save_card_container">
+                        <input type="checkbox"
+                           class="form-check-input"
+                           id="cybersource_shopware6_save_card"
+                           form="confirmOrderForm"
+                           name="cybersource_shopware6_save_card">
+
+                        <label for="cybersource_shopware6_save_card"
+                           class="custom-control-label">
+                            {{ 'cybersource_shopware6.credit_card.saveCardLabel' | trans }}
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>

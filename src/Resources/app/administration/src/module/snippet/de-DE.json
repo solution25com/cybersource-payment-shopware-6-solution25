@@ -1,0 +1,32 @@
+{
+    "cybersource_shopware6": {
+        "refund": {
+            "buttonTitle": "Erstattung",
+            "successMessage": "Rückerstattung erfolgreich bearbeitet."
+        },
+        "capture": {
+            "buttonTitle": "Erfassen",
+            "successMessage": "Ihr Erfassung war erfolgreich."
+        },
+        "exception": {
+            "API_ERROR": "Das Autorisierungssystem oder das Ausstellersystem ist nicht funktionsfähig",
+            "REFUND_TRANSACTION_NOT_ALLOWED": "Eine Rückerstattung ist nur für Bestellungen mit dem Zahlungsstatus „Bezahlt“ möglich."
+        },
+        "orderSave": {
+            "buttonTitle": "Save"
+        },
+        "orderSaveConfirmationModal": {
+            "headline": "Warning",
+            "increased": {
+                "description":"It seems the total price has been increased, are you sure to update order as it won't reflect into cybersource transaction?",
+                "cancelButton": "No",
+                "confirmButton": "Yes"
+            },
+            "decreased": {
+                "description":"It seems the price has been decreased from {previousTotalAmount}, do you want to process refund for the difference?",
+                "cancelButton": "No, Just save the order",
+                "confirmButton": "Yes, please refund the remaining"
+            }
+        }
+    }
+}

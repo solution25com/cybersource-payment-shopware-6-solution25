@@ -1,0 +1,16 @@
+{% sw_extends '@Storefront/storefront/page/account/order/index.html.twig' %}
+
+{% block page_checkout_confirm_header %}
+	{% if page.errorCode is not null %}
+        {% set errorMessage =  'cybersource_shopware6.exception.' ~ page.errorCode %}
+
+        {% sw_include '@Storefront/storefront/utilities/alert.html.twig' with {
+            type: 'danger',
+            content: errorMessage|trans|sw_sanitize
+        } %}
+    {% endif %}
+
+    <h1 class="confirm-main-header">
+        {{ "account.completePayment"|trans|sw_sanitize }}
+    </h1>
+{% endblock %}

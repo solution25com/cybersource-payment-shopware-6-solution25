@@ -1,0 +1,12 @@
+{
+  "cybersource": {
+    "label": {
+      "en-GB": "CyberSource Payment",
+      "de-DE": "CyberSource Zahlung"
+    },
+    "description": {
+      "en-GB": "Pay securely with your credit card via CyberSource.",
+      "de-DE": "Bezahlen Sie sicher mit Ihrer Kreditkarte über CyberSource."
+    }
+  }
+}

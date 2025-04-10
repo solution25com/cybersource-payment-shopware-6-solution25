@@ -1,0 +1,55 @@
+{
+  "name": "cybersource/shopware6",
+  "description": "CyberSource for Shopware6",
+  "type": "shopware-platform-plugin",
+  "version": "v0.0.1",
+  "authors": [
+    {
+      "name": "Visa Inc",
+      "role": "Organization"
+    }
+  ],
+  "license": "MIT",
+  "require": {
+    "shopware/core": ">=6.6.5.0 <6.7.0",
+    "shopware/storefront": ">=6.6.5.0 <6.7.0",
+    "symfony/http-client": "~7.1",
+    "ext-json": "*",
+    "fakerphp/faker": "^1.23"
+  },
+  "autoload": {
+    "psr-4": {
+      "CyberSource\\Shopware6\\": "src/"
+    }
+  },
+  "extra": {
+    "shopware-plugin-class": "CyberSource\\Shopware6\\CyberSourceShopware6",
+    "label": {
+      "de-DE": "CyberSource for Shopware6",
+      "en-GB": "CyberSource for Shopware6"
+    }
+  },
+  "require-dev": {
+    "squizlabs/php_codesniffer": "^3.5",
+    "phpunit/phpunit": "^9",
+    "phpstan/phpstan": "^1.10",
+    "mockery/mockery": "^1.6"
+  },
+  "config": {
+    "allow-plugins": {
+        "symfony/*": true
+    }
+  },
+  "scripts": {
+    "post-install-cmd": [
+      "@enable-precommit"
+    ],
+    "post-update-cmd": [
+      "@enable-precommit"
+    ],
+    "enable-precommit": [
+        "cp ./pre-commit .git/hooks/pre-commit",
+        "chmod +x .git/hooks/pre-commit"
+    ]
+  }
+}

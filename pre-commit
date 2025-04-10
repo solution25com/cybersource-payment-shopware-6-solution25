@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# Stash changes to ensure we only lint and test the files being committed
+git stash -q --keep-index
+
+# Run PHP linting
+sh ./pre-commit-checks/php-lint.sh
+if [ $? -ne 0 ]; then
+    echo "PHP lint check failed. Please fix the errors before committing."
+    git stash pop -q
+    exit 1
+fi
+
+# Run PHP_CodeSniffer for PSR coding standards
+sh ./pre-commit-checks/phpcs-check.sh
+if [ $? -ne 0 ]; then
+    echo "PSR coding standards check failed. Please fix the coding standards violations before committing."
+    git stash pop -q
+    exit 1
+fi
+
+# Run PHP Stan for static analysis
+sh ./pre-commit-checks/phpstan-check.sh
+if [ $? -ne 0 ]; then
+    echo "PHP Stan check failed. Please fix the coding standards violations before committing."
+    git stash pop -q
+    exit 1
+fi
+
+# Run unit tests
+sh ./pre-commit-checks/unit-test.sh
+if [ $? -ne 0 ]; then
+    echo "Unit tests failed. Please fix the failing tests before committing."
+    git stash pop -q
+    exit 1
+fi
+
+#Run Smart Commit Validation
+
+commit_msg_file=$(git rev-parse --git-dir)/COMMIT_EDITMSG
+
+# Validate commit message using the separate script
+sh ./pre-commit-checks/smart-commit.sh "$commit_msg_file"
+
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+# Pop the stash, restoring changes
+git stash pop -q
+
+exit 0

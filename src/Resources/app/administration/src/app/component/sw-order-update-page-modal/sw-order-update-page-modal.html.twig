@@ -1,0 +1,56 @@
+{% block sw_order_update_page_modal %}
+<sw-modal
+    :title="$tc('cybersource_shopware6.orderSaveConfirmationModal.headline')"
+    variant="small"
+    @modal-close="onClose"
+>
+
+    {% block sw_order_update_page_modal_content %}
+    <template v-if="hasPriceIncreased === true">
+        {{ $tc('cybersource_shopware6.orderSaveConfirmationModal.increased.description') }}
+    </template>
+    <template v-else>
+        <div
+            v-html="amountDecreasedDescription"
+        >
+        </div>
+    </template>
+    {% endblock %}
+
+    <template #modal-footer>
+        {% block sw_order_update_page_modal_actions %}
+
+        {% block sw_order_update_page_modal_action_cancel %}
+        <template v-if="hasPriceIncreased === true">
+            <sw-button
+                size="small"
+                @click="onCancel"
+            >
+                {{ $tc('cybersource_shopware6.orderSaveConfirmationModal.increased.cancelButton') }}
+            </sw-button>
+        </template>
+        <template v-else>
+            <sw-button
+                size="small"
+                @click="onCancel"
+            >
+                {{ $tc('cybersource_shopware6.orderSaveConfirmationModal.decreased.cancelButton') }}
+            </sw-button>
+        </template>
+        {% endblock %}
+
+        {% block sw_order_update_page_modal_action_confirm %}
+        <template v-if="hasPriceIncreased !== true">
+        <sw-button
+            variant="primary"
+            size="small"
+            @click="onConfirm"
+        >
+            {{ $tc('cybersource_shopware6.orderSaveConfirmationModal.decreased.confirmButton') }}
+        </sw-button>
+        </template>
+        {% endblock %}
+        {% endblock %}
+    </template>
+</sw-modal>
+{% endblock %}

@@ -1,5 +1,4 @@
-![Cybersourcezzzzzz](https://github.com/user-attachments/assets/868b6374-f95a-4d73-a33f-41c97a8a5271)
-
+![416718745-868b6374-f95a-4d73-a33f-41c97a8a5271](https://github.com/user-attachments/assets/1bc30430-6496-4dca-ba59-a4c2d52a1520)
 
 # Cybersource Payment - Shopware 6 Plugin - Coming Soon
 

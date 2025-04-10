@@ -71,13 +71,7 @@ class CyberSourceShopware6 extends Plugin
             'name' => $paymentMethod->getName(),
             'description' => $paymentMethod->getDescription(),
             'pluginId' => $pluginId,
-            'afterOrderEnabled' => true,
-            'translations' => [
-                '2fbb5fe2e29a4d70aa5854ce7ce3e20b' => [
-                    'name' => $paymentMethod->getName(),
-                    'description' => $paymentMethod->getDescription(),
-                ],
-            ],
+            'afterOrderEnabled' => true
         ];
 
         $paymentRepository = $this->getDependency('payment_method.repository');

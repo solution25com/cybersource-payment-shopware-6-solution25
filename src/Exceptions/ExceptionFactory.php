@@ -15,6 +15,7 @@ class ExceptionFactory implements ExceptionFactoryContract
         $this->orderTransactionId = $orderTransactionId;
         $this->response = $response;
 
+        $status = $response['status'];
         $reason = $response['errorInformation']['reason'] ?? 'API_ERROR';
         $message = $response['errorInformation']['message'] ?? '';
 

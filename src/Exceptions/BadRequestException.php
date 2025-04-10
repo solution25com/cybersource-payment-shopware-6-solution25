@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace CyberSource\Shopware6\Exceptions;
 
-use Symfony\Component\HttpFoundation\Response;
-use Shopware\Core\Checkout\Payment\PaymentException;
 use CyberSource\Shopware6\Exceptions\CyberSourceException;
+use Symfony\Component\HttpFoundation\Response;
 
 class BadRequestException extends CyberSourceException
 {
@@ -16,8 +15,7 @@ class BadRequestException extends CyberSourceException
         string $message = '',
         \Throwable $previous = null
     ) {
-        $exception = PaymentException::syncProcessInterrupted($orderTransactionId, $message);
-        parent::__construct($exception->getCode(), $this->getErrorCode(), $exception->getMessage(), [], $previous);
+        parent::__construct($orderTransactionId, $message, $previous);
         $this->errorCode = $errorCode;
     }
 

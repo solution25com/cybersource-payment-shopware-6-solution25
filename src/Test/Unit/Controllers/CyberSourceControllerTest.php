@@ -11,7 +11,6 @@ use CyberSource\Shopware6\Library\CyberSource;
 use Shopware\Core\System\Currency\CurrencyEntity;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use CyberSource\Shopware6\Exceptions\APIException;
-use Shopware\Core\Checkout\Payment\PaymentException;
 use CyberSource\Shopware6\Library\CyberSourceFactory;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use CyberSource\Shopware6\Service\ConfigurationService;
@@ -32,6 +31,7 @@ use CyberSource\Shopware6\Library\RequestSignature\Contract as RequestSignatureC
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler;
 use Shopware\Core\System\StateMachine\Aggregation\StateMachineState\StateMachineStateEntity;
 use Shopware\Core\Framework\DataAbstractionLayer\Event\EntityWrittenContainerEvent;
+use CyberSource\Shopware6\Exceptions\BadRequestException;
 
 class CyberSourceControllerTest extends TestCase
 {
@@ -46,6 +46,7 @@ class CyberSourceControllerTest extends TestCase
     private $mockContext;
     private $mockRequest;
     private $translator;
+    private $orderLineItemRepository;
 
     protected function setUp(): void
     {
@@ -62,6 +63,7 @@ class CyberSourceControllerTest extends TestCase
         $this->mockContext = $this->createMock(Context::class);
         $this->mockRequest = Mockery::mock(Request::class);
         $this->translator = $this->createMock(TranslatorInterface::class);
+        $this->orderLineItemRepository = Mockery::mock(EntityRepository::class);
     }
 
     public function testGetShopwareOrderTransactionDetails()
@@ -761,7 +763,7 @@ class CyberSourceControllerTest extends TestCase
         $this->translator->expects($this->once())
             ->method('trans')
             ->willReturn('cybersource_shopware6.exception.CYBERSOURCE_REFUND_AMOUNT_INCORRECT');
-        $this->expectException(PaymentException::class);
+        $this->expectException(BadRequestException::class);
 
         $this->controllerInstance->orderRefund(
             $this->orderId,
@@ -907,7 +909,7 @@ class CyberSourceControllerTest extends TestCase
         $this->translator->expects($this->once())
             ->method('trans')
             ->willReturn('cybersource_shopware6.exception.CYBERSOURCE_REFUND_AMOUNT_INCORRECT');
-        $this->expectException(PaymentException::class);
+        $this->expectException(BadRequestException::class);
 
         $this->controllerInstance->orderRefund(
             $this->orderId,
@@ -931,7 +933,7 @@ class CyberSourceControllerTest extends TestCase
         $this->translator->expects($this->once())
             ->method('trans')
             ->willReturn('cybersource_shopware6.exception.CYBERSOURCE_REFUND_AMOUNT_INCORRECT');
-        $this->expectException(PaymentException::class);
+        $this->expectException(BadRequestException::class);
 
         $this->controllerInstance->orderRefund(
             $this->orderId,

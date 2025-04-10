@@ -11,9 +11,9 @@
   ],
   "license": "MIT",
   "require": {
-    "shopware/core": ">=6.6.5.0 <6.7.0",
-    "shopware/storefront": ">=6.6.5.0 <6.7.0",
-    "symfony/http-client": "~7.1",
+    "shopware/core": "^6.5.0.0",
+    "shopware/storefront": "^6.5.0.0",
+    "symfony/http-client": "^6.3",
     "ext-json": "*",
     "fakerphp/faker": "^1.23"
   },

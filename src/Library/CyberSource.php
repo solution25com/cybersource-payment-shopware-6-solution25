@@ -139,8 +139,4 @@ class CyberSource
             $requestData->getCybersourceCustomerRequestPayload($customerId, $email)
         );
     }
-    public function getPaymentStatus(string $transactionId): array
-    {
-        return $this->apiClient->getData(self::PAYMENT_URL . $transactionId);
-    }
 }

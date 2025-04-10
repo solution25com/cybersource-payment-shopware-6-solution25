@@ -10,8 +10,7 @@
         },
         "exception": {
             "API_ERROR": "Authorization System or issuer system inoperative",
-            "REFUND_TRANSACTION_NOT_ALLOWED": "Refund allowed only for order with Paid payment status.",
-            "CYBERSOURCE_REFUND_AMOUNT_INCORRECT": "Order refund amount is not valid."
+            "REFUND_TRANSACTION_NOT_ALLOWED": "Refund allowed only for order with Paid payment status."
         },
         "orderSave": {
             "buttonTitle": "Save"

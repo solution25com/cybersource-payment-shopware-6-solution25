@@ -37,7 +37,7 @@ class BillTo
 
     /**
      * Returns the billing data as an array.
-     * Note: Cybersource does not support empty or null values and excludes them.
+     * Note: CybersourceSw6Solution25 does not support empty or null values and excludes them.
      *
      * @return array
      */

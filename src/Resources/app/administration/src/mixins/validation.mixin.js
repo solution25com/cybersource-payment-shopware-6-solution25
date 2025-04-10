@@ -22,12 +22,6 @@ Mixin.register('api-validation-errors', {
                         autoClose: true,
                     });
                     break;
-                case 'CHECKOUT__REFUND_PROCESS_INTERRUPTED':
-                    this.createNotificationError({
-                        message: this.$tc('cybersource_shopware6.exception.CYBERSOURCE_REFUND_AMOUNT_INCORRECT'),
-                        autoClose: true,
-                    });
-                    break;
             }
         }
     }

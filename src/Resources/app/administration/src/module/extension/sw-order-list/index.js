@@ -1,7 +1,6 @@
 import template from './sw-order-list.html.twig';
 
 const { Component, Mixin } = Shopware;
-const { mapState } = Component.getComponentHelper();
 
 Component.override('sw-order-detail-details', {
     template,
@@ -25,12 +24,6 @@ Component.override('sw-order-detail-details', {
             buttonLoading: false,
             totalAmount: 0
         };
-    },
-
-    computed: {
-        ...mapState('swOrderDetail', [
-            'order'
-        ]),
     },
 
     methods: {
@@ -85,7 +78,7 @@ Component.override('sw-order-detail-details', {
                 return false;
             }
 
-            this.orderId = this.order.id;
+            this.orderId = this.$route.params.id;
             this.CybersourceOrderService.getOrderByOrderId(this.orderId).then((orderDetailsReponse) => {
 
                 this.cybersourceTransactionId = orderDetailsReponse['cybersource_transaction_id'];

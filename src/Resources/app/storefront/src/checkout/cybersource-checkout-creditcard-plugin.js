@@ -1,4 +1,6 @@
-export default class CyberSourceShopware6CreditCard extends window.PluginBaseClass {
+import Plugin from 'src/plugin-system/plugin.class';
+
+export default class CyberSourceShopware6CreditCard extends Plugin {
 
     static options = {
         confirmFormId: 'confirmOrderForm',

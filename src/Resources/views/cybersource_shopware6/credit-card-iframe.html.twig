@@ -16,6 +16,8 @@
         <div id="expiry-error" class="error-message">Please enter a valid expiration date.</div>
     </div>
     <input id="cybersource_transaction_id" type="hidden" name="cybersource_transaction_id" value="">
+    <input id="cybersource_payment_status" type="hidden" name="cybersource_payment_status" value="">
+    <input id="cybersource_payment_uniqid" type="hidden" name="cybersource_payment_uniqid" value="">
     <div class="d-grid">
         <button id="confirmOrderButton" class="pay-btn btn" type="button">Pay Now</button>
     </div>
@@ -134,7 +136,8 @@
                     return;
                 }
                 document.getElementById('cybersource_transaction_id').value = data.transactionId;
-
+                document.getElementById('cybersource_payment_status').value = data.status;
+                document.getElementById('cybersource_payment_uniqid').value = data.uniqid;
                 switch (data.action) {
                     case 'complete':
                         const submitButton = document.getElementById('confirmFormSubmit');
@@ -166,7 +169,27 @@
             })
             .catch(err => console.error('Payment error:', err));
     }
-
+    window.addEventListener('message', function (event) {
+        const data = event.data;
+        if (data.action) {
+            document.getElementById('cybersource_transaction_id').value = data.transactionId;
+            document.getElementById('cybersource_payment_status').value = data.status;
+            document.getElementById('cybersource_payment_uniqid').value = data.uniqid;
+            switch (data.action) {
+                case 'complete':
+                    const submitButton = document.getElementById('confirmFormSubmit');
+                    if (submitButton) {
+                        submitButton.click();
+                    }
+                    break;
+                case 'notify':
+                    alert(data.message);
+                    break;
+                default:
+                    alert('Unknown action: ' + data.action);
+            }
+        }
+    });
     function showError(message) {
         const monthInput = document.getElementById('expMonth');
         const yearInput = document.getElementById('expYear');

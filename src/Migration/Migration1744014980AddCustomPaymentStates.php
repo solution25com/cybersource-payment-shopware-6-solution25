@@ -129,7 +129,7 @@ class Migration1744014980AddCustomPaymentStates extends MigrationStep
             ],
             // pending_review -> paid
             [
-                'action_name' => 'authorize',
+                'action_name' => 'paid_authorized',
                 'from_state_id' => $pendingReviewStateId,
                 'to_state_id' => $paidStateId,
             ],

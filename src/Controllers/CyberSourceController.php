@@ -415,10 +415,10 @@ class CyberSourceController extends AbstractController
                 'country' => $billingAddress->getCountry()->getIso()
             ];
         }
-
+        $uniqid = uniqid();
         $payload = json_encode([
             'clientReferenceInformation' => [
-                'code' => 'Order-' . uniqid()
+                'code' => 'Order-' . $uniqid
             ],
             'processingInformation' => [
                 'commerceIndicator' => 'internet',
@@ -471,40 +471,34 @@ class CyberSourceController extends AbstractController
             $transactionId = $responseData['id'] ?? null;
 
 
-            $orderId = null;
-//            if (in_array($status, ['AUTHORIZED', 'AUTHORIZED_PENDING_REVIEW', 'PENDING_REVIEW'])) {
-//                $orderId = $this->orderService->createOrder($cart, $context);
-//                $this->logger->info('Order created with ID: ' . $orderId);
-//
-//                $this->updateOrderPaymentStatus($orderId, $status, $context);
-//
-//                $this->saveTransactionIdToOrder($orderId, $transactionId, $context);
-//            }
-
             switch ($status) {
                 case 'AUTHORIZED':
                     return new JsonResponse([
                         'success' => true,
                         'action' => 'complete',
+                        'status' => $status,
                         'transactionId' => $transactionId,
-                        'orderId' => $orderId,
+                        'uniqid' => $uniqid,
                         'message' => 'Payment authorized successfully.'
                     ]);
 
                 case 'PARTIAL_AUTHORIZED':
                     return new JsonResponse([
-                        'success' => false,
-                        'action' => 'notify',
+                        'success' => true,
+                        'action' => 'complete',
                         'transactionId' => $transactionId,
+                        'status' => $status,
+                        'uniqid' => $uniqid,
                         'message' => 'Payment partially authorized. Please contact support.'
                     ]);
 
                 case 'AUTHORIZED_PENDING_REVIEW':
                     return new JsonResponse([
-                        'success' => false,
-                        'action' => 'notify',
+                        'success' => true,
+                        'action' => 'complete',
                         'transactionId' => $transactionId,
-                        'orderId' => $orderId,
+                        'status' => $status,
+                        'uniqid' => $uniqid,
                         'message' => 'Payment has been authorized but is pending review by our team. We will notify you once the review is complete.'
                     ]);
 
@@ -526,6 +520,7 @@ class CyberSourceController extends AbstractController
                             'action' => '3ds',
                             'transactionId' => $transactionId,
                             'stepUpUrl' => $stepUpUrl,
+                            'uniqid' => $uniqid,
                             'accessToken' => $accessToken
                         ]);
                     }
@@ -537,10 +532,11 @@ class CyberSourceController extends AbstractController
 
                 case 'PENDING_REVIEW':
                     return new JsonResponse([
-                        'success' => false,
-                        'action' => 'notify',
+                        'success' => true,
+                        'action' => 'complete',
+                        'status' => $status,
                         'transactionId' => $transactionId,
-                        'orderId' => $orderId,
+                        'uniqid' => $uniqid,
                         'message' => 'Payment is under review before authorization. We will notify you once the review is complete.'
                     ]);
 
@@ -619,8 +615,6 @@ class CyberSourceController extends AbstractController
                 'status' => $status
             ]);
 
-            $orderId = null;
-
             if ($status === 'AUTHORIZED') {
                 $action = 'complete';
                 $message = '3DS authentication successful. Payment authorized.';
@@ -633,15 +627,15 @@ class CyberSourceController extends AbstractController
             }
 
             $html = <<<HTML
-            <script>
-                window.parent.postMessage({
-                    action: '$action',
-                    message: '$message',
-                    transactionId: '$transactionId',
-                    orderId: '$orderId'
-                }, '*');
-            </script>
-            HTML;
+        <script>
+            window.parent.postMessage({
+                action: '$action',
+                message: '$message',
+                transactionId: '$transactionId',
+                status: '$status'
+            }, '*');
+        </script>
+        HTML;
 
             return new Response($html, 200, ['Content-Type' => 'text/html']);
         } catch (\GuzzleHttp\Exception\RequestException $e) {
@@ -651,17 +645,17 @@ class CyberSourceController extends AbstractController
             ]);
 
             $html = <<<HTML
-            <script>
-                window.parent.postMessage({
-                    action: 'notify',
-                    message: 'Failed to verify payment status after 3DS: {$e->getMessage()}',
-                    transactionId: '$transactionId'
-                }, '*');
-            </script>
-            HTML;
+        <script>
+            window.parent.postMessage({
+                action: 'notify',
+                message: 'Failed to verify payment status after 3DS: {$e->getMessage()}',
+                transactionId: '$transactionId',
+                status: 'UNKNOWN'
+            }, '*');
+        </script>
+        HTML;
 
             return new Response($html, 500, ['Content-Type' => 'text/html']);
         }
     }
-
 }

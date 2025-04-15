@@ -200,4 +200,9 @@ class ConfigurationService
     {
         return $this->get('transactionType', $salesChannelId);
     }
+
+    public function isThreeDSEnabled() : bool
+    {
+        return (bool) $this->get('threeDS');
+    }
 }

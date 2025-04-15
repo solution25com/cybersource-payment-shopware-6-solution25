@@ -44,6 +44,7 @@ class CyberSourceController extends AbstractController
     private OrderService $orderService;
     private StateMachineRegistry $stateMachineRegistry;
     private LoggerInterface $logger;
+    private EntityRepository $customerRepository;
 
     public function __construct(
         EntityRepository $orderTransactionRepository,
@@ -55,7 +56,8 @@ class CyberSourceController extends AbstractController
         CartService $cartService,
         OrderService $orderService,
         StateMachineRegistry $stateMachineRegistry,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        EntityRepository $customerRepository
     ) {
         $this->orderTransactionRepository = $orderTransactionRepository;
         $this->orderRepository = $orderRepository;
@@ -67,6 +69,7 @@ class CyberSourceController extends AbstractController
         $this->orderService = $orderService;
         $this->stateMachineRegistry = $stateMachineRegistry;
         $this->logger = $logger;
+        $this->customerRepository = $customerRepository;
     }
 
     #[Route(
@@ -379,67 +382,65 @@ class CyberSourceController extends AbstractController
     )]
     public function authorizePayment(Request $request, SalesChannelContext $context): JsonResponse
     {
-        $token = $request->request->get('token');
-        if (!$token) {
-            return new JsonResponse(['error' => 'Missing token'], 400);
+        $data = json_decode($request->getContent(), true);
+        $token = $data['token'] ?? null;
+        $subscriptionId = $data['subscriptionId'] ?? null;
+        $saveCard = $data['saveCard'] ?? false;
+        $expirationMonth = $data['expirationMonth'] ?? null;
+        $expirationYear = $data['expirationYear'] ?? null;
+
+        if (!$token && !$subscriptionId) {
+            return new JsonResponse(['error' => 'Missing token or subscriptionId'], 400);
         }
 
-        $expirationMonth = $request->request->get('expirationMonth');
-        $expirationYear = $request->request->get('expirationYear');
-
         $signer = $this->configurationService->getSignatureContract();
-        $capture = $this->configurationService->getTransactionType() == 'auth_capture';
-        $endpoint = '/pts/v2/payments';
-
-        // Get cart and customer data from SalesChannelContext
         $cart = $this->cartService->getCart($context->getToken(), $context);
         $customer = $context->getCustomer();
         $billingAddress = $customer ? $customer->getActiveBillingAddress() : null;
 
-        // Dynamic amount and currency from cart
-        $amount = $cart->getPrice()->getTotalPrice();
+        $amount = (string) $cart->getPrice()->getTotalPrice();
         $currency = $context->getCurrency()->getIsoCode();
 
-        // Dynamic billTo from customer billing address
         $billTo = [];
-        if ($billingAddress) {
+        if ($billingAddress && $customer) {
             $billTo = [
-                'firstName' => $billingAddress->getFirstName(),
-                'lastName' => $billingAddress->getLastName(),
-                'email' => $customer->getEmail(),
+                'firstName' => $billingAddress->getFirstName() ?? 'Unknown',
+                'lastName' => $billingAddress->getLastName() ?? 'Unknown',
+                'email' => $customer->getEmail() ?? 'no-email@example.com',
                 'phoneNumber' => $billingAddress->getPhoneNumber() ?? '',
-                'address1' => $billingAddress->getStreet(),
-                'postalCode' => $billingAddress->getZipcode(),
-                'locality' => $billingAddress->getCity(),
+                'address1' => $billingAddress->getStreet() ?? 'Unknown Street',
+                'postalCode' => $billingAddress->getZipcode() ?? '00000',
+                'locality' => $billingAddress->getCity() ?? 'Unknown City',
                 'administrativeArea' => $billingAddress->getCountryState() ? $billingAddress->getCountryState()->getShortCode() : '',
-                'country' => $billingAddress->getCountry()->getIso()
+                'country' => $billingAddress->getCountry()->getIso() ?? 'US'
+            ];
+        } else {
+            $billTo = [
+                'firstName' => 'Unknown',
+                'lastName' => 'Unknown',
+                'email' => 'no-email@example.com',
+                'address1' => 'Unknown Street',
+                'locality' => 'Unknown City',
+                'country' => 'US',
+                'postalCode' => '00000'
             ];
         }
         $uniqid = uniqid();
-        $payload = json_encode([
+        $threeDSEnabled = $this->configurationService->isThreeDSEnabled();
+        if (!$threeDSEnabled) {
+            $authResponse = [
+                'consumerAuthenticationInformation' => [
+                    'eci' => null,
+                    'cavv' => null
+                ]
+            ];
+            return $this->completePayment($context, $authResponse, $saveCard, $uniqid, $token, $subscriptionId, $expirationMonth, $expirationYear);
+        }
+
+        $endpoint = '/risk/v1/authentications';
+        $payload = [
             'clientReferenceInformation' => [
                 'code' => 'Order-' . $uniqid
-            ],
-            'processingInformation' => [
-                'commerceIndicator' => 'internet',
-                'actionList' => ['CONSUMER_AUTHENTICATION'], // Request 3DS
-                'capture' => $capture,
-                'authorizationOptions' => [
-                    'initiator' => 'merchant',
-                    'initiateAuthenticationIndicator' => '01'
-                ]
-            ],
-            'tokenInformation' => [
-                'transientTokenJwt' => $token
-            ],
-            'sourceInformation' => [
-                'source' => 'FlexMicroform'
-            ],
-            'paymentInformation' => [
-                'card' => [
-                    'expirationMonth' => $expirationMonth,
-                    'expirationYear' => $expirationYear
-                ]
             ],
             'orderInformation' => [
                 'amountDetails' => [
@@ -449,19 +450,203 @@ class CyberSourceController extends AbstractController
                 'billTo' => $billTo
             ],
             'consumerAuthenticationInformation' => [
-                'returnUrl' => 'https://' . $_SERVER['HTTP_HOST'] . '/3ds-callback'
+                'authenticationType' => '01',
+                'returnUrl' => 'https://' . $_SERVER['HTTP_HOST'] . '/cybersource/3ds-callback'
             ]
-        ]);
+        ];
 
-        $this->logger->info('Payment Request Payload: ' . $payload);
+        if ($subscriptionId) {
+            $payload['paymentInformation'] = [
+                'customer' => [
+                    'id' => $subscriptionId
+                ]
+            ];
+        } else {
+            $payload['tokenInformation'] = [
+                'transientTokenJwt' => $token
+            ];
+            $payload['paymentInformation'] = [
+                'card' => [
+                    'expirationMonth' => $expirationMonth,
+                    'expirationYear' => $expirationYear
+                ]
+            ];
+        }
 
-        $headers = $signer->getHeadersForPostMethod($endpoint, $payload);
+        $payloadJson = json_encode($payload, JSON_PRETTY_PRINT);
+        $this->logger->info('Payer Authentication Request Payload: ' . $payloadJson);
+
+        $headers = $signer->getHeadersForPostMethod($endpoint, $payloadJson);
         $base_url = $this->configurationService->getBaseUrl()->value;
         $client = new Client(['base_uri' => $base_url]);
+
         try {
             $response = $client->post($endpoint, [
                 'headers' => $headers,
-                'body' => $payload
+                'body' => $payloadJson
+            ]);
+
+            $responseData = json_decode($response->getBody()->getContents(), true);
+            $this->logger->info('Payer Authentication Response: ' . json_encode($responseData));
+
+            $status = $responseData['status'] ?? 'UNKNOWN';
+            $authenticationTransactionId = $responseData['consumerAuthenticationInformation']['authenticationTransactionId'] ?? null;
+
+            if ($status === 'PENDING_AUTHENTICATION') {
+                $acsUrl = $responseData['consumerAuthenticationInformation']['acsUrl'] ?? null;
+                $pareq = $responseData['consumerAuthenticationInformation']['pareq'] ?? null;
+
+                if ($acsUrl && $pareq && $authenticationTransactionId) {
+                    return new JsonResponse([
+                        'success' => true,
+                        'action' => '3ds',
+                        'authenticationTransactionId' => $authenticationTransactionId,
+                        'acsUrl' => $acsUrl,
+                        'pareq' => $pareq,
+                        'uniqid' => $uniqid
+                    ]);
+                }
+                return new JsonResponse([
+                    'success' => false,
+                    'action' => 'notify',
+                    'message' => '3DS authentication required, but necessary information is missing.'
+                ]);
+            } elseif ($status === 'AUTHENTICATION_SUCCESSFUL') {
+                return $this->completePayment($context, $responseData, $saveCard, $uniqid, $token, $subscriptionId, $expirationMonth, $expirationYear);
+            } else {
+                return new JsonResponse([
+                    'success' => false,
+                    'action' => 'notify',
+                    'message' => 'Payer authentication failed: ' . $status
+                ]);
+            }
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $res = $e->hasResponse() ? $e->getResponse() : null;
+            $body = $res ? $res->getBody()->getContents() : 'No response body';
+            $this->logger->error('Payer Authentication Request Failed: ' . $e->getMessage(), ['response' => $body]);
+            return new JsonResponse([
+                'error' => 'Payer authentication request failed',
+                'message' => $body
+            ], 500);
+        }
+    }
+
+    /**
+     * Complete the payment after 3DS authentication (or directly if 3DS is disabled)
+     */
+    private function completePayment(
+        SalesChannelContext $context,
+        array $authResponse,
+        bool $saveCard,
+        string $uniqid,
+        ?string $transientTokenJwt = null,
+        ?string $subscriptionId = null,
+        ?string $expirationMonth = null,
+        ?string $expirationYear = null
+    ): JsonResponse {
+        $signer = $this->configurationService->getSignatureContract();
+        $capture = $this->configurationService->getTransactionType() == 'auth_capture';
+        $endpoint = '/pts/v2/payments';
+
+        $cart = $this->cartService->getCart($context->getToken(), $context);
+        $customer = $context->getCustomer();
+        $billingAddress = $customer ? $customer->getActiveBillingAddress() : null;
+
+        $amount = (string) $cart->getPrice()->getTotalPrice();
+        $currency = $context->getCurrency()->getIsoCode();
+
+        $billTo = [];
+        if ($billingAddress && $customer) {
+            $billTo = [
+                'firstName' => $billingAddress->getFirstName() ?? 'Unknown',
+                'lastName' => $billingAddress->getLastName() ?? 'Unknown',
+                'email' => $customer->getEmail() ?? 'no-email@example.com',
+                'phoneNumber' => $billingAddress->getPhoneNumber() ?? '',
+                'address1' => $billingAddress->getStreet() ?? 'Unknown Street',
+                'postalCode' => $billingAddress->getZipcode() ?? '00000',
+                'locality' => $billingAddress->getCity() ?? 'Unknown City',
+                'administrativeArea' => $billingAddress->getCountryState() ? $billingAddress->getCountryState()->getShortCode() : '',
+                'country' => $billingAddress->getCountry()->getIso() ?? 'US'
+            ];
+        } else {
+            $billTo = [
+                'firstName' => 'Unknown',
+                'lastName' => 'Unknown',
+                'email' => 'no-email@example.com',
+                'address1' => 'Unknown Street',
+                'locality' => 'Unknown City',
+                'country' => 'US',
+                'postalCode' => '00000'
+            ];
+        }
+
+        $payload = [
+            'clientReferenceInformation' => [
+                'code' => 'Order-' . $uniqid
+            ],
+            'processingInformation' => [
+                'commerceIndicator' => 'internet',
+                'actionList' => ['TOKEN_CREATE'],
+                'capture' => $capture
+            ],
+            'orderInformation' => [
+                'amountDetails' => [
+                    'totalAmount' => $amount,
+                    'currency' => $currency
+                ],
+                'billTo' => $billTo
+            ]
+        ];
+
+        $threeDSEnabled = $this->configurationService->isThreeDSEnabled();
+        if ($threeDSEnabled) {
+            $payload['consumerAuthenticationInformation'] = [
+                'eci' => $authResponse['consumerAuthenticationInformation']['eci'] ?? null,
+                'cavv' => $authResponse['consumerAuthenticationInformation']['cavv'] ?? null
+            ];
+        }
+
+        if ($subscriptionId) {
+            $payload['paymentInformation'] = [
+                'customer' => [
+                    'id' => $subscriptionId
+                ]
+            ];
+        } else {
+            if (!$transientTokenJwt) {
+                $this->logger->error('transientTokenJwt is missing in completePayment', [
+                    'authResponse' => $authResponse,
+                    'subscriptionId' => $subscriptionId
+                ]);
+                return new JsonResponse([
+                    'success' => false,
+                    'action' => 'notify',
+                    'message' => 'Payment failed: Missing transientTokenJwt.'
+                ], 400);
+            }
+
+            $payload['tokenInformation'] = [
+                'transientTokenJwt' => $transientTokenJwt
+            ];
+            $payload['paymentInformation'] = [
+                'card' => [
+                    'expirationMonth' => $expirationMonth,
+                    'expirationYear' => $expirationYear
+                ]
+            ];
+        }
+
+        $payloadJson = json_encode($payload, JSON_PRETTY_PRINT);
+        $this->logger->info('Payment Request Payload: ' . $payloadJson);
+
+        $headers = $signer->getHeadersForPostMethod($endpoint, $payloadJson);
+        $base_url = $this->configurationService->getBaseUrl()->value;
+        $client = new Client(['base_uri' => $base_url]);
+
+        try {
+            $response = $client->post($endpoint, [
+                'headers' => $headers,
+                'body' => $payloadJson
             ]);
 
             $responseData = json_decode($response->getBody()->getContents(), true);
@@ -470,6 +655,22 @@ class CyberSourceController extends AbstractController
             $status = $responseData['status'] ?? 'UNKNOWN';
             $transactionId = $responseData['id'] ?? null;
 
+            if ($saveCard && $transactionId && $status === 'AUTHORIZED') {
+                $instrumentIdentifierId = $responseData['tokenInformation']['instrumentIdentifier']['id'] ?? null;
+                if (!$instrumentIdentifierId) {
+                    $this->logger->error('Instrument identifier not found in payment response', [
+                        'response' => $responseData,
+                    ]);
+                } else {
+                    $this->logger->info('Saving card with instrumentIdentifierId: ' . $instrumentIdentifierId);
+                    $saveSuccess = $this->saveCard($context, $instrumentIdentifierId);
+                    if (!$saveSuccess) {
+                        $this->logger->warning('Failed to save card', [
+                            'instrumentIdentifierId' => $instrumentIdentifierId,
+                        ]);
+                    }
+                }
+            }
 
             switch ($status) {
                 case 'AUTHORIZED':
@@ -496,48 +697,10 @@ class CyberSourceController extends AbstractController
                     return new JsonResponse([
                         'success' => true,
                         'action' => 'complete',
-                        'transactionId' => $transactionId,
-                        'status' => $status,
-                        'uniqid' => $uniqid,
-                        'message' => 'Payment has been authorized but is pending review by our team. We will notify you once the review is complete.'
-                    ]);
-
-                case 'AUTHORIZED_RISK_DECLINED':
-                    return new JsonResponse([
-                        'success' => false,
-                        'action' => 'notify',
-                        'transactionId' => $transactionId,
-                        'message' => 'Payment declined due to risk assessment. Please try a different payment method.'
-                    ]);
-
-                case 'PENDING_AUTHENTICATION':
-                    $stepUpUrl = $responseData['consumerAuthenticationInformation']['stepUpUrl'] ?? null;
-                    $accessToken = $responseData['consumerAuthenticationInformation']['token'] ?? null;
-
-                    if ($stepUpUrl && $accessToken) {
-                        return new JsonResponse([
-                            'success' => true,
-                            'action' => '3ds',
-                            'transactionId' => $transactionId,
-                            'stepUpUrl' => $stepUpUrl,
-                            'uniqid' => $uniqid,
-                            'accessToken' => $accessToken
-                        ]);
-                    }
-                    return new JsonResponse([
-                        'success' => false,
-                        'action' => 'notify',
-                        'message' => '3DS authentication required, but necessary information is missing.'
-                    ]);
-
-                case 'PENDING_REVIEW':
-                    return new JsonResponse([
-                        'success' => true,
-                        'action' => 'complete',
                         'status' => $status,
                         'transactionId' => $transactionId,
                         'uniqid' => $uniqid,
-                        'message' => 'Payment is under review before authorization. We will notify you once the review is complete.'
+                        'message' => 'Payment has been authorized but is pending review by our team.'
                     ]);
 
                 case 'DECLINED':
@@ -548,18 +711,11 @@ class CyberSourceController extends AbstractController
                         'message' => 'Payment declined. Please try a different payment method.'
                     ]);
 
-                case 'INVALID_REQUEST':
-                    return new JsonResponse([
-                        'success' => false,
-                        'action' => 'notify',
-                        'message' => 'Invalid payment request. Please check your details and try again.'
-                    ]);
-
                 default:
                     return new JsonResponse([
                         'success' => false,
                         'action' => 'notify',
-                        'message' => 'Unknown payment status: ' . $status . '. Please contact support.'
+                        'message' => 'Payment failed: ' . $status
                     ]);
             }
         } catch (\GuzzleHttp\Exception\RequestException $e) {
@@ -568,94 +724,217 @@ class CyberSourceController extends AbstractController
             $this->logger->error('Payment Request Failed: ' . $e->getMessage(), ['response' => $body]);
             return new JsonResponse([
                 'error' => 'Payment request failed',
-                'message' => $e->getMessage()
+                'message' => $body
             ], 500);
+        }
+    }
+    public function saveCard(SalesChannelContext $context, string $paymentToken): bool
+    {
+        $customer = $context->getCustomer();
+        if (!$customer) {
+            $this->logger->warning('No customer found to save card', [
+                'salesChannelId' => $context->getSalesChannelId(),
+            ]);
+            return false;
+        }
+
+        $customerTokenId = $customer->getCustomFields()['cybersource_customer_token'] ?? null;
+        if (!$customerTokenId) {
+            $signer = $this->configurationService->getSignatureContract();
+            $endpoint = '/tms/v2/customers';
+            $payload = json_encode([
+                'customerInformation' => [
+                    'email' => $customer->getEmail() ?? 'no-email@example.com',
+                ],
+            ]);
+            $headers = $signer->getHeadersForPostMethod($endpoint, $payload);
+            $base_url = $this->configurationService->getBaseUrl()->value;
+            $client = new Client(['base_uri' => $base_url]);
+
+            try {
+                $response = $client->post($endpoint, [
+                    'headers' => $headers,
+                    'body' => $payload,
+                ]);
+                $responseData = json_decode($response->getBody()->getContents(), true);
+                $customerTokenId = $responseData['id'] ?? null;
+
+                if (!$customerTokenId) {
+                    throw new \RuntimeException('Failed to create customer token: No customerTokenId returned');
+                }
+
+                // Save customerTokenId to customer custom fields
+                $this->customerRepository->update([
+                    [
+                        'id' => $customer->getId(),
+                        'customFields' => array_merge(
+                            $customer->getCustomFields() ?? [],
+                            ['cybersource_customer_token' => $customerTokenId]
+                        ),
+                    ],
+                ], $context->getContext());
+            } catch (\Exception $e) {
+                $this->logger->error('Failed to create customer token', [
+                    'error' => $e->getMessage(),
+                    'response' => $e instanceof \GuzzleHttp\Exception\ClientException ? $e->getResponse()->getBody()->getContents() : null,
+                ]);
+                return false;
+            }
+        }
+
+        // Step 2: Associate instrumentIdentifier.id with customerTokenId
+        $signer = $this->configurationService->getSignatureContract();
+        $endpoint = "/tms/v2/customers/{$customerTokenId}/payment-instruments";
+        $payload = json_encode([
+            'instrumentIdentifier' => [
+                'id' => $paymentToken, // This is the instrumentIdentifier.id (7036200001260191005)
+            ],
+        ]);
+        $headers = $signer->getHeadersForPostMethod($endpoint, $payload);
+        $base_url = $this->configurationService->getBaseUrl()->value;
+        $client = new Client(['base_uri' => $base_url]);
+
+        try {
+            $response = $client->post($endpoint, [
+                'headers' => $headers,
+                'body' => $payload,
+            ]);
+
+            // Save instrumentIdentifier.id to customer custom fields (for reference)
+            $this->customerRepository->update([
+                [
+                    'id' => $customer->getId(),
+                    'customFields' => array_merge(
+                        $customer->getCustomFields() ?? [],
+                        ['cybersource_payment_token' => $paymentToken]
+                    ),
+                ],
+            ], $context->getContext());
+
+            return true;
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to associate instrument identifier with customer token', [
+                'error' => $e->getMessage(),
+                'response' => $e instanceof \GuzzleHttp\Exception\ClientException ? $e->getResponse()->getBody()->getContents() : null,
+            ]);
+            return false;
         }
     }
 
     #[Route(
-        path: '/3ds-callback',
-        name: 'cybersource.3ds_callback',
-        methods: ['POST'],
+        path: '/cybersource/get-saved-cards',
+        name: 'cybersource.get_saved_cards',
+        methods: ['GET'],
         defaults: ['_routeScope' => ['storefront']]
     )]
-    public function handle3dsCallback(Request $request, SalesChannelContext $context): Response
+    public function getSavedCards(SalesChannelContext $context): JsonResponse
     {
-        $transactionId = $request->request->get('TransactionId');
-        $paRes = $request->request->get('PaRes');
-        $authenticationStatus = $request->request->get('AuthenticationStatus');
+        $customer = $context->getCustomer();
+        if (!$customer) {
+            return new JsonResponse(['cards' => []]);
+        }
 
-        $this->logger->info('3DS Callback received', [
-            'transactionId' => $transactionId,
-            'paRes' => $paRes,
-            'authenticationStatus' => $authenticationStatus
-        ]);
-
-        if (!$transactionId || !$paRes) {
-            $this->logger->error('Missing required 3DS callback parameters');
-            return new Response('Missing required parameters', 400);
+        $customerTokenId = $customer->getCustomFields()['cybersource_customer_token'] ?? null;
+        if (!$customerTokenId) {
+            $this->logger->warning('No customer token found for customer', [
+                'customerId' => $customer->getId(),
+                'customFields' => $customer->getCustomFields(),
+            ]);
+            return new JsonResponse(['cards' => []]);
         }
 
         $signer = $this->configurationService->getSignatureContract();
-        $endpoint = "/pts/v2/payments/{$transactionId}";
+        $endpoint = "/tms/v2/customers/{$customerTokenId}/payment-instruments";
         $headers = $signer->getHeadersForGetMethod($endpoint);
         $base_url = $this->configurationService->getBaseUrl()->value;
         $client = new Client(['base_uri' => $base_url]);
 
         try {
             $response = $client->get($endpoint, [
-                'headers' => $headers
+                'headers' => $headers,
+            ]);
+            $responseData = json_decode($response->getBody()->getContents(), true);
+            $cards = $responseData['_embedded']['paymentInstruments'] ?? [];
+            return new JsonResponse(['cards' => $cards]);
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to fetch saved cards', [
+                'error' => $e->getMessage(),
+                'response' => $e instanceof \GuzzleHttp\Exception\ClientException ? $e->getResponse()->getBody()->getContents() : null,
+            ]);
+            return new JsonResponse(['error' => 'Failed to fetch saved cards'], Response::HTTP_BAD_REQUEST);
+        }
+    }
+
+    #[Route(
+        path: '/cybersource/3ds-callback',
+        name: 'cybersource.3ds_callback',
+        methods: ['POST'],
+        defaults: ['_routeScope' => ['storefront']]
+    )]
+    public function handle3dsCallback(Request $request, SalesChannelContext $context): JsonResponse
+    {
+        $authenticationTransactionId = $request->request->get('authenticationTransactionId');
+        $pares = $request->request->get('PaRes');
+        $uniqid = $request->request->get('uniqid');
+
+        if (!$authenticationTransactionId || !$pares || !$uniqid) {
+            return new JsonResponse(['error' => 'Missing required parameters'], 400);
+        }
+
+        // Step 1: Retrieve authentication results
+        $signer = $this->configurationService->getSignatureContract();
+        $endpoint = '/risk/v1/authentication-results';
+        $payload = [
+            'clientReferenceInformation' => [
+                'code' => 'Order-' . $uniqid
+            ],
+            'consumerAuthenticationInformation' => [
+                'authenticationTransactionId' => $authenticationTransactionId,
+                'pares' => $pares
+            ]
+        ];
+
+        $payloadJson = json_encode($payload, JSON_PRETTY_PRINT);
+        $this->logger->info('Authentication Results Request Payload: ' . $payloadJson);
+
+        $headers = $signer->getHeadersForPostMethod($endpoint, $payloadJson);
+        $base_url = $this->configurationService->getBaseUrl()->value;
+        $client = new Client(['base_uri' => $base_url]);
+
+        try {
+            $response = $client->post($endpoint, [
+                'headers' => $headers,
+                'body' => $payloadJson
             ]);
 
             $responseData = json_decode($response->getBody()->getContents(), true);
+            $this->logger->info('Authentication Results Response: ' . json_encode($responseData));
+
             $status = $responseData['status'] ?? 'UNKNOWN';
 
-            $this->logger->info('3DS Payment Status Check', [
-                'transactionId' => $transactionId,
-                'status' => $status
-            ]);
+            if ($status === 'AUTHENTICATION_SUCCESSFUL') {
+                $transientTokenJwt = $request->request->get('transientTokenJwt');
+                $subscriptionId = $request->request->get('subscriptionId');
+                $expirationMonth = $request->request->get('expirationMonth');
+                $expirationYear = $request->request->get('expirationYear');
 
-            if ($status === 'AUTHORIZED') {
-                $action = 'complete';
-                $message = '3DS authentication successful. Payment authorized.';
-            } elseif ($status === 'DECLINED') {
-                $action = 'notify';
-                $message = '3DS authentication failed. Payment declined.';
+                return $this->completePayment($context, $responseData, true, $uniqid, $transientTokenJwt, $subscriptionId, $expirationMonth, $expirationYear);
             } else {
-                $action = 'notify';
-                $message = '3DS authentication completed, but payment status is: ' . $status;
+                return new JsonResponse([
+                    'success' => false,
+                    'action' => 'notify',
+                    'message' => '3DS authentication failed: ' . $status
+                ]);
             }
-
-            $html = <<<HTML
-        <script>
-            window.parent.postMessage({
-                action: '$action',
-                message: '$message',
-                transactionId: '$transactionId',
-                status: '$status'
-            }, '*');
-        </script>
-        HTML;
-
-            return new Response($html, 200, ['Content-Type' => 'text/html']);
         } catch (\GuzzleHttp\Exception\RequestException $e) {
-            $this->logger->error('Failed to check payment status after 3DS', [
-                'transactionId' => $transactionId,
-                'error' => $e->getMessage()
-            ]);
-
-            $html = <<<HTML
-        <script>
-            window.parent.postMessage({
-                action: 'notify',
-                message: 'Failed to verify payment status after 3DS: {$e->getMessage()}',
-                transactionId: '$transactionId',
-                status: 'UNKNOWN'
-            }, '*');
-        </script>
-        HTML;
-
-            return new Response($html, 500, ['Content-Type' => 'text/html']);
+            $res = $e->hasResponse() ? $e->getResponse() : null;
+            $body = $res ? $res->getBody()->getContents() : 'No response body';
+            $this->logger->error('Authentication Results Request Failed: ' . $e->getMessage(), ['response' => $body]);
+            return new JsonResponse([
+                'error' => 'Failed to retrieve authentication results',
+                'message' => $body
+            ], 500);
         }
     }
+
 }

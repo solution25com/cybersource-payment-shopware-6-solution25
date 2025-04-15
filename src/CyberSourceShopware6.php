@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CyberSource\Shopware6;
 
+use CyberSource\Shopware6\Service\CustomFieldService;
 use Shopware\Core\Framework\Plugin;
 use Shopware\Core\Framework\Context;
 use CyberSource\Shopware6\PaymentMethods;
@@ -23,6 +24,8 @@ class CyberSourceShopware6 extends Plugin
         foreach (PaymentMethods\PaymentMethods::PAYMENT_METHODS as $paymentMethod) {
             $this->addPaymentMethod(new $paymentMethod(), $installContext->getContext());
         }
+        $customFieldService = $this->container->get(CustomFieldService::class);
+        $customFieldService->createCustomFields($installContext->getContext());
     }
 
     public function uninstall(UninstallContext $uninstallContext): void
@@ -36,6 +39,8 @@ class CyberSourceShopware6 extends Plugin
         if ($uninstallContext->keepUserData()) {
             return;
         }
+        $customFieldService = $this->container->get(CustomFieldService::class);
+        $customFieldService->remove($uninstallContext->getContext());
     }
 
     public function activate(ActivateContext $activateContext): void
@@ -43,6 +48,8 @@ class CyberSourceShopware6 extends Plugin
         foreach (PaymentMethods\PaymentMethods::PAYMENT_METHODS as $paymentMethod) {
             $this->setPaymentMethodIsActive(true, $activateContext->getContext(), new $paymentMethod());
         }
+        $customFieldService = $this->container->get(CustomFieldService::class);
+        $customFieldService->createCustomFields($activateContext->getContext());
         parent::activate($activateContext);
     }
 

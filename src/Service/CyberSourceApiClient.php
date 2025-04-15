@@ -223,4 +223,29 @@ class CyberSourceApiClient
     {
         return $this->configurationService;
     }
+    public function getCustomerPaymentInstruments(string $customerTokenId): array
+    {
+        $endpoint = "/tms/v2/customers/{$customerTokenId}/payment-instruments";
+        $signatureContract = $this->configurationService->getSignatureContract();
+        $headers = $signatureContract->getHeadersForGetMethod($endpoint);
+        $base_url = $this->configurationService->getBaseUrl()->value;
+        $client = new Client(['base_uri' => $base_url]);
+
+        try {
+            $response = $client->get($endpoint, [
+                'headers' => $headers
+            ]);
+            $responseBody = $response->getBody()->getContents();
+            return [
+                'statusCode' => $response->getStatusCode(),
+                'body' => json_decode($responseBody, true)
+            ];
+        } catch (GuzzleException $e) {
+            $this->logger->error('Failed to fetch payment instruments from CyberSource', [
+                'error' => $e->getMessage(),
+                'customerTokenId' => $customerTokenId,
+            ]);
+            throw new \RuntimeException('Failed to fetch payment instruments: ' . $e->getMessage());
+        }
+    }
 }

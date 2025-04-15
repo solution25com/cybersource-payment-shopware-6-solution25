@@ -53,6 +53,7 @@
             <argument type="service" id="Shopware\Core\Checkout\Order\SalesChannel\OrderService"/>
             <argument type="service" id="Shopware\Core\System\StateMachine\StateMachineRegistry"/>
             <argument type="service" id="logger"/>
+            <argument type="service" id="customer.repository"/>
             <call method="setContainer">
                 <argument type="service" id="service_container"/>
             </call>
@@ -111,5 +112,10 @@
             <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
             <tag name="console.command"/>
         </service>
-    </services>
+        <service id="CyberSource\Shopware6\Service\CustomFieldService" public="true">
+            <argument type="service" id="custom_field_set.repository"/>
+            <argument type="service" id="custom_field_set_relation.repository"/>
+            <tag name="shopware.custom_field.installer"/>
+        </service>
+     </services>
 </container>

@@ -1,43 +1,100 @@
 <div class="payment-form">
-    <div class="form-group">
-        <label for="number-container">Card Number</label>
-        <div id="number-container" class="microform-field"></div>
+    <div class="form-group saved-cards-section" style="display: none">
+        <label for="savedCards">Saved Cards</label>
+        <select id="savedCards" name="savedCards" onchange="toggleCardForm()">
+            <option value="new">Use New Card</option>
+        </select>
     </div>
-    <div class="form-group">
-        <label for="securityCode-container">CVV</label>
-        <div id="securityCode-container" class="microform-field"></div>
-    </div>
-    <div class="form-group">
-        <label>Expiration Date</label>
-        <div class="expiry-group">
-            <input id="expMonth" type="text" placeholder="MM" maxlength="2" required>
-            <input id="expYear" type="text" placeholder="YYYY" maxlength="4" required>
+
+    <div id="newCardForm">
+        <div class="form-group">
+            <label for="number-container">Card Number</label>
+            <div id="number-container" class="microform-field"></div>
         </div>
-        <div id="expiry-error" class="error-message">Please enter a valid expiration date.</div>
+        <div class="form-group">
+            <label for="securityCode-container">CVV</label>
+            <div id="securityCode-container" class="microform-field"></div>
+        </div>
+        <div class="form-group">
+            <label>Expiration Date </label>
+            <div class="expiry-group">
+                <input id="expMonth" type="text" placeholder="MM" maxlength="2" required>
+                <input id="expYear" type="text" placeholder="YYYY" maxlength="4" required>
+            </div>
+            <div id="expiry-error" class="error-message">Please enter a valid expiration date.</div>
+        </div>
+        <div class="form-group" style="display: none">
+            <label>
+                <input type="checkbox" id="saveCard" name="saveCard"> Save Card
+            </label>
+        </div>
     </div>
     <input id="cybersource_transaction_id" type="hidden" name="cybersource_transaction_id" value="">
     <input id="cybersource_payment_status" type="hidden" name="cybersource_payment_status" value="">
     <input id="cybersource_payment_uniqid" type="hidden" name="cybersource_payment_uniqid" value="">
+    <input id="cybersource_authentication_transaction_id" type="hidden" name="cybersource_authentication_transaction_id" value="">
+    <input id="cybersource_transient_token_jwt" type="hidden" name="cybersource_transient_token_jwt" value="">
+    <input id="cybersource_subscription_id" type="hidden" name="cybersource_subscription_id" value="">
+    <input id="cybersource_expiration_month" type="hidden" name="cybersource_expiration_month" value="">
+    <input id="cybersource_expiration_year" type="hidden" name="cybersource_expiration_year" value="">
     <div class="d-grid">
         <button id="confirmOrderButton" class="pay-btn btn" type="button">Pay Now</button>
     </div>
     <iframe id="step_up_iframe" name="step_up_iframe" height="400" width="400" style="display: none;"></iframe>
     <form id="step_up_form" target="step_up_iframe" method="POST" style="display: none;">
-        <input type="hidden" id="step_up_jwt" name="JWT" value="">
+        <input type="hidden" id="step_up_pareq" name="PaReq" value="">
+        <input type="hidden" id="step_up_term_url" name="TermUrl" value="https://yourdomain.com/cybersource/3ds-callback">
+        <input type="hidden" id="step_up_md" name="MD" value="">
     </form>
 </div>
 
 <script>
     let microform = null;
     const paymentForm = document.getElementById('confirmOrderForm');
+    let savedCards = [];
 
     document.getElementById('confirmFormSubmit').style.display = 'none';
+
+    fetch('/cybersource/get-saved-cards')
+        .then(res => res.json())
+        .then(data => {
+            savedCards = data.cards || [];
+            const savedCardsSelect = document.getElementById('savedCards');
+            savedCards.forEach(card => {
+                const option = document.createElement('option');
+                option.value = card.id;
+                option.textContent = `Card: **** **** **** ${card.card.number.slice(-4)} (Expired : ${card.card.expirationMonth}/${card.card.expirationYear})`;
+                savedCardsSelect.appendChild(option);
+            });
+            toggleCardForm();
+        })
+        .catch(err => console.error('Failed to load saved cards:', err));
+
+    function toggleCardForm() {
+        const savedCardsSelect = document.getElementById('savedCards');
+        const newCardForm = document.getElementById('newCardForm');
+        if (savedCardsSelect.value === 'new') {
+            newCardForm.style.display = 'block';
+        } else {
+            newCardForm.style.display = 'none';
+        }
+    }
+
     document.getElementById('confirmOrderButton').addEventListener('click', function (e) {
         e.preventDefault();
+
+        const savedCardsSelect = document.getElementById('savedCards');
+        const subscriptionId = savedCardsSelect.value !== 'new' ? savedCardsSelect.value : null;
+
+        if (subscriptionId) {
+            authorizePayment(null, subscriptionId);
+            return;
+        }
 
         const monthInput = document.getElementById('expMonth');
         const yearInput = document.getElementById('expYear');
         const errorMessage = document.getElementById('expiry-error');
+        const saveCardCheckbox = document.getElementById('saveCard');
 
         // Reset error states
         monthInput.classList.remove('error');
@@ -81,7 +138,7 @@
                 console.error('Tokenize failed', err);
                 alert('Card information could not be verified.');
             } else {
-                authorizePayment(token);
+                authorizePayment(token, null, saveCardCheckbox.checked);
             }
         });
     });
@@ -120,26 +177,31 @@
         })
         .catch(err => console.error('Failed to load capture context:', err));
 
-    function authorizePayment(token) {
+    function authorizePayment(token, subscriptionId, saveCard = false) {
         const month = document.getElementById('expMonth').value.trim();
         const year = document.getElementById('expYear').value.trim();
         fetch('/cybersource/authorize-payment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token, expirationMonth: month, expirationYear: year })
+            body: JSON.stringify({ token, subscriptionId, expirationMonth: month, expirationYear: year, saveCard })
         })
             .then(res => res.json())
             .then(data => {
-                //debugger;
-                if (!data.transactionId) {
-                    alert('Payment failed. Please try again.');
+                if (!data.success) {
+                    alert(data.message || 'Payment failed. Please try again.');
                     return;
                 }
-                document.getElementById('cybersource_transaction_id').value = data.transactionId;
+
                 document.getElementById('cybersource_payment_status').value = data.status;
                 document.getElementById('cybersource_payment_uniqid').value = data.uniqid;
+                document.getElementById('cybersource_transient_token_jwt').value = token || '';
+                document.getElementById('cybersource_subscription_id').value = subscriptionId || '';
+                document.getElementById('cybersource_expiration_month').value = month;
+                document.getElementById('cybersource_expiration_year').value = year;
+
                 switch (data.action) {
                     case 'complete':
+                        document.getElementById('cybersource_transaction_id').value = data.transactionId;
                         const submitButton = document.getElementById('confirmFormSubmit');
                         if (submitButton) {
                             submitButton.click();
@@ -148,11 +210,24 @@
 
                     case '3ds':
                         const stepUpForm = document.getElementById('step_up_form');
-                        const jwtInput = document.getElementById('step_up_jwt');
+                        const pareqInput = document.getElementById('step_up_pareq');
+                        const termUrlInput = document.getElementById('step_up_term_url');
+                        const mdInput = document.getElementById('step_up_md');
                         const iframe = document.getElementById('step_up_iframe');
 
-                        stepUpForm.action = data.stepUpUrl;
-                        jwtInput.value = data.accessToken;
+                        stepUpForm.action = data.acsUrl;
+                        pareqInput.value = data.pareq;
+                        termUrlInput.value = 'https://' + window.location.host + '/cybersource/3ds-callback';
+                        mdInput.value = JSON.stringify({
+                            authenticationTransactionId: data.authenticationTransactionId,
+                            uniqid: data.uniqid,
+                            transientTokenJwt: token,
+                            subscriptionId: subscriptionId,
+                            expirationMonth: month,
+                            expirationYear: year
+                        });
+
+                        document.getElementById('cybersource_authentication_transaction_id').value = data.authenticationTransactionId;
 
                         stepUpForm.style.display = 'block';
                         iframe.style.display = 'block';
@@ -167,29 +242,12 @@
                         alert('Unknown action: ' + data.action);
                 }
             })
-            .catch(err => console.error('Payment error:', err));
+            .catch(err => {
+                console.error('Payment error:', err);
+                alert('An error occurred during payment. Please try again.');
+            });
     }
-    window.addEventListener('message', function (event) {
-        const data = event.data;
-        if (data.action) {
-            document.getElementById('cybersource_transaction_id').value = data.transactionId;
-            document.getElementById('cybersource_payment_status').value = data.status;
-            document.getElementById('cybersource_payment_uniqid').value = data.uniqid;
-            switch (data.action) {
-                case 'complete':
-                    const submitButton = document.getElementById('confirmFormSubmit');
-                    if (submitButton) {
-                        submitButton.click();
-                    }
-                    break;
-                case 'notify':
-                    alert(data.message);
-                    break;
-                default:
-                    alert('Unknown action: ' + data.action);
-            }
-        }
-    });
+
     function showError(message) {
         const monthInput = document.getElementById('expMonth');
         const yearInput = document.getElementById('expYear');
@@ -225,7 +283,7 @@
         color: #333;
     }
 
-    input, .microform-field {
+    input, .microform-field, select {
         width: 100%;
         padding: 8px;
         font-size: 14px;
@@ -275,5 +333,9 @@
         font-size: 12px;
         margin-top: 5px;
         display: none;
+    }
+
+    .saved-cards-section {
+        margin-bottom: 20px;
     }
 </style>

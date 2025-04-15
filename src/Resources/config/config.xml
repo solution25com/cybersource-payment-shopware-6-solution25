@@ -97,7 +97,16 @@
             <defaultValue>auth</defaultValue>
         </input-field>
     </card>
-
+    <card>
+        <title>3D Secure</title>
+        <input-field type="checkbox">
+            <name>threeDS</name>
+            <label>3DS</label>
+            <helpText>Customers can only make a purchase if their card supports 3D Secure. This applies to the hosted payment fields payment method</helpText>
+            <default>false</default>
+            <disabled>true</disabled>
+        </input-field>
+    </card>
     <!-- TODO : JWT authentication implementation specific settings-->
     <!--
     <card>

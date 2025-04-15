@@ -2,7 +2,7 @@
   "name": "cybersource/shopware6",
   "description": "CyberSource for Shopware6",
   "type": "shopware-platform-plugin",
-  "version": "v0.0.1",
+  "version": "v1.0.0",
   "authors": [
     {
       "name": "Visa Inc",

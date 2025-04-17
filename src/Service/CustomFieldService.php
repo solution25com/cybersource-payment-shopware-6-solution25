@@ -50,6 +50,16 @@ class CustomFieldService
 
     public function createCustomFields(Context $context): void
     {
+        $criteria = new Criteria();
+        $criteria->addFilter(new EqualsFilter('name', self::CUSTOM_FIELDSET_NAME));
+        $customFieldSetIds = $this->customFieldSetRepository->searchIds($criteria, $context)->getIds();
+
+        if (!empty($customFieldSetIds)) {
+            $this->customFieldSetRepository->delete(
+                array_map(fn ($id) => ['id' => $id], $customFieldSetIds),
+                $context
+            );
+        }
         $this->customFieldSetRepository->upsert([
             self::CUSTOM_FIELDSET,
         ], $context);

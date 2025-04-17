@@ -19,13 +19,13 @@ use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
 
 class CyberSourceShopware6 extends Plugin
 {
+    private ?CustomFieldService $customFieldService = null;
     public function install(InstallContext $installContext): void
     {
         foreach (PaymentMethods\PaymentMethods::PAYMENT_METHODS as $paymentMethod) {
             $this->addPaymentMethod(new $paymentMethod(), $installContext->getContext());
         }
-        $customFieldService = $this->container->get(CustomFieldService::class);
-        $customFieldService->createCustomFields($installContext->getContext());
+        $this->getCustomFieldsInstaller()->createCustomFields($installContext->getContext());
     }
 
     public function uninstall(UninstallContext $uninstallContext): void
@@ -39,8 +39,7 @@ class CyberSourceShopware6 extends Plugin
         if ($uninstallContext->keepUserData()) {
             return;
         }
-        $customFieldService = $this->container->get(CustomFieldService::class);
-        $customFieldService->remove($uninstallContext->getContext());
+        $this->getCustomFieldsInstaller()->remove($uninstallContext->getContext());
     }
 
     public function activate(ActivateContext $activateContext): void
@@ -48,8 +47,7 @@ class CyberSourceShopware6 extends Plugin
         foreach (PaymentMethods\PaymentMethods::PAYMENT_METHODS as $paymentMethod) {
             $this->setPaymentMethodIsActive(true, $activateContext->getContext(), new $paymentMethod());
         }
-        $customFieldService = $this->container->get(CustomFieldService::class);
-        $customFieldService->createCustomFields($activateContext->getContext());
+        $this->getCustomFieldsInstaller()->createCustomFields($activateContext->getContext());
         parent::activate($activateContext);
     }
 
@@ -142,5 +140,19 @@ class CyberSourceShopware6 extends Plugin
     public function getDependency($name): mixed
     {
         return $this->container->get($name);
+    }
+    private function getCustomFieldsInstaller(): CustomFieldService
+    {
+        if ($this->container->has(CustomFieldService::class)) {
+            $installer = $this->container->get(CustomFieldService::class);
+            if ($installer instanceof CustomFieldService) {
+                return $installer;
+            }
+        }
+
+        return new CustomFieldService(
+            $this->container->get('custom_field_set.repository'),
+            $this->container->get('custom_field_set_relation.repository')
+        );
     }
 }

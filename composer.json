@@ -1,12 +1,13 @@
 {
-  "name": "cybersource/shopware6",
-  "description": "CyberSource for Shopware6",
+  "name": "solution25/cybersource",
+  "description": "CyberSource Payment for Shopware6",
   "type": "shopware-platform-plugin",
-  "version": "v0.0.1",
+  "version": "v1.0.0",
   "authors": [
     {
-      "name": "Visa Inc",
-      "role": "Organization"
+      "name": "Solution25",
+      "email": "info@solution25.com",
+      "homepage": "https://solution25.com/"
     }
   ],
   "license": "MIT",
@@ -25,8 +26,20 @@
   "extra": {
     "shopware-plugin-class": "CyberSource\\Shopware6\\CyberSourceShopware6",
     "label": {
-      "de-DE": "CyberSource for Shopware6",
+      "de-DE": "CyberSource für Shopware6",
       "en-GB": "CyberSource for Shopware6"
+    },
+    "description": {
+      "de-DE": "Cybersource Payment für Shopware 6",
+      "en-GB": "CyberSource Payment for Shopware 6"
+    },
+    "manufacturerLink": {
+      "de-DE": "https://solution25.com/",
+      "en-GB": "https://solution25.com/en/home_en/"
+    },
+    "supportLink": {
+      "de-DE": "https://solution25.com/",
+      "en-GB": "https://solution25.com/en/home_en/"
     }
   },
   "require-dev": {
@@ -37,7 +50,7 @@
   },
   "config": {
     "allow-plugins": {
-        "symfony/*": true
+      "symfony/*": true
     }
   },
   "scripts": {
@@ -48,8 +61,8 @@
       "@enable-precommit"
     ],
     "enable-precommit": [
-        "cp ./pre-commit .git/hooks/pre-commit",
-        "chmod +x .git/hooks/pre-commit"
+      "cp ./pre-commit .git/hooks/pre-commit",
+      "chmod +x .git/hooks/pre-commit"
     ]
   }
 }

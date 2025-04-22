@@ -56,7 +56,6 @@
 
         <input-field>
             <name>sandboxAccessKey</name>
-            <defaultValue>08c94330-f618-42a3-b09d-e1e43be5efda</defaultValue>
             <label>Access KEY</label>
             <label lang="de-DE">AccessKey</label>
             <placeholder>08c94330-f618-42a3-b09d-e1e43be5efda</placeholder>
@@ -65,7 +64,6 @@
 
         <input-field>
             <name>sandboxSharedSecretKey</name>
-            <defaultValue>yBJxy6LjM2TmcPGu+GaJrHtkke25fPpUX+UY6/L/1tE=</defaultValue>
             <label>Shared Secret Key</label>
             <label lang="de-DE">Shared Secret Key</label>
             <placeholder>yBJxy6LjM2TmcPGu+GaJrHtkke25fPpUX+UY6/L/1tE=</placeholder>
@@ -103,8 +101,7 @@
             <name>threeDS</name>
             <label>3DS</label>
             <helpText>Customers can only make a purchase if their card supports 3D Secure. This applies to the hosted payment fields payment method</helpText>
-            <default>false</default>
-            <disabled>true</disabled>
+            <default>true</default>
         </input-field>
     </card>
     <!-- TODO : JWT authentication implementation specific settings-->

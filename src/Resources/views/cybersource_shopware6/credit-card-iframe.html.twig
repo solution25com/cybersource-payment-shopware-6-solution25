@@ -32,7 +32,8 @@
     <input id="cybersource_transaction_id" type="hidden" name="cybersource_transaction_id" value="">
     <input id="cybersource_payment_status" type="hidden" name="cybersource_payment_status" value="">
     <input id="cybersource_payment_uniqid" type="hidden" name="cybersource_payment_uniqid" value="">
-    <input id="cybersource_authentication_transaction_id" type="hidden" name="cybersource_authentication_transaction_id" value="">
+    <input id="cybersource_authentication_transaction_id" type="hidden" name="cybersource_authentication_transaction_id"
+           value="">
     <input id="cybersource_transient_token_jwt" type="hidden" name="cybersource_transient_token_jwt" value="">
     <input id="cybersource_subscription_id" type="hidden" name="cybersource_subscription_id" value="">
     <input id="cybersource_expiration_month" type="hidden" name="cybersource_expiration_month" value="">
@@ -40,12 +41,7 @@
     <div class="d-grid">
         <button id="confirmOrderButton" class="pay-btn btn" type="button">Pay Now</button>
     </div>
-    <iframe id="step_up_iframe" name="step_up_iframe" height="400" width="400" style="display: none;"></iframe>
-    <form id="step_up_form" target="step_up_iframe" method="POST" style="display: none;">
-        <input type="hidden" id="step_up_pareq" name="PaReq" value="">
-        <input type="hidden" id="step_up_term_url" name="TermUrl" value="https://yourdomain.com/cybersource/3ds-callback">
-        <input type="hidden" id="step_up_md" name="MD" value="">
-    </form>
+    <div id="step_up"></div>
 </div>
 
 <script>
@@ -63,7 +59,7 @@
             savedCards.forEach(card => {
                 const option = document.createElement('option');
                 option.value = card.id;
-                option.textContent = `Card: **** **** **** ${card.card.number.slice(-4)} (Expired : ${card.card.expirationMonth}/${card.card.expirationYear})`;
+                option.textContent = `Card: **** **** **** ${card.card.number.slice(-4)} (Expired: ${card.card.expirationMonth}/${card.card.expirationYear})`;
                 savedCardsSelect.appendChild(option);
             });
             toggleCardForm();
@@ -82,6 +78,9 @@
 
     document.getElementById('confirmOrderButton').addEventListener('click', function (e) {
         e.preventDefault();
+        const button = e.target;
+        button.disabled = true;
+        button.textContent = 'Processing...';
 
         const savedCardsSelect = document.getElementById('savedCards');
         const subscriptionId = savedCardsSelect.value !== 'new' ? savedCardsSelect.value : null;
@@ -143,7 +142,6 @@
         });
     });
 
-    // Load CyberSource Flex Microform
     fetch('/cybersource/capture-context')
         .then(res => res.json())
         .then(data => {
@@ -170,83 +168,218 @@
                     }
                 });
 
-                microform.createField('number', { placeholder: 'Card Number' }).load('#number-container');
-                microform.createField('securityCode', { placeholder: 'CVV' }).load('#securityCode-container');
+                microform.createField('number', {placeholder: 'Card Number'}).load('#number-container');
+                microform.createField('securityCode', {placeholder: 'CVV'}).load('#securityCode-container');
             };
             document.head.appendChild(script);
         })
         .catch(err => console.error('Failed to load capture context:', err));
 
-    function authorizePayment(token, subscriptionId, saveCard = false) {
-        const month = document.getElementById('expMonth').value.trim();
-        const year = document.getElementById('expYear').value.trim();
-        fetch('/cybersource/authorize-payment', {
+
+    function collectDeviceData(setupData, callback) {
+        const deviceDataCollectionUrl = setupData.consumerAuthenticationInformation.deviceDataCollectionUrl;
+        const accessToken = setupData.consumerAuthenticationInformation.accessToken;
+
+        const iframe = document.createElement('iframe');
+        iframe.name = 'deviceDataFrame';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = deviceDataCollectionUrl;
+        form.target = 'deviceDataFrame';
+        form.style.display = 'none';
+
+        const jwtInput = document.createElement('input');
+        jwtInput.type = 'hidden';
+        jwtInput.name = 'JWT';
+        jwtInput.value = accessToken;
+        form.appendChild(jwtInput);
+
+        document.body.appendChild(form);
+        form.submit();
+
+        window.addEventListener('message', function handler(event) {
+            if (event.origin.includes('cardinalcommerce.com')) {
+                callback(event.data);
+                document.body.removeChild(iframe);
+                document.body.removeChild(form);
+            }
+        }, {once: true});
+    }
+
+    function proceedWithAuthentication(token, subscriptionId, saveCard, month, year, setupData, callbackData) {
+        fetch('/cybersource/proceed-authentication', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token, subscriptionId, expirationMonth: month, expirationYear: year, saveCard })
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                token,
+                subscriptionId,
+                saveCard,
+                expirationMonth: month,
+                expirationYear: year,
+                setupResponse: setupData,
+                callbackData: callbackData,
+                uniqid: setupData.uniqid,
+            })
         })
             .then(res => res.json())
             .then(data => {
                 if (!data.success) {
-                    alert(data.message || 'Payment failed. Please try again.');
+                    alert(data.message || 'Authentication failed. Please try again.');
                     return;
                 }
 
-                document.getElementById('cybersource_payment_status').value = data.status;
-                document.getElementById('cybersource_payment_uniqid').value = data.uniqid;
-                document.getElementById('cybersource_transient_token_jwt').value = token || '';
-                document.getElementById('cybersource_subscription_id').value = subscriptionId || '';
-                document.getElementById('cybersource_expiration_month').value = month;
-                document.getElementById('cybersource_expiration_year').value = year;
+                if (data.action === '3ds') {
+                    const step_up = document.getElementById('step_up');
+                    step_up.innerHTML = '';
+                    const iframe = document.createElement('iframe');
+                    iframe.id = 'step_up_iframe';
+                    iframe.name = 'step_up_iframe';
+                    iframe.height = '500';
+                    iframe.width = '358';
+                    iframe.style.display = 'block';
 
-                switch (data.action) {
-                    case 'complete':
+                    step_up.appendChild(iframe);
+
+                    const stepUpForm = document.createElement('form');
+                    stepUpForm.id = 'step_up_form';
+                    stepUpForm.target = 'step_up_iframe';
+                    stepUpForm.method = 'POST';
+                    stepUpForm.action = data.stepUpUrl;
+                    stepUpForm.style.display = 'none';
+
+                    const pareqInput = document.createElement('input');
+                    pareqInput.type = 'hidden';
+                    pareqInput.id = 'step_up_pareq';
+                    pareqInput.name = 'JWT';
+                    pareqInput.value = data.accessToken;
+
+                    const mdInput = document.createElement('input');
+                    mdInput.type = 'hidden';
+                    mdInput.id = 'step_up_md';
+                    mdInput.name = 'MD';
+                    mdInput.value = JSON.stringify({
+                        authenticationTransactionId: data.authenticationTransactionId,
+                        uniqid: data.uniqid,
+                        pareq: data.pareq,
+                        cardType: data.cardType,
+                        orderInfo: data.orderInfo,
+                        saveCard: saveCard,
+                        transientTokenJwt: token,
+                        subscriptionId: subscriptionId,
+                        expirationMonth: month,
+                        expirationYear: year
+                    });
+
+                    stepUpForm.appendChild(pareqInput);
+                    stepUpForm.appendChild(mdInput);
+
+                    step_up.appendChild(stepUpForm);
+                    stepUpForm.submit();
+
+                } else {
+
+                    document.getElementById('cybersource_payment_status').value = data.status;
+                    document.getElementById('cybersource_payment_uniqid').value = data.uniqid;
+                    document.getElementById('cybersource_transient_token_jwt').value = token || '';
+                    document.getElementById('cybersource_subscription_id').value = subscriptionId || '';
+                    document.getElementById('cybersource_expiration_month').value = month;
+                    document.getElementById('cybersource_expiration_year').value = year;
+
+                    if (data.action === 'complete') {
                         document.getElementById('cybersource_transaction_id').value = data.transactionId;
-                        const submitButton = document.getElementById('confirmFormSubmit');
-                        if (submitButton) {
-                            submitButton.click();
-                        }
-                        break;
-
-                    case '3ds':
-                        const stepUpForm = document.getElementById('step_up_form');
-                        const pareqInput = document.getElementById('step_up_pareq');
-                        const termUrlInput = document.getElementById('step_up_term_url');
-                        const mdInput = document.getElementById('step_up_md');
-                        const iframe = document.getElementById('step_up_iframe');
-
-                        stepUpForm.action = data.acsUrl;
-                        pareqInput.value = data.pareq;
-                        termUrlInput.value = 'https://' + window.location.host + '/cybersource/3ds-callback';
-                        mdInput.value = JSON.stringify({
-                            authenticationTransactionId: data.authenticationTransactionId,
-                            uniqid: data.uniqid,
-                            transientTokenJwt: token,
-                            subscriptionId: subscriptionId,
-                            expirationMonth: month,
-                            expirationYear: year
-                        });
-
-                        document.getElementById('cybersource_authentication_transaction_id').value = data.authenticationTransactionId;
-
-                        stepUpForm.style.display = 'block';
-                        iframe.style.display = 'block';
-                        stepUpForm.submit();
-                        break;
-
-                    case 'notify':
+                        document.getElementById('confirmFormSubmit').click();
+                    } else if (data.action === 'notify') {
                         alert(data.message);
-                        break;
-
-                    default:
-                        alert('Unknown action: ' + data.action);
+                    }
                 }
             })
             .catch(err => {
-                console.error('Payment error:', err);
-                alert('An error occurred during payment. Please try again.');
+                console.error('Authentication error:', err);
+                alert('An error occurred during authentication. Please try again.');
             });
     }
+
+    function authorizePayment(token, subscriptionId, saveCard = false) {
+        const month = document.getElementById('expMonth').value.trim();
+        const year = document.getElementById('expYear').value.trim();
+
+        fetch('/cybersource/authorize-payment', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({token, subscriptionId, expirationMonth: month, expirationYear: year, saveCard})
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    alert(data.message || 'Payment setup failed. Please try again.');
+                    return;
+                }
+
+                if (data.action === 'setup') {
+                    collectDeviceData(data, (callbackData) => {
+                        proceedWithAuthentication(token, subscriptionId, saveCard, month, year, data, callbackData);
+                    });
+                } else {
+                    document.getElementById('cybersource_payment_status').value = data.status;
+                    document.getElementById('cybersource_payment_uniqid').value = data.uniqid;
+                    document.getElementById('cybersource_transient_token_jwt').value = token || '';
+                    document.getElementById('cybersource_subscription_id').value = subscriptionId || '';
+                    document.getElementById('cybersource_expiration_month').value = month;
+                    document.getElementById('cybersource_expiration_year').value = year;
+
+                    if (data.action === 'complete') {
+                        document.getElementById('cybersource_transaction_id').value = data.transactionId;
+                        document.getElementById('confirmFormSubmit').click();
+                    } else if (data.action === 'notify') {
+                        alert(data.message);
+                    }
+                }
+            })
+            .catch(err => {
+                console.error('Payment setup error:', err);
+                alert('An error occurred during payment setup. Please try again.');
+            });
+    }
+
+    window.addEventListener('message', function (event) {
+
+        const origin = event.origin;
+        const currentDomain = window.location.origin;
+        if (!origin.includes('cybersource.com') &&  !origin.includes(currentDomain)) {
+            return;
+        }
+
+        if (event.data?.action === "close_frame") {
+            debugger;
+            const step_up = document.getElementById('step_up');
+            step_up.innerHTML = '';
+
+            let data = event.data.data;
+            if (typeof data === 'string') {
+                try {
+                    data = JSON.parse(data);
+                } catch (e) {
+                    console.error('Failed to parse data:', e);
+                    return;
+                }
+            }
+
+            document.getElementById('cybersource_payment_status').value = data.success;
+            document.getElementById('cybersource_payment_uniqid').value = data.uniqid;
+            if (data.success) {
+                document.getElementById('cybersource_transaction_id').value = data.transactionId;
+                document.getElementById('confirmFormSubmit').click();
+            } else if (data.action === 'notify') {
+                alert(data.message);
+                document.getElementById('confirmOrderButton').disabled = false;
+                document.getElementById('confirmOrderButton').textContent = 'Pay Now';
+            }
+        }
+
+    });
 
     function showError(message) {
         const monthInput = document.getElementById('expMonth');

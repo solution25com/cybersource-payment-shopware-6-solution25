@@ -3,6 +3,7 @@
 namespace CyberSource\Shopware6\Controllers;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
 use Shopware\Core\Checkout\Cart\SalesChannel\CartService;
 use Shopware\Core\Checkout\Order\SalesChannel\OrderService;
 use Shopware\Core\Framework\Context;
@@ -244,7 +245,7 @@ class CyberSourceController extends AbstractController
         $refundPaymentRequestData = [
             'orderInformation' => [
                 'amountDetails' => [
-                    'totalAmount' =>  $refundAmount,
+                    'totalAmount' => $refundAmount,
                     'currency' => $currency,
                 ],
                 'lineItems' => $orderLineItemsData
@@ -263,7 +264,7 @@ class CyberSourceController extends AbstractController
             $transactionId = $this->getCybersourcePaymentTransactionId($orderTransaction, $paymentStatus);
             $this->orderTransactionRepository->update([
                 [
-                    'id'           => $shopwareOrderTransactionId,
+                    'id' => $shopwareOrderTransactionId,
                     'customFields' => [
                         'cybersource_payment_details' => [
                             'transaction_id' => $transactionId,
@@ -347,7 +348,7 @@ class CyberSourceController extends AbstractController
         $signer = $this->configurationService->getSignatureContract();
 
         $endpoint = '/microform/v2/sessions';
-        $domain = "https://".$_SERVER['HTTP_HOST'];
+        $domain = "https://" . $_SERVER['HTTP_HOST'];
         $payload = json_encode([
             'captureMethod' => 'TOKEN',
             'targetOrigins' => [$domain],
@@ -407,13 +408,17 @@ class CyberSourceController extends AbstractController
                 'firstName' => $billingAddress->getFirstName() ?? 'Unknown',
                 'lastName' => $billingAddress->getLastName() ?? 'Unknown',
                 'email' => $customer->getEmail() ?? 'no-email@example.com',
-                'phoneNumber' => $billingAddress->getPhoneNumber() ?? '',
                 'address1' => $billingAddress->getStreet() ?? 'Unknown Street',
                 'postalCode' => $billingAddress->getZipcode() ?? '00000',
                 'locality' => $billingAddress->getCity() ?? 'Unknown City',
-                'administrativeArea' => $billingAddress->getCountryState() ? $billingAddress->getCountryState()->getShortCode() : '',
                 'country' => $billingAddress->getCountry()->getIso() ?? 'US'
             ];
+            if ($billingAddress->getPhoneNumber()) {
+                $billTo['phoneNumber'] = $billingAddress->getPhoneNumber();
+            }
+            if ($billingAddress->getCountryState()) {
+                $billTo['administrativeArea'] = $billingAddress->getCountryState()->getShortCode();
+            }
         } else {
             $billTo = [
                 'firstName' => 'Unknown',
@@ -426,31 +431,168 @@ class CyberSourceController extends AbstractController
             ];
         }
         $uniqid = uniqid();
+        $orderInfo = [
+            'amountDetails' => [
+                'totalAmount' => $amount,
+                'currency' => $currency
+            ],
+            'billTo' => $billTo
+        ];
         $threeDSEnabled = $this->configurationService->isThreeDSEnabled();
         if (!$threeDSEnabled) {
-            $authResponse = [
-                'consumerAuthenticationInformation' => [
-                    'eci' => null,
-                    'cavv' => null
+            $authResponse = [];
+            return $this->completePayment($context, $authResponse, $saveCard, $uniqid, $token, $subscriptionId, $expirationMonth, $expirationYear, $orderInfo);
+        }
+
+        // Step 1: Authentication Setup
+        $setupEndpoint = '/risk/v1/authentication-setups';
+        $setupPayload = [
+            'clientReferenceInformation' => [
+                'code' => 'Order-' . $uniqid
+            ],
+            'orderInformation' => $orderInfo
+        ];
+
+        if ($subscriptionId) {
+            $setupPayload['paymentInformation'] = [
+                'customer' => [
+                    'id' => $subscriptionId
                 ]
             ];
-            return $this->completePayment($context, $authResponse, $saveCard, $uniqid, $token, $subscriptionId, $expirationMonth, $expirationYear);
+        } else {
+            $setupPayload['tokenInformation'] = [
+                'transientTokenJwt' => $token
+            ];
+            $setupPayload['paymentInformation'] = [
+                'card' => [
+                    'expirationMonth' => $expirationMonth,
+                    'expirationYear' => $expirationYear
+                ]
+            ];
         }
+
+        $setupPayloadJson = json_encode($setupPayload, JSON_PRETTY_PRINT);
+        $this->logger->info('Authentication Setup Request Payload: ' . $setupPayloadJson);
+
+        $headers = $signer->getHeadersForPostMethod($setupEndpoint, $setupPayloadJson);
+        $base_url = $this->configurationService->getBaseUrl()->value;
+        $client = new Client(['base_uri' => $base_url]);
+
+        try {
+            $setupResponse = $client->post($setupEndpoint, [
+                'headers' => $headers,
+                'body' => $setupPayloadJson
+            ]);
+            $setupResponseData = json_decode($setupResponse->getBody()->getContents(), true);
+            $this->logger->info('Authentication Setup Response: ' . json_encode($setupResponseData));
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $res = $e->hasResponse() ? $e->getResponse() : null;
+            $body = $res ? $res->getBody()->getContents() : 'No response body';
+            $this->logger->error('Authentication Setup Request Failed: ' . $e->getMessage(), ['response' => $body]);
+            return new JsonResponse([
+                'error' => 'Authentication setup request failed',
+                'message' => $body
+            ], 500);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'action' => 'setup',
+            'uniqid' => $uniqid,
+            'consumerAuthenticationInformation' => $setupResponseData['consumerAuthenticationInformation']
+        ]);
+    }
+    #[Route(
+        path: '/cybersource/proceed-authentication',
+        name: 'cybersource.proceed_authentication',
+        methods: ['POST'],
+        defaults: ['_routeScope' => ['storefront']]
+    )]
+    public function proceedAuthentication(Request $request, SalesChannelContext $context): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $token = $data['token'] ?? null;
+        $subscriptionId = $data['subscriptionId'] ?? null;
+        $saveCard = $data['saveCard'] ?? false;
+        $expirationMonth = $data['expirationMonth'] ?? null;
+        $expirationYear = $data['expirationYear'] ?? null;
+        $setupResponse = $data['setupResponse'] ?? null;
+        $callbackData = $data['callbackData'] ?? null;
+        if ($setupResponse && is_string($setupResponse)) {
+            $setupResponse = json_decode($setupResponse, true);
+        }
+        if ($callbackData) {
+            $callbackData = json_decode($callbackData, true);
+        }
+        if (!$token && !$subscriptionId) {
+            return new JsonResponse(['error' => 'Missing token or subscriptionId'], 400);
+        }
+
+        if (!$setupResponse) {
+            return new JsonResponse(['error' => 'Missing setup response'], 400);
+        }
+        if(!$callbackData) {
+            return new JsonResponse(['error' => 'Missing callback response'], 400);
+        }
+
+        $uniqid = $data['uniqid'] ?? null;
+        if (!$uniqid) {
+            return new JsonResponse(['error' => 'Missing uniqid'], 400);
+        }
+
+        $signer = $this->configurationService->getSignatureContract();
+        $cart = $this->cartService->getCart($context->getToken(), $context);
+        $customer = $context->getCustomer();
+        $billingAddress = $customer ? $customer->getActiveBillingAddress() : null;
+
+        $amount = (string) $cart->getPrice()->getTotalPrice();
+        $currency = $context->getCurrency()->getIsoCode();
+
+        $billTo = [];
+        if ($billingAddress && $customer) {
+            $billTo = [
+                'firstName' => $billingAddress->getFirstName() ?? 'Unknown',
+                'lastName' => $billingAddress->getLastName() ?? 'Unknown',
+                'email' => $customer->getEmail() ?? 'no-email@example.com',
+                'address1' => $billingAddress->getStreet() ?? 'Unknown Street',
+                'postalCode' => $billingAddress->getZipcode() ?? '00000',
+                'locality' => $billingAddress->getCity() ?? 'Unknown City',
+                'country' => $billingAddress->getCountry()->getIso() ?? 'US'
+            ];
+            if ($billingAddress->getPhoneNumber()) {
+                $billTo['phoneNumber'] = $billingAddress->getPhoneNumber();
+            }
+            if ($billingAddress->getCountryState()) {
+                $billTo['administrativeArea'] = $billingAddress->getCountryState()->getShortCode();
+            }
+        } else {
+            $billTo = [
+                'firstName' => 'Unknown',
+                'lastName' => 'Unknown',
+                'email' => 'no-email@example.com',
+                'address1' => 'Unknown Street',
+                'locality' => 'Unknown City',
+                'country' => 'US',
+                'postalCode' => '00000'
+            ];
+        }
+        $orderInfo = [
+            'amountDetails' => [
+                'totalAmount' => $amount,
+                'currency' => $currency
+            ],
+            'billTo' => $billTo
+        ];
 
         $endpoint = '/risk/v1/authentications';
         $payload = [
             'clientReferenceInformation' => [
                 'code' => 'Order-' . $uniqid
             ],
-            'orderInformation' => [
-                'amountDetails' => [
-                    'totalAmount' => $amount,
-                    'currency' => $currency
-                ],
-                'billTo' => $billTo
-            ],
+            'orderInformation' => $orderInfo,
             'consumerAuthenticationInformation' => [
                 'authenticationType' => '01',
+                'referenceId' => $setupResponse['consumerAuthenticationInformation']['referenceId'] ?? null,
                 'returnUrl' => 'https://' . $_SERVER['HTTP_HOST'] . '/cybersource/3ds-callback'
             ]
         ];
@@ -473,6 +615,10 @@ class CyberSourceController extends AbstractController
             ];
         }
 
+        if (!empty($setupResponse['consumerAuthenticationInformation']['accessToken'])) {
+            $payload['consumerAuthenticationInformation']['accessToken'] = $setupResponse['consumerAuthenticationInformation']['accessToken'];
+        }
+
         $payloadJson = json_encode($payload, JSON_PRETTY_PRINT);
         $this->logger->info('Payer Authentication Request Payload: ' . $payloadJson);
 
@@ -485,9 +631,9 @@ class CyberSourceController extends AbstractController
                 'headers' => $headers,
                 'body' => $payloadJson
             ]);
+            $bodyContent =$response->getBody()->getContents();
+            $responseData = json_decode($bodyContent, true);
 
-            $responseData = json_decode($response->getBody()->getContents(), true);
-            $this->logger->info('Payer Authentication Response: ' . json_encode($responseData));
 
             $status = $responseData['status'] ?? 'UNKNOWN';
             $authenticationTransactionId = $responseData['consumerAuthenticationInformation']['authenticationTransactionId'] ?? null;
@@ -495,15 +641,26 @@ class CyberSourceController extends AbstractController
             if ($status === 'PENDING_AUTHENTICATION') {
                 $acsUrl = $responseData['consumerAuthenticationInformation']['acsUrl'] ?? null;
                 $pareq = $responseData['consumerAuthenticationInformation']['pareq'] ?? null;
+                $accessToken = $responseData['consumerAuthenticationInformation']['accessToken'] ?? null;
+                $cardType = $responseData['paymentInformation']['card']['type'] ?? null;
 
-                if ($acsUrl && $pareq && $authenticationTransactionId) {
+                if ($acsUrl && $pareq && $accessToken) {
                     return new JsonResponse([
                         'success' => true,
                         'action' => '3ds',
                         'authenticationTransactionId' => $authenticationTransactionId,
                         'acsUrl' => $acsUrl,
+                        'stepUpUrl' => $responseData['consumerAuthenticationInformation']['stepUpUrl'] ?? null,
                         'pareq' => $pareq,
-                        'uniqid' => $uniqid
+                        'uniqid' => $uniqid,
+                        'accessToken' => $accessToken,
+                        'cardType' => $cardType,
+                        'orderInfo' => $orderInfo,
+                        'transientTokenJwt' => $token,
+                        'subscriptionId' => $subscriptionId,
+                        'expirationMonth' => $expirationMonth,
+                        'expirationYear' => $expirationYear,
+                        'saveCard' => $saveCard
                     ]);
                 }
                 return new JsonResponse([
@@ -512,7 +669,7 @@ class CyberSourceController extends AbstractController
                     'message' => '3DS authentication required, but necessary information is missing.'
                 ]);
             } elseif ($status === 'AUTHENTICATION_SUCCESSFUL') {
-                return $this->completePayment($context, $responseData, $saveCard, $uniqid, $token, $subscriptionId, $expirationMonth, $expirationYear);
+                return $this->completePayment($context, $responseData, $saveCard, $uniqid, $token, $subscriptionId, $expirationMonth, $expirationYear, $orderInfo);
             } else {
                 return new JsonResponse([
                     'success' => false,
@@ -533,77 +690,61 @@ class CyberSourceController extends AbstractController
 
     /**
      * Complete the payment after 3DS authentication (or directly if 3DS is disabled)
+     * @param SalesChannelContext $context
+     * @param array $authResponse
+     * @param bool $saveCard
+     * @param string $uniqid
+     * @param string $transientTokenJwt
+     * @param string|null $subscriptionId
+     * @param string $expirationMonth
+     * @param string $expirationYear
+     * @param array $orderInfo
+     * @return JsonResponse
+     * @throws GuzzleException
      */
     private function completePayment(
         SalesChannelContext $context,
         array $authResponse,
         bool $saveCard,
         string $uniqid,
-        ?string $transientTokenJwt = null,
-        ?string $subscriptionId = null,
-        ?string $expirationMonth = null,
-        ?string $expirationYear = null
+        string $transientTokenJwt ,
+        string $subscriptionId = null,
+        string $expirationMonth,
+        string $expirationYear,
+        array $orderInfo = []
     ): JsonResponse {
         $signer = $this->configurationService->getSignatureContract();
         $capture = $this->configurationService->getTransactionType() == 'auth_capture';
         $endpoint = '/pts/v2/payments';
-
-        $cart = $this->cartService->getCart($context->getToken(), $context);
-        $customer = $context->getCustomer();
-        $billingAddress = $customer ? $customer->getActiveBillingAddress() : null;
-
-        $amount = (string) $cart->getPrice()->getTotalPrice();
-        $currency = $context->getCurrency()->getIsoCode();
-
-        $billTo = [];
-        if ($billingAddress && $customer) {
-            $billTo = [
-                'firstName' => $billingAddress->getFirstName() ?? 'Unknown',
-                'lastName' => $billingAddress->getLastName() ?? 'Unknown',
-                'email' => $customer->getEmail() ?? 'no-email@example.com',
-                'phoneNumber' => $billingAddress->getPhoneNumber() ?? '',
-                'address1' => $billingAddress->getStreet() ?? 'Unknown Street',
-                'postalCode' => $billingAddress->getZipcode() ?? '00000',
-                'locality' => $billingAddress->getCity() ?? 'Unknown City',
-                'administrativeArea' => $billingAddress->getCountryState() ? $billingAddress->getCountryState()->getShortCode() : '',
-                'country' => $billingAddress->getCountry()->getIso() ?? 'US'
-            ];
-        } else {
-            $billTo = [
-                'firstName' => 'Unknown',
-                'lastName' => 'Unknown',
-                'email' => 'no-email@example.com',
-                'address1' => 'Unknown Street',
-                'locality' => 'Unknown City',
-                'country' => 'US',
-                'postalCode' => '00000'
-            ];
-        }
 
         $payload = [
             'clientReferenceInformation' => [
                 'code' => 'Order-' . $uniqid
             ],
             'processingInformation' => [
-                'commerceIndicator' => 'internet',
-                'actionList' => ['TOKEN_CREATE'],
                 'capture' => $capture
             ],
-            'orderInformation' => [
-                'amountDetails' => [
-                    'totalAmount' => $amount,
-                    'currency' => $currency
-                ],
-                'billTo' => $billTo
-            ]
+            'orderInformation' => $orderInfo
         ];
 
+        if ($saveCard) {
+            $payload['processingInformation']['actionList'] = ['TOKEN_CREATE'];
+            $payload['processingInformation']['actionTokenTypes'] = ['paymentInstrument'];
+        }
+
         $threeDSEnabled = $this->configurationService->isThreeDSEnabled();
-        if ($threeDSEnabled) {
-            $payload['consumerAuthenticationInformation'] = [
-                'eci' => $authResponse['consumerAuthenticationInformation']['eci'] ?? null,
-                'cavv' => $authResponse['consumerAuthenticationInformation']['cavv'] ?? null
-            ];
+        if ($threeDSEnabled && !empty($authResponse['consumerAuthenticationInformation'])) {
+            $consumerAuthInfo = [];
+
+            if (isset($authResponse['consumerAuthenticationInformation']['cavv'])) {
+                $consumerAuthInfo['cavv'] = $authResponse['consumerAuthenticationInformation']['cavv'];
+            }
+            if (isset($authResponse['consumerAuthenticationInformation']['xid'])) {
+                $consumerAuthInfo['xid'] = $authResponse['consumerAuthenticationInformation']['xid'];
+            }
+            if (!empty($consumerAuthInfo)) {
+                $payload['consumerAuthenticationInformation'] = $consumerAuthInfo;
+            }
         }
 
         if ($subscriptionId) {
@@ -723,7 +864,8 @@ class CyberSourceController extends AbstractController
             $body = $res ? $res->getBody()->getContents() : 'No response body';
             $this->logger->error('Payment Request Failed: ' . $e->getMessage(), ['response' => $body]);
             return new JsonResponse([
-                'error' => 'Payment request failed',
+                'success' => false,
+                'action' => 'notify',
                 'message' => $body
             ], 500);
         }
@@ -787,7 +929,7 @@ class CyberSourceController extends AbstractController
         $endpoint = "/tms/v2/customers/{$customerTokenId}/payment-instruments";
         $payload = json_encode([
             'instrumentIdentifier' => [
-                'id' => $paymentToken, // This is the instrumentIdentifier.id (7036200001260191005)
+                'id' => $paymentToken,
             ],
         ]);
         $headers = $signer->getHeadersForPostMethod($endpoint, $payload);
@@ -871,26 +1013,37 @@ class CyberSourceController extends AbstractController
         methods: ['POST'],
         defaults: ['_routeScope' => ['storefront']]
     )]
-    public function handle3dsCallback(Request $request, SalesChannelContext $context): JsonResponse
+    public function handle3dsCallback(Request $request, SalesChannelContext $context): Response
     {
-        $authenticationTransactionId = $request->request->get('authenticationTransactionId');
-        $pares = $request->request->get('PaRes');
-        $uniqid = $request->request->get('uniqid');
-
-        if (!$authenticationTransactionId || !$pares || !$uniqid) {
-            return new JsonResponse(['error' => 'Missing required parameters'], 400);
+        $data = $request->request->get('MD');
+        if ($data) {
+            $data = json_decode($data, true);
+        } else {
+            $data = [];
         }
+        $authenticationTransactionId = $data['authenticationTransactionId'] ?? null;
+        $orderInfo = $data['orderInfo'] ?? null;
+        $uniqid = $data['uniqid'] ?? null;
+        $transientTokenJwt =$data['transientTokenJwt'] ?? null;
+        $subscriptionId = $data['subscriptionId'] ?? null;
+        $expirationMonth = $data['expirationMonth'] ?? null;
+        $expirationYear = $data['expirationYear'] ?? null;
+        $cardType = $data['cardType'] ?? null;
+        $saveCard = filter_var($data['saveCard'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
-        // Step 1: Retrieve authentication results
         $signer = $this->configurationService->getSignatureContract();
         $endpoint = '/risk/v1/authentication-results';
         $payload = [
             'clientReferenceInformation' => [
                 'code' => 'Order-' . $uniqid
             ],
+            'paymentInformation' => [
+                'card' => [
+                    'type' => $cardType
+                ]
+            ],
             'consumerAuthenticationInformation' => [
                 'authenticationTransactionId' => $authenticationTransactionId,
-                'pares' => $pares
             ]
         ];
 
@@ -900,41 +1053,57 @@ class CyberSourceController extends AbstractController
         $headers = $signer->getHeadersForPostMethod($endpoint, $payloadJson);
         $base_url = $this->configurationService->getBaseUrl()->value;
         $client = new Client(['base_uri' => $base_url]);
-
+        $return = [];
         try {
             $response = $client->post($endpoint, [
                 'headers' => $headers,
                 'body' => $payloadJson
             ]);
 
-            $responseData = json_decode($response->getBody()->getContents(), true);
-            $this->logger->info('Authentication Results Response: ' . json_encode($responseData));
+            $responseDataJson = $response->getBody()->getContents();
+            $responseData = json_decode($responseDataJson, true);
+            $this->logger->info('Authentication Results Response: ' . $responseDataJson);
 
             $status = $responseData['status'] ?? 'UNKNOWN';
 
             if ($status === 'AUTHENTICATION_SUCCESSFUL') {
-                $transientTokenJwt = $request->request->get('transientTokenJwt');
-                $subscriptionId = $request->request->get('subscriptionId');
-                $expirationMonth = $request->request->get('expirationMonth');
-                $expirationYear = $request->request->get('expirationYear');
 
-                return $this->completePayment($context, $responseData, true, $uniqid, $transientTokenJwt, $subscriptionId, $expirationMonth, $expirationYear);
+                $ret = $this->completePayment($context, $responseData, $saveCard, $uniqid, $transientTokenJwt, $subscriptionId, $expirationMonth, $expirationYear, $orderInfo);
+                $return = $ret->getContent();
+
             } else {
-                return new JsonResponse([
+                $return = [
                     'success' => false,
                     'action' => 'notify',
                     'message' => '3DS authentication failed: ' . $status
-                ]);
+                ];
             }
         } catch (\GuzzleHttp\Exception\RequestException $e) {
             $res = $e->hasResponse() ? $e->getResponse() : null;
             $body = $res ? $res->getBody()->getContents() : 'No response body';
             $this->logger->error('Authentication Results Request Failed: ' . $e->getMessage(), ['response' => $body]);
-            return new JsonResponse([
-                'error' => 'Failed to retrieve authentication results',
+            $return = [
+                'success' => false,
+                'action' => 'notify',
                 'message' => $body
-            ], 500);
+            ];
         }
+        $response = new Response('<html><body>
+                                <script>
+                                        window.parent.postMessage({
+                                            action: "close_frame",
+                                            data: '.$return.'
+                                        }, "*");
+                                </script>
+                            </body></html>');
+        $response->headers->set(
+            'Content-Security-Policy',
+            "frame-ancestors 'self' *.cardinalcommerce.com"
+        );
+        $response->headers->set(
+            'X-Frame-Options',
+            'ALLOW-FROM *.cardinalcommerce.com'
+        );
+        return $response;
     }
-
 }

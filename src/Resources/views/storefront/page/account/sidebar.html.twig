@@ -1,0 +1,10 @@
+{% sw_extends '@Storefront/storefront/page/account/sidebar.html.twig' %}
+
+{% block page_account_sidebar_menu_inner %}
+    {{ parent() }}
+    <a href="{{ path('frontend.cybersource.saved_cards') }}"
+       title="Saved Cards"
+       class="list-group-item list-group-item-action account-aside-item{% if activeRoute is same as('frontend.cybersource.saved_cards') %} is-active{% endif %}">
+        Saved Cards
+    </a>
+{% endblock %}

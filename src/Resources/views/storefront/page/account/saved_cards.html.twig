@@ -1,0 +1,95 @@
+{% sw_extends '@Storefront/storefront/page/account/index.html.twig' %}
+
+{% block page_account_main_content %}
+    <div class="account-welcome">
+        <h1>Saved Cards</h1>
+    </div>
+
+    {% if cards is empty %}
+        <p>No saved cards found.</p>
+    {% else %}
+        {% set cardImages = {
+            'AMEX': 'https://files.readme.io/97e7acc-Amex.png',
+            'DINERS': 'https://files.readme.io/8c73810-Diners_Club.png',
+            'DISCOVER': 'https://files.readme.io/caea86d-Discover.png',
+            'JCB': 'https://files.readme.io/e076aed-JCB.png',
+            'MASTERCARD': 'https://files.readme.io/5b7b3de-Mastercard.png',
+            'VISA': 'https://files.readme.io/9018c4f-Visa.png',
+            'MAESTRO': 'https://files.readme.io/79d7723-Maestro.png',
+            'UNIONPAY': 'https://files.readme.io/92c35c7-UnionPay.png',
+            'ELECTRON': 'https://files.readme.io/def3490-Electron.png',
+            'DANKORT': 'https://files.readme.io/ff5319d-Dankort.png',
+            'INTERPAYMENT': 'https://files.readme.io/cf79c1b-Interpayment.png',
+            'CUP': 'https://files.readme.io/92c35c7-UnionPay.png'
+        } %}
+        <div class="cards-container">
+            {% for card in cards %}
+                {% set cardType = card.type|upper %}
+                <div class="credit-card {{ cardType|lower }}" data-payment-profile-id="{{ card.id }}">
+                    <div class="card-header">
+                        <span class="card-type">
+                            {% if cardImages[cardType] is defined %}
+                                <img src="{{ cardImages[cardType] }}" alt="{{ cardType }}" class="card-icon"/>
+                            {% endif %}
+                            {{ cardType }}
+                        </span>
+                    </div>
+                    <div class="card-number">{{ card.cardNumber }}</div>
+                    <div class="card-details">
+                        <span>Exp: {{ card.expirationMonth }}/{{ card.expirationYear }}</span>
+                    </div>
+                    <div class="card-actions">
+                        <form method="post" action="{{ path('frontend.cybersource.delete_card') }}" style="display:inline;">
+                            <input type="hidden" name="instrumentId" value="{{ card.id }}">
+                            <input type="hidden" name="customerId" value="{{ card.customerId }}">
+                            <button type="submit" class="delete-card-btn">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div>
+        {% if cards is not empty %}
+            <p>Add a new card</p>
+        {% endif %}
+        <button id="addCardButton">+ Add Card</button>
+
+        <div id="paymentForm" style="display: none; height:1000px">
+            <div id="newCardForm">
+                <div class="form-group">
+                    <label for="number-container">Card Number</label>
+                    <div id="number-container" class="microform-field"></div>
+                </div>
+                <div class="form-group">
+                    <label for="securityCode-container">CVV</label>
+                    <div id="securityCode-container" class="microform-field"></div>
+                </div>
+                <div class="form-group">
+                    <label>Expiration Date</label>
+                    <div class="expiry-group">
+                        <input id="expMonth" type="text" placeholder="MM" maxlength="2" required>
+                        <input id="expYear" type="text" placeholder="YYYY" maxlength="4" required>
+                    </div>
+                    <div id="expiry-error" class="error-message">Please enter a valid expiration date.</div>
+                </div>
+            </div>
+            <input id="cybersource_transaction_id" type="hidden" name="cybersource_transaction_id" value="">
+            <input id="cybersource_payment_status" type="hidden" name="cybersource_payment_status" value="">
+            <input id="cybersource_payment_uniqid" type="hidden" name="cybersource_payment_uniqid" value="">
+            <input id="cybersource_authentication_transaction_id" type="hidden" name="cybersource_authentication_transaction_id" value="">
+            <input id="cybersource_transient_token_jwt" type="hidden" name="cybersource_transient_token_jwt" value="">
+            <input id="cybersource_subscription_id" type="hidden" name="cybersource_subscription_id" value="">
+            <input id="cybersource_expiration_month" type="hidden" name="cybersource_expiration_month" value="">
+            <input id="cybersource_expiration_year" type="hidden" name="cybersource_expiration_year" value="">
+            <div class="d-grid">
+                <button id="saveCardButton" class="form-group saveCardButton" type="button">Save Card</button>
+            </div>
+            <div id="step_up"></div>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="{{ asset('bundles/cybersourceshopware6/css/payment-credit-card.css') }}">
+    <script src="{{ asset('bundles/cybersourceshopware6/js/payment.js') }}"></script>
+{% endblock %}

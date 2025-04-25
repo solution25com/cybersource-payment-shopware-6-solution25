@@ -44,16 +44,10 @@
         <!-- Controllers -->
         <service id="CyberSource\Shopware6\Controllers\CyberSourceController" public="true">
             <argument type="service" id="order_transaction.repository"/>
-            <argument type="service" id="order.repository"/>
             <argument type="service" id="CyberSource\Shopware6\Service\ConfigurationService"/>
             <argument type="service" id="CyberSource\Shopware6\Library\CyberSourceFactory"/>
             <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler"/>
             <argument type="service" id="translator"/>
-            <argument type="service" id="Shopware\Core\Checkout\Cart\SalesChannel\CartService"/>
-            <argument type="service" id="Shopware\Core\Checkout\Order\SalesChannel\OrderService"/>
-            <argument type="service" id="Shopware\Core\System\StateMachine\StateMachineRegistry"/>
-            <argument type="service" id="logger"/>
-            <argument type="service" id="customer.repository"/>
             <call method="setContainer">
                 <argument type="service" id="service_container"/>
             </call>
@@ -73,6 +67,8 @@
 
         <service id="CyberSource\Shopware6\Service\CyberSourceApiClient">
             <argument type="service" id="CyberSource\Shopware6\Service\ConfigurationService"/>
+            <argument type="service" id="Shopware\Core\Checkout\Cart\SalesChannel\CartService"/>
+            <argument type="service" id="customer.repository"/>
             <argument type="service" id="logger"/>
         </service>
         <service id="CyberSource\Shopware6\Subscriber\OrderPaymentStatusSubscriber">
@@ -111,6 +107,16 @@
             <argument type="service" id="CyberSource\Shopware6\Service\CyberSourceApiClient"/>
             <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
             <tag name="console.command"/>
+        </service>
+        <service id="CyberSource\Shopware6\Storefront\Controller\CustomController" public="true">
+            <argument type="service" id="Shopware\Storefront\Page\GenericPageLoader"/>
+            <argument type="service" id="CyberSource\Shopware6\Service\CyberSourceApiClient"/>
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+            <call method="setTwig">
+                <argument type="service" id="twig"/>
+            </call>
         </service>
      </services>
 </container>

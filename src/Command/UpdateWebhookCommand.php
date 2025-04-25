@@ -47,8 +47,8 @@ class UpdateWebhookCommand extends Command
 
         $shopBaseUrl = $this->urlHelper->getShopwareBaseUrl();
 
-        $webhookUrl = $shopBaseUrl . '/cybersource/webhook?XDEBUG_TRIGGER=PHPSTORM';
-        $healthCheckUrl = $shopBaseUrl . '/cybersource/webhook/health?XDEBUG_TRIGGER=PHPSTORM';
+        $webhookUrl = $shopBaseUrl . '/cybersource/webhook';
+        $healthCheckUrl = $shopBaseUrl . '/cybersource/webhook/health';
 
         $payload = [
             'name' => 'ShopwarePaymentWebhookUpdated',
@@ -79,7 +79,7 @@ class UpdateWebhookCommand extends Command
             'healthCheckUrl' => $healthCheckUrl,
             'notificationScope' => 'SELF',
             'securityPolicy' => [
-                'securityType' => 'none',
+                'securityType' => 'sharedSecret',
             ],
             'status' => 'ACTIVE'
         ];

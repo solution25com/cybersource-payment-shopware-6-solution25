@@ -302,6 +302,9 @@ class CyberSourceApiClient
                 'customer' => [
                     'id' => $cardCustomerId,
                 ],
+                'paymentInstrument' => [
+                    'id' => $subscriptionId,
+                ]
             ];
         } else {
             $setupPayload['tokenInformation'] = [
@@ -389,6 +392,9 @@ class CyberSourceApiClient
                 'customer' => [
                     'id' => $cardCustomerId,
                 ],
+                'paymentInstrument' => [
+                    'id' => $subscriptionId,
+                ]
             ];
         } else {
             $payload['tokenInformation'] = [
@@ -521,6 +527,9 @@ class CyberSourceApiClient
                 'customer' => [
                     'id' => $cardCustomerId,
                 ],
+                'paymentInstrument' => [
+                    'id' => $subscriptionId,
+                ]
             ];
             $payload['processingInformation']['commerceIndicator'] = 'internet';
         } else {

@@ -301,7 +301,6 @@ export default class CyberSourceShopware6CreditCard extends window.PluginBaseCla
         const {
           formatCreditCard,
           formatDate,
-          getCreditCardType,
           registerCursorTracker,
           DefaultCreditCardDelimiter,
           DefaultDateDelimiter,

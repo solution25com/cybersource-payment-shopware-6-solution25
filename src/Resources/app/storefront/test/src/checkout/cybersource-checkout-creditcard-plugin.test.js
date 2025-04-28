@@ -38,7 +38,7 @@ describe('CyberSourceShopware6CreditCard', () => {
         plugin.expiryFieldId = 'cybersource_shopware6_expiry_date'
         plugin.cvcFieldId = 'cybersource_shopware6_security_code'
         plugin.tosFieldId = 'tos'
-        plugin.confirmFormId = 'confirmFormId',
+        plugin.confirmFormId = 'confirmFormId'
             plugin.cardNumberField = {
                 value: '',
                 getAttribute: jest.fn().mockReturnValue('data-required-msg')

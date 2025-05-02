@@ -37,12 +37,20 @@ const PaymentModule = (function () {
             .then(data => {
                 const savedCards = data.cards || [];
                 const savedCardsSelect = document.getElementById(config.savedCardsId);
-                savedCards.forEach(card => {
-                    const option = document.createElement('option');
-                    option.value = card.id;
-                    option.textContent = `Card: ${card.cardNumber} (Exp: ${card.expirationMonth}/${card.expirationYear})`;
-                    savedCardsSelect.appendChild(option);
-                });
+                if (savedCards.length === 0) {
+                    let savedCardsSection = document.getElementById('saved-cards-section');
+                    if(savedCardsSection) {
+                        savedCardsSection.style.display = 'none';
+                    }
+                }
+                else {
+                    savedCards.forEach(card => {
+                        const option = document.createElement('option');
+                        option.value = card.id;
+                        option.textContent = `Card: ${card.cardNumber} (Exp: ${card.expirationMonth}/${card.expirationYear})`;
+                        savedCardsSelect.appendChild(option);
+                    });
+                }
                 toggleCardForm();
             })
             .catch(err => console.error('Failed to load saved cards:', err));
@@ -403,7 +411,6 @@ const PaymentModule = (function () {
     // Setup event listeners
     function setupEventListeners() {
         if (config.isPaymentForm) {
-            document.getElementById('confirmFormSubmit').style.display = 'none';
             const savedCardsSelect = document.getElementById(config.savedCardsId);
             if (savedCardsSelect) {
                 savedCardsSelect.addEventListener('change', toggleCardForm);
@@ -413,6 +420,19 @@ const PaymentModule = (function () {
                 payButton.addEventListener('click', (e) => {
                     e.preventDefault();
                     handlePaymentOrSave(true);
+                });
+            }
+            const submitOrderBtn = document.getElementById('confirmFormSubmit');
+            if (submitOrderBtn) {
+                submitOrderBtn.addEventListener('click', (e) => {
+                    const cybersourceTransactionId = document.getElementById('cybersource_transaction_id');
+                    if (cybersourceTransactionId && cybersourceTransactionId.value === '') {
+                        e.preventDefault();
+                        payButton.click();
+                    }
+                    else{
+                        document.getElementById('confirmOrderForm').submit();
+                    }
                 });
             }
         }
@@ -433,7 +453,10 @@ const PaymentModule = (function () {
                 handlePaymentOrSave(false);
             });
         }
-
+        document.onload = function () {
+            if(document.getElementById('confirmFormSubmit'))
+                document.getElementById('confirmFormSubmit').style.display = 'none';
+        };
         window.addEventListener('message', (event) => {
             const origin = event.origin;
             const currentDomain = window.location.origin;

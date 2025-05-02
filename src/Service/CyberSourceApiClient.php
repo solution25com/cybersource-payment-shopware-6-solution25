@@ -134,14 +134,16 @@ class CyberSourceApiClient
             'postalCode' => $billingAddress->getZipcode() ?? '00000',
             'locality' => $billingAddress->getCity() ?? 'Unknown City',
             'country' => $billingAddress->getCountry()->getIso() ?? 'US',
-            'administrativeArea' => $billingAddress->getCountryState() ? $billingAddress->getCountryState()->getShortCode() : 'Unknown State',
         ];
 
         if ($billingAddress->getPhoneNumber()) {
             $billTo['phoneNumber'] = $billingAddress->getPhoneNumber();
         }
         if ($billingAddress->getCountryState()) {
-            $billTo['administrativeArea'] = $billingAddress->getCountryState()->getShortCode();
+            $shortCode = explode('-', $billingAddress->getCountryState()->getShortCode());
+            if (count($shortCode) > 1) {
+                $billTo['administrativeArea'] = $shortCode[1];
+            }
         }
 
         return $billTo;

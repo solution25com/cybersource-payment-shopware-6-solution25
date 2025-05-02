@@ -3,8 +3,9 @@
 {% block page_checkout_confirm_form_submit %}
     {{ parent() }}
     {% if page.extensions.cybersource_shopware6 %}
-        <script src="{{ asset('bundles/cybersourceshopware6/js/cleave-zen.umd.js') }}"></script>
-        {% sw_include page.extensions.cybersource_shopware6.template %}
+        <input id="cybersource_transaction_id" type="hidden" name="cybersource_transaction_id" value="">
+        <input id="cybersource_payment_status" type="hidden" name="cybersource_payment_status" value="">
+        <input id="cybersource_payment_uniqid" type="hidden" name="cybersource_payment_uniqid" value="">
     {% endif %}
 
 {% endblock %}

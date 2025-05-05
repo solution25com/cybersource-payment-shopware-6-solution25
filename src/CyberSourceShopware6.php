@@ -16,10 +16,13 @@ use Shopware\Core\Framework\Plugin\Context\UninstallContext;
 use Shopware\Core\Framework\Plugin\Context\DeactivateContext;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
+use Symfony\Component\Process\Process;
+use Symfony\Component\Process\Exception\ProcessFailedException;
 
 class CyberSourceShopware6 extends Plugin
 {
     private ?CustomFieldService $customFieldService = null;
+
     public function install(InstallContext $installContext): void
     {
         foreach (PaymentMethods\PaymentMethods::PAYMENT_METHODS as $paymentMethod) {
@@ -48,6 +51,7 @@ class CyberSourceShopware6 extends Plugin
             $this->setPaymentMethodIsActive(true, $activateContext->getContext(), new $paymentMethod());
         }
         $this->getCustomFieldsInstaller()->createCustomFields($activateContext->getContext());
+        $this->runWebhookCommand('cybersource:create-webhook');
         parent::activate($activateContext);
     }
 
@@ -56,7 +60,35 @@ class CyberSourceShopware6 extends Plugin
         foreach (PaymentMethods\PaymentMethods::PAYMENT_METHODS as $paymentMethod) {
             $this->setPaymentMethodIsActive(false, $deactivateContext->getContext(), new $paymentMethod());
         }
+        $this->runWebhookCommand('cybersource:delete-webhook');
         parent::deactivate($deactivateContext);
+    }
+
+
+    private function runWebhookCommand(string $command): void
+    {
+        try {
+            $process = new Process(['php', 'bin/console', $command], $this->getProjectDir());
+            $process->setTimeout(60);
+            $process->run();
+
+            if (!$process->isSuccessful()) {
+                throw new ProcessFailedException($process);
+            }
+        }
+        catch (ProcessFailedException $exception) {
+            // Handle the exception as needed
+        }
+    }
+
+    /**
+     * Get the project root directory.
+     *
+     * @return string
+     */
+    private function getProjectDir(): string
+    {
+        return $this->container->getParameter('kernel.project_dir');
     }
 
     private function addPaymentMethod(Identity $paymentMethod, Context $context): void

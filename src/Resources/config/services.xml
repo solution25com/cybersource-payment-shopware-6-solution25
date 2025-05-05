@@ -70,6 +70,7 @@
             <argument type="service" id="Shopware\Core\Checkout\Cart\SalesChannel\CartService"/>
             <argument type="service" id="customer.repository"/>
             <argument type="service" id="logger"/>
+            <argument type="service" id="order.repository"/>
         </service>
         <service id="CyberSource\Shopware6\Subscriber\OrderPaymentStatusSubscriber">
             <argument type="service" id="order_transaction.repository"/>

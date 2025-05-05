@@ -5,8 +5,61 @@
             <option value="new">Use New Card</option>
         </select>
     </div>
-
+    <div id="billingSection">
+        <div class="form-group save-card">
+            <input type="checkbox" id="differentBillingAddress" name="differentBillingAddress">
+            <label for="differentBillingAddress">Billing address is different</label>
+        </div>
+        <div id="billingAddressSection" style="display: none;">
+            <h3>Billing Address</h3>
+            <div class="form-group">
+                <label for="billingFirstName">First Name</label>
+                <input type="text" id="billingFirstName" name="billingFirstName" placeholder="First Name">
+                <div id="billingFirstName-error" class="error-message" style="display: none;">Please enter a valid first name.</div>
+            </div>
+            <div class="form-group">
+                <label for="billingLastName">Last Name</label>
+                <input type="text" id="billingLastName" name="billingLastName" placeholder="Last Name">
+                <div id="billingLastName-error" class="error-message" style="display: none;">Please enter a valid last name.</div>
+            </div>
+            <div class="form-group">
+                <label for="billingEmail">Email</label>
+                <input type="email" id="billingEmail" name="billingEmail" placeholder="Email">
+                <div id="billingEmail-error" class="error-message" style="display: none;">Please enter a valid email address.</div>
+            </div>
+            <div class="form-group">
+                <label for="billingStreet">Street</label>
+                <input type="text" id="billingStreet" name="billingStreet" placeholder="Street">
+                <div id="billingStreet-error" class="error-message" style="display: none;">Please enter a valid street address.</div>
+            </div>
+            <div class="form-group">
+                <label for="billingCity">City</label>
+                <input type="text" id="billingCity" name="billingCity" placeholder="City">
+                <div id="billingCity-error" class="error-message" style="display: none;">Please enter a valid city.</div>
+            </div>
+            <div class="form-group">
+                <label for="billingZip">Zip Code</label>
+                <input type="text" id="billingZip" name="billingZip" placeholder="Zip Code">
+                <div id="billingZip-error" class="error-message" style="display: none;">Please enter a valid zip code.</div>
+            </div>
+            <div class="form-group">
+                <label for="billingCountry">Country</label>
+                <select id="billingCountry" name="billingCountry">
+                    <option value="">Select Country</option>
+                </select>
+                <div id="billingCountry-error" class="error-message" style="display: none;">Please select a country.</div>
+            </div>
+            <div class="form-group" id="billingStateSection" style="display: none;">
+                <label for="billingState">State</label>
+                <select id="billingState" name="billingState">
+                    <option value="">Select State</option>
+                </select>
+                <div id="billingState-error" class="error-message" style="display: none;">Please select a state.</div>
+            </div>
+        </div>
+    </div>
     <div id="newCardForm">
+        <h3>Credit Card</h3>
         <div class="form-group">
             <label for="number-container">Card Number</label>
             <div id="number-container" class="microform-field"></div>
@@ -21,7 +74,7 @@
                 <input id="expMonth" type="text" placeholder="MM" maxlength="2" required>
                 <input id="expYear" type="text" placeholder="YYYY" maxlength="4" required>
             </div>
-            <div id="expiry-error" class="error-message">Please enter a valid expiration date.</div>
+            <div id="expiry-error" class="error-message" style="display: none;">Please enter a valid expiration date.</div>
         </div>
         <div class="form-group save-card">
             <input type="checkbox" id="saveCard" name="saveCard">
@@ -39,6 +92,9 @@
     </div>
     <div id="step_up"></div>
 </div>
-
+<script>
+    window.salesChannelAccessKey = "{{ context.salesChannel.accessKey }}";
+</script>
 <link rel="stylesheet" href="{{ asset('bundles/cybersourceshopware6/css/payment-credit-card.css') }}">
+<script src="{{ asset('bundles/cybersourceshopware6/js/billing.js') }}"></script>
 <script src="{{ asset('bundles/cybersourceshopware6/js/payment.js') }}"></script>

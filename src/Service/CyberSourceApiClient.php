@@ -33,12 +33,14 @@ class CyberSourceApiClient
         ConfigurationService $configurationService,
         CartService $cartService,
         EntityRepository $customerRepository,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        EntityRepository $orderRepository
     ) {
         $this->configurationService = $configurationService;
         $this->cartService = $cartService;
         $this->customerRepository = $customerRepository;
         $this->logger = $logger;
+        $this->orderRepository = $orderRepository;
         $this->signer = $configurationService->getSignatureContract();
         $this->baseUrl = $configurationService->getBaseUrl()->value;
         $this->client = new Client([
@@ -250,19 +252,41 @@ class CyberSourceApiClient
         $saveCard = $data['saveCard'] ?? false;
         $expirationMonth = $data['expirationMonth'] ?? null;
         $expirationYear = $data['expirationYear'] ?? null;
+        $orderId = $data['orderId'] ?? null;
+        $billTo = $data['billingAddress'] ?? null;
 
         if (!$token && !$subscriptionId) {
             return new JsonResponse(['error' => 'Missing token or subscriptionId'], 400);
         }
-
-        $cart = $this->cartService->getCart($context->getToken(), $context);
         $customer = $context->getCustomer();
         $billingAddress = $customer ? $customer->getActiveBillingAddress() : null;
-        $amount = (string) $cart->getPrice()->getTotalPrice();
-        $currency = $context->getCurrency()->getIsoCode();
+        if($orderId){
+            $criteria = new Criteria([$orderId]);
+            $criteria->addAssociation('currency');
+            $order = $this->orderRepository->search($criteria, $context->getContext())->first();
+            if (!$order) {
+                return new JsonResponse(['error' => 'Order not found'], 404);
+            }
+            $amount = (string)$order->getPrice()->getTotalPrice();
+            $currency = $order->getCurrency()->getIsoCode();
+        }
+        else {
+            $cart = $this->cartService->getCart($context->getToken(), $context);
+            $amount = (string)$cart->getPrice()->getTotalPrice();
+            $currency = $context->getCurrency()->getIsoCode();
+        }
         $uniqid = uniqid();
+        if($billTo){
+            $shortCode = explode('-', $billTo['state']);
+            if (count($shortCode) > 1) {
+                $billTo['administrativeArea'] = $shortCode[1];
+                unset($billTo['state']);
+            }
+        }
+        else{
+            $billTo = $this->buildBillTo($customer, $billingAddress);
+        }
 
-        $billTo = $this->buildBillTo($customer, $billingAddress);
         $orderInfo = [
             'amountDetails' => [
                 'totalAmount' => $amount,
@@ -347,6 +371,7 @@ class CyberSourceApiClient
         $setupResponse = $data['setupResponse'] ?? null;
         $callbackData = $data['callbackData'] ?? null;
         $uniqid = $data['uniqid'] ?? null;
+        $billTo = $data['billingAddress'] ?? null;
 
         if (!$token && !$subscriptionId) {
             return new JsonResponse(['error' => 'Missing token or subscriptionId'], 400);
@@ -363,13 +388,22 @@ class CyberSourceApiClient
         $billingAddress = $customer ? $customer->getActiveBillingAddress() : null;
         $amount = (string) $cart->getPrice()->getTotalPrice();
         $currency = $context->getCurrency()->getIsoCode();
-
+        if($billTo){
+            $shortCode = explode('-', $billTo['state']);
+            if (count($shortCode) > 1) {
+                $billTo['administrativeArea'] = $shortCode[1];
+                unset($billTo['state']);
+            }
+        }
+        else{
+            $billTo = $this->buildBillTo($customer, $billingAddress);
+        }
         $orderInfo = [
             'amountDetails' => [
                 'totalAmount' => $amount,
                 'currency' => $currency,
             ],
-            'billTo' => $this->buildBillTo($customer, $billingAddress),
+            'billTo' => $billTo,
         ];
 
         $payload = [
@@ -951,6 +985,7 @@ class CyberSourceApiClient
         $token = $data['token'] ?? null;
         $expirationMonth = $data['expirationMonth'] ?? null;
         $expirationYear = $data['expirationYear'] ?? null;
+        $billTo = $data['billingAddress'] ?? null;
 
         if (!$token || !$expirationMonth || !$expirationYear) {
             $this->logger->error('Missing required fields for adding card', [
@@ -958,18 +993,27 @@ class CyberSourceApiClient
                 'expirationMonth' => $expirationMonth,
                 'expirationYear' => $expirationYear,
             ]);
-            return new JsonResponse(['error' => 'Missing token, expirationMonth, or expirationYear'], 400);
+            return new JsonResponse(['message' => 'Missing token, expirationMonth, or expirationYear'], 400);
         }
 
         $customer = $context->getCustomer();
         if (!$customer) {
             $this->logger->error('No customer found in context');
-            return new JsonResponse(['error' => 'Customer not authenticated'], 403);
+            return new JsonResponse(['message' => 'Customer not authenticated'], 403);
         }
 
         $customerId = $customer->getId();
         $billingAddress = $customer->getActiveBillingAddress();
-        $billTo = $this->buildBillTo($customer, $billingAddress);
+        if($billTo){
+            $shortCode = explode('-', $billTo['state']);
+            if (count($shortCode) > 1) {
+                $billTo['administrativeArea'] = $shortCode[1];
+                unset($billTo['state']);
+            }
+        }
+        else{
+            $billTo = $this->buildBillTo($customer, $billingAddress);
+        }
         $uniqid = uniqid();
 
         $payload = [
@@ -1003,10 +1047,14 @@ class CyberSourceApiClient
             $response = $this->executeRequest('Post', '/pts/v2/payments', $payload, 'Add Card Payment');
             $responseData = $response['body'];
             $status = $responseData['status'] ?? 'UNKNOWN';
-
-            if ($status !== 'AUTHORIZED') {
+            $successStatus = [
+                'AUTHORIZED',
+                'PARTIAL_AUTHORIZED',
+                'AUTHORIZED_PENDING_REVIEW',
+            ];
+            if (!in_array($status, $successStatus)) {
                 $this->logger->error('Card authorization failed', ['status' => $status, 'response' => $responseData]);
-                return new JsonResponse(['error' => 'Card authorization failed: ' . $status], 400);
+                return new JsonResponse(['message' => 'Card authorization failed: ' . $status], 400);
             }
 
             $instrumentIdentifierId = $responseData['tokenInformation']['instrumentIdentifier']['id'] ?? null;
@@ -1014,7 +1062,7 @@ class CyberSourceApiClient
 
             if (!$instrumentIdentifierId) {
                 $this->logger->error('No instrumentIdentifier returned', ['response' => $responseData]);
-                return new JsonResponse(['error' => 'Failed to retrieve instrument identifier'], 500);
+                return new JsonResponse(['message' => 'Failed to retrieve instrument identifier'], 500);
             }
 
             $saveSuccess = $this->saveCard(
@@ -1032,12 +1080,12 @@ class CyberSourceApiClient
                     'instrumentIdentifierId' => $instrumentIdentifierId,
                     'customerId' => $customerId,
                 ]);
-                return new JsonResponse(['error' => 'Failed to save card'], 500);
+                return new JsonResponse(['message' => 'Failed to save card'], 500);
             }
 
             return new JsonResponse(['success' => true, 'message' => 'Card successfully added']);
         } catch (\RuntimeException $e) {
-            return new JsonResponse(['error' => 'Failed to add card: ' . $e->getMessage()], 500);
+            return new JsonResponse(['message' => 'Failed to add card: ' . $e->getMessage()], 500);
         }
     }
 

@@ -36,11 +36,6 @@ The Cybersource plugin enables secure credit card payments in Shopware stores. I
 git clone https://github.com/solution25com/cybersource-payment-shopware-6-solution25.git
 ```
 
-## Packagist
- ```
-  composer require solution25/cybersource
-  ```
-
 
 2. **Install the Plugin in Shopware 6**
 
@@ -108,16 +103,31 @@ git clone https://github.com/solution25com/cybersource-payment-shopware-6-soluti
 - Click Save in the top-right corner to store your settings.
 
 
+## Webhook Usages
+- Webhooks will install automatically when you active the plugin.
+- Also you can manage webhooks using the command line interface (CLI) commands provided by the plugin. These commands allow you to create, read, update, and delete webhooks as needed. 
+```
+bin/console cybersource:create-webhook
+```
 
+```
+bin/console cybersource:read-webhook
+```
 
+```
+bin/console cybersource:update-webhook
+```
 
+```
+bin/console cybersource:delete-webhook
+```
 
-
-
-
-
-
-
+# Troubleshooting
+- If you encounter any issues during installation or configuration, please check the following:
+  - Ensure that your Shopware version is compatible with the plugin.
+  - Verify that all required fields in the plugin settings are filled out correctly.
+  - Check your server logs for any error messages related to the plugin.
+  - Make sure to use HTTPS 
 
 
 ## Support & Contact

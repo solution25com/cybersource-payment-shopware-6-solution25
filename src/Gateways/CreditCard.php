@@ -39,11 +39,13 @@ final class CreditCard implements SynchronousPaymentHandlerInterface
         $transactionId = $dataBag->get('cybersource_transaction_id');
         $uniqid = $dataBag->get('cybersource_payment_uniqid');
         if (!$transactionId) {
+            $this->setPaymentStatus($orderTransactionId, 'fail', $context);
             throw new APIException($orderTransactionId, 'MISSING_TRANSACTION_ID', 'Missing CyberSource transaction ID.');
         }
 
         $status = $dataBag->get('cybersource_payment_status');
         if (!$status) {
+            $this->setPaymentStatus($orderTransactionId, 'fail', $context);
             throw new APIException($orderTransactionId, 'MISSING_PAYMENT_STATUS', 'Missing CyberSource payment status.');
         }
 
@@ -72,7 +74,7 @@ final class CreditCard implements SynchronousPaymentHandlerInterface
                 break;
 
             default:
-                $this->setPaymentStatus($orderTransactionId, 'open', $context);
+                $this->setPaymentStatus($orderTransactionId, 'fail', $context);
                 break;
         }
     }

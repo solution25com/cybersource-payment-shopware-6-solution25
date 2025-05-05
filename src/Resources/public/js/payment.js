@@ -60,8 +60,12 @@ const PaymentModule = (function () {
     function toggleCardForm() {
         const savedCardsSelect = document.getElementById(config.savedCardsId);
         const newCardForm = document.getElementById(config.newCardFormId);
+        const billingSection = document.getElementById('billingSection');
         if (savedCardsSelect && newCardForm) {
             newCardForm.style.display = savedCardsSelect.value === 'new' ? 'block' : 'none';
+            if (billingSection) {
+                billingSection.style.display = savedCardsSelect.value === 'new' ? 'block' : 'none';
+            }
         }
     }
 
@@ -103,37 +107,92 @@ const PaymentModule = (function () {
             .catch(err => console.error('Failed to load capture context:', err));
     }
 
-    // Validate expiration date
-    function validateExpirationDate(month, year) {
+    function validateFormInputs(month, year, isBillingAddressChecked) {
+        const errors = [];
         const currentYear = new Date().getFullYear();
         const currentMonth = new Date().getMonth() + 1;
         const monthNum = parseInt(month, 10);
         const yearNum = parseInt(year, 10);
 
+        // Validate expiration date
         if (!month || !year || !/^\d{2}$/.test(month) || !/^\d{4}$/.test(year)) {
-            return { valid: false, message: 'Please enter a valid expiration date (MM/YYYY).' };
+            errors.push({ field: 'expiry', message: 'Please enter a valid expiration date (MM/YYYY).' });
+        } else if (monthNum < 1 || monthNum > 12) {
+            errors.push({ field: 'expiry', message: 'Month must be between 01 and 12.' });
+        } else if (yearNum < currentYear || (yearNum === currentYear && monthNum < currentMonth)) {
+            errors.push({ field: 'expiry', message: 'Expiration date cannot be in the past.' });
         }
-        if (monthNum < 1 || monthNum > 12) {
-            return { valid: false, message: 'Month must be between 01 and 12.' };
+
+        // Validate billing address fields if differentBillingAddress is checked
+        if (isBillingAddressChecked) {
+            const firstName = document.getElementById('billingFirstName').value.trim();
+            const lastName = document.getElementById('billingLastName').value.trim();
+            const email = document.getElementById('billingEmail').value.trim();
+            const street = document.getElementById('billingStreet').value.trim();
+            const city = document.getElementById('billingCity').value.trim();
+            const zip = document.getElementById('billingZip').value.trim();
+            const country = document.getElementById('billingCountry').value.trim();
+            const state = document.getElementById('billingState').value.trim();
+
+            if (!firstName) {
+                errors.push({ field: 'billingFirstName', message: 'Please enter a valid first name.' });
+            }
+            if (!lastName) {
+                errors.push({ field: 'billingLastName', message: 'Please enter a valid last name.' });
+            }
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                errors.push({ field: 'billingEmail', message: 'Please enter a valid email address.' });
+            }
+            if (!street) {
+                errors.push({ field: 'billingStreet', message: 'Please enter a valid street address.' });
+            }
+            if (!city) {
+                errors.push({ field: 'billingCity', message: 'Please enter a valid city.' });
+            }
+            if (!zip) {
+                errors.push({ field: 'billingZip', message: 'Please enter a valid zip code.' });
+            }
+            if (!country) {
+                errors.push({ field: 'billingCountry', message: 'Please select a country.' });
+            }
+            if (document.getElementById('billingStateSection').style.display === 'block' && !state) {
+                errors.push({ field: 'billingState', message: 'Please select a state.' });
+            }
         }
-        if (yearNum < currentYear || (yearNum === currentYear && monthNum < currentMonth)) {
-            return { valid: false, message: 'Expiration date cannot be in the past.' };
-        }
-        return { valid: true };
+
+        return { valid: errors.length === 0, errors };
     }
 
-    // Show error message
-    function showError(message) {
-        const monthInput = document.getElementById('expMonth');
-        const yearInput = document.getElementById('expYear');
-        const errorMessage = document.getElementById('expiry-error');
+    function showError(errors) {
+        ['expMonth', 'expYear', 'billingFirstName', 'billingLastName', 'billingEmail', 'billingStreet', 'billingCity', 'billingZip', 'billingCountry', 'billingState'].forEach(field => {
+            const input = document.getElementById(field);
+            const errorDiv = document.getElementById(`${field}-error`);
+            if (input) input.classList.remove('error');
+            if (errorDiv) errorDiv.style.display = 'none';
+        });
 
-        monthInput.classList.add('error');
-        yearInput.classList.add('error');
-        errorMessage.textContent = message;
-        errorMessage.style.display = 'block';
-        monthInput.focus();
-        showLoadingButton(false);
+        // Display errors for each invalid field
+        errors.forEach(error => {
+            if (error.field === 'expiry') {
+                const monthInput = document.getElementById('expMonth');
+                const yearInput = document.getElementById('expYear');
+                const errorMessage = document.getElementById('expiry-error');
+                monthInput.classList.add('error');
+                yearInput.classList.add('error');
+                errorMessage.textContent = error.message;
+                errorMessage.style.display = 'block';
+                monthInput.focus();
+            } else {
+                const input = document.getElementById(error.field);
+                const errorMessage = document.getElementById(`${error.field}-error`);
+                if (input) input.classList.add('error');
+                if (errorMessage) {
+                    errorMessage.textContent = error.message;
+                    errorMessage.style.display = 'block';
+                }
+                if (input) input.focus();
+            }
+        });
     }
 
     // Manage loading button state
@@ -163,13 +222,17 @@ const PaymentModule = (function () {
 
         const month = document.getElementById('expMonth').value.trim();
         const year = document.getElementById('expYear').value.trim();
-        const errorMessage = document.getElementById('expiry-error');
+        const differentBillingAddress = document.getElementById('differentBillingAddress');
+        const isBillingAddressChecked = differentBillingAddress && differentBillingAddress.checked;
         const saveCardCheckbox = document.getElementById(config.saveCardCheckboxId);
 
-        // Reset error states
-        document.getElementById('expMonth').classList.remove('error');
-        document.getElementById('expYear').classList.remove('error');
-        errorMessage.style.display = 'none';
+        // Validate form inputs
+        const validation = validateFormInputs(month, year, isBillingAddressChecked);
+        if (!validation.valid) {
+            showError(validation.errors);
+            showLoadingButton(false, buttonId);
+            return;
+        }
 
         if (isPayment) {
             const savedCardsSelect = document.getElementById(config.savedCardsId);
@@ -178,13 +241,6 @@ const PaymentModule = (function () {
                 authorizePayment(null, subscriptionId);
                 return;
             }
-        }
-
-        // Validate expiration date
-        const validation = validateExpirationDate(month, year);
-        if (!validation.valid) {
-            showError(validation.message);
-            return;
         }
 
         if (!microform) {
@@ -216,10 +272,32 @@ const PaymentModule = (function () {
         const month = document.getElementById('expMonth').value.trim();
         const year = document.getElementById('expYear').value.trim();
 
+        const url = window.location.pathname;
+        const pattern = /^\/account\/order\/edit\/(.+)$/;
+        const match = url.match(pattern);
+        let orderId = null;
+        if (match) {
+            orderId = match[1];
+        }
+        const differentBillingAddress = document.getElementById('differentBillingAddress');
+        let bodyParams = { token, subscriptionId, expirationMonth: month, expirationYear: year, saveCard, orderId: orderId };
+
+        if (differentBillingAddress && differentBillingAddress.checked) {
+            bodyParams.billingAddress = {
+                firstName: document.getElementById('billingFirstName').value,
+                lastName: document.getElementById('billingLastName').value,
+                email: document.getElementById('billingEmail').value,
+                address1: document.getElementById('billingStreet').value,
+                locality: document.getElementById('billingCity').value,
+                postalCode: document.getElementById('billingZip').value,
+                country: document.getElementById('billingCountry').value,
+                state: document.getElementById('billingState').value,
+            };
+        }
         fetch(config.apiEndpoints.authorizePayment, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token, subscriptionId, expirationMonth: month, expirationYear: year, saveCard })
+            body: JSON.stringify(bodyParams)
         })
             .then(res => res.json())
             .then(data => {
@@ -253,10 +331,32 @@ const PaymentModule = (function () {
 
     // Save card
     function saveCard(token, month, year) {
+
+        const differentBillingAddress = document.getElementById('differentBillingAddress');
+        const isBillingAddressChecked = differentBillingAddress && differentBillingAddress.checked;
+        const validation = validateFormInputs(month, year, isBillingAddressChecked);
+        if (!validation.valid) {
+            showError(validation.errors);
+            showLoadingButton(false, buttonId);
+            return;
+        }
+        let bodyParams = { token, expirationMonth: month, expirationYear: year };
+        if (differentBillingAddress && differentBillingAddress.checked) {
+            bodyParams.billingAddress = {
+                firstName: document.getElementById('billingFirstName').value,
+                lastName: document.getElementById('billingLastName').value,
+                email: document.getElementById('billingEmail').value,
+                address1: document.getElementById('billingStreet').value,
+                locality: document.getElementById('billingCity').value,
+                postalCode: document.getElementById('billingZip').value,
+                country: document.getElementById('billingCountry').value,
+                state: document.getElementById('billingState').value,
+            };
+        }
         fetch(config.apiEndpoints.addCard, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token, expirationMonth: month, expirationYear: year })
+            body: JSON.stringify( bodyParams )
         })
             .then(res => res.json())
             .then(data => {
@@ -310,19 +410,34 @@ const PaymentModule = (function () {
 
     // Proceed with 3DS authentication
     function proceedWithAuthentication(token, subscriptionId, saveCard, month, year, setupData, callbackData) {
+        const differentBillingAddress = document.getElementById('differentBillingAddress');
+        let bodyParams = {
+            token,
+            subscriptionId,
+            saveCard,
+            expirationMonth: month,
+            expirationYear: year,
+            setupResponse: setupData,
+            callbackData: callbackData,
+            uniqid: setupData.uniqid
+        };
+
+        if (differentBillingAddress && differentBillingAddress.checked) {
+            bodyParams.billingAddress = {
+                firstName: document.getElementById('billingFirstName').value,
+                lastName: document.getElementById('billingLastName').value,
+                email: document.getElementById('billingEmail').value,
+                address1: document.getElementById('billingStreet').value,
+                locality: document.getElementById('billingCity').value,
+                postalCode: document.getElementById('billingZip').value,
+                country: document.getElementById('billingCountry').value,
+                state: document.getElementById('billingState').value,
+            };
+        }
         fetch(config.apiEndpoints.proceedAuthentication, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                token,
-                subscriptionId,
-                saveCard,
-                expirationMonth: month,
-                expirationYear: year,
-                setupResponse: setupData,
-                callbackData: callbackData,
-                uniqid: setupData.uniqid
-            })
+            body: JSON.stringify(bodyParams)
         })
             .then(res => res.json())
             .then(data => {
@@ -478,7 +593,7 @@ const PaymentModule = (function () {
                     }
                 }
 
-                document.getElementById('cybersource_payment_status').value = data.success;
+                document.getElementById('cybersource_payment_status').value = data.status;
                 document.getElementById('cybersource_payment_uniqid').value = data.uniqid;
                 if (data.success) {
                     document.getElementById('cybersource_transaction_id').value = data.transactionId;

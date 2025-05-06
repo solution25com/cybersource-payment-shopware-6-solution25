@@ -62,6 +62,8 @@ class CyberSourceApiClient
                 return $this->signer->getHeadersForGetMethod($endpoint);
             case 'patch':
                 return $this->signer->getHeadersForPatchMethod($endpoint, $payloadJson);
+            case 'put':
+                return $this->signer->getHeadersForPutMethod($endpoint, $payloadJson);
             case 'delete':
                 return $this->signer->getHeadersForDeleteMethod($endpoint);
             default:
@@ -101,6 +103,7 @@ class CyberSourceApiClient
             $errorResponse = $e instanceof \GuzzleHttp\Exception\ClientException && $e->hasResponse()
                 ? $e->getResponse()->getBody()->getContents()
                 : $e->getMessage();
+            $errorResponse = $this->formatCyberSourceError($errorResponse);
             $this->logger->error("{$logContext} Failed: " . $e->getMessage(), [
                 'endpoint' => $endpoint,
                 'payload' => $payload,
@@ -110,6 +113,19 @@ class CyberSourceApiClient
         }
     }
 
+    function formatCyberSourceError($response) {
+        if (is_string($response)) {
+            $response = json_decode($response, true);
+        }
+        $output = $response['message'] . "\n";
+
+        if (!empty($response['details'])) {
+            foreach ($response['details'] as $detail) {
+                $output .= "- " . $detail['field'] . " - " . $detail['reason'] . "\n";
+            }
+        }
+        return trim($output);
+    }
     /**
      * Build billing information from customer and address.
      */
@@ -142,9 +158,15 @@ class CyberSourceApiClient
             $billTo['phoneNumber'] = $billingAddress->getPhoneNumber();
         }
         if ($billingAddress->getCountryState()) {
-            $shortCode = explode('-', $billingAddress->getCountryState()->getShortCode());
-            if (count($shortCode) > 1) {
-                $billTo['administrativeArea'] = $shortCode[1];
+            $shortCode = $billingAddress->getCountryState()->getShortCode();
+            if (strpos($shortCode, '-') !== false) {
+                $shortCode = explode('-', $shortCode);
+                if (count($shortCode) > 1) {
+                    $billTo['administrativeArea'] = $shortCode[1];
+                }
+            }
+            else if($shortCode){
+                $billTo['administrativeArea'] = $shortCode;
             }
         }
 
@@ -277,11 +299,17 @@ class CyberSourceApiClient
         }
         $uniqid = uniqid();
         if($billTo){
-            $shortCode = explode('-', $billTo['state']);
-            if (count($shortCode) > 1) {
-                $billTo['administrativeArea'] = $shortCode[1];
-                unset($billTo['state']);
+            $shortCode = $billTo['state'];
+            if (strpos($shortCode, '-') !== false) {
+                $shortCode = explode('-', $shortCode);
+                if (count($shortCode) > 1) {
+                    $billTo['administrativeArea'] = $shortCode[1];
+                }
             }
+            else if($shortCode){
+                $billTo['administrativeArea'] = $shortCode;
+            }
+            unset($billTo['state']);
         }
         else{
             $billTo = $this->buildBillTo($customer, $billingAddress);
@@ -389,11 +417,17 @@ class CyberSourceApiClient
         $amount = (string) $cart->getPrice()->getTotalPrice();
         $currency = $context->getCurrency()->getIsoCode();
         if($billTo){
-            $shortCode = explode('-', $billTo['state']);
-            if (count($shortCode) > 1) {
-                $billTo['administrativeArea'] = $shortCode[1];
-                unset($billTo['state']);
+            $shortCode = $billTo['state'];
+            if (strpos($shortCode, '-') !== false) {
+                $shortCode = explode('-', $shortCode);
+                if (count($shortCode) > 1) {
+                    $billTo['administrativeArea'] = $shortCode[1];
+                }
             }
+            else if($shortCode){
+                $billTo['administrativeArea'] = $shortCode;
+            }
+            unset($billTo['state']);
         }
         else{
             $billTo = $this->buildBillTo($customer, $billingAddress);
@@ -1005,11 +1039,17 @@ class CyberSourceApiClient
         $customerId = $customer->getId();
         $billingAddress = $customer->getActiveBillingAddress();
         if($billTo){
-            $shortCode = explode('-', $billTo['state']);
-            if (count($shortCode) > 1) {
-                $billTo['administrativeArea'] = $shortCode[1];
-                unset($billTo['state']);
+            $shortCode = $billTo['state'];
+            if (strpos($shortCode, '-') !== false) {
+                $shortCode = explode('-', $shortCode);
+                if (count($shortCode) > 1) {
+                    $billTo['administrativeArea'] = $shortCode[1];
+                }
             }
+            else if($shortCode){
+                $billTo['administrativeArea'] = $shortCode;
+            }
+            unset($billTo['state']);
         }
         else{
             $billTo = $this->buildBillTo($customer, $billingAddress);

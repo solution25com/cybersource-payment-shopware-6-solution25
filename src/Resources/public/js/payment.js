@@ -39,11 +39,10 @@ const PaymentModule = (function () {
                 const savedCardsSelect = document.getElementById(config.savedCardsId);
                 if (savedCards.length === 0) {
                     let savedCardsSection = document.getElementById('saved-cards-section');
-                    if(savedCardsSection) {
+                    if (savedCardsSection) {
                         savedCardsSection.style.display = 'none';
                     }
-                }
-                else {
+                } else {
                     savedCards.forEach(card => {
                         const option = document.createElement('option');
                         option.value = card.id;
@@ -97,8 +96,8 @@ const PaymentModule = (function () {
                         }
                     });
 
-                    microform.createField('number', { placeholder: 'Card Number' }).load('#number-container');
-                    microform.createField('securityCode', { placeholder: 'CVV' }).load('#securityCode-container');
+                    microform.createField('number', {placeholder: 'Card Number'}).load('#number-container');
+                    microform.createField('securityCode', {placeholder: 'CVV'}).load('#securityCode-container');
                     document.getElementById('expMonth').value = "";
                     document.getElementById('expYear').value = "";
                 };
@@ -107,7 +106,7 @@ const PaymentModule = (function () {
             .catch(err => console.error('Failed to load capture context:', err));
     }
 
-    function validateFormInputs(month, year, isBillingAddressChecked) {
+    function validateFormInputs(month, year) {
         const errors = [];
         const currentYear = new Date().getFullYear();
         const currentMonth = new Date().getMonth() + 1;
@@ -116,51 +115,47 @@ const PaymentModule = (function () {
 
         // Validate expiration date
         if (!month || !year || !/^\d{2}$/.test(month) || !/^\d{4}$/.test(year)) {
-            errors.push({ field: 'expiry', message: 'Please enter a valid expiration date (MM/YYYY).' });
+            errors.push({field: 'expiry', message: 'Please enter a valid expiration date (MM/YYYY).'});
         } else if (monthNum < 1 || monthNum > 12) {
-            errors.push({ field: 'expiry', message: 'Month must be between 01 and 12.' });
+            errors.push({field: 'expiry', message: 'Month must be between 01 and 12.'});
         } else if (yearNum < currentYear || (yearNum === currentYear && monthNum < currentMonth)) {
-            errors.push({ field: 'expiry', message: 'Expiration date cannot be in the past.' });
+            errors.push({field: 'expiry', message: 'Expiration date cannot be in the past.'});
         }
 
-        // Validate billing address fields if differentBillingAddress is checked
-        if (isBillingAddressChecked) {
-            const firstName = document.getElementById('billingFirstName').value.trim();
-            const lastName = document.getElementById('billingLastName').value.trim();
-            const email = document.getElementById('billingEmail').value.trim();
-            const street = document.getElementById('billingStreet').value.trim();
-            const city = document.getElementById('billingCity').value.trim();
-            const zip = document.getElementById('billingZip').value.trim();
-            const country = document.getElementById('billingCountry').value.trim();
-            const state = document.getElementById('billingState').value.trim();
+        const firstName = document.getElementById('billingFirstName').value.trim();
+        const lastName = document.getElementById('billingLastName').value.trim();
+        const email = document.getElementById('billingEmail').value.trim();
+        const street = document.getElementById('billingStreet').value.trim();
+        const city = document.getElementById('billingCity').value.trim();
+        const zip = document.getElementById('billingZip').value.trim();
+        const country = document.getElementById('billingCountry').value.trim();
+        const state = document.getElementById('billingState').value.trim();
 
-            if (!firstName) {
-                errors.push({ field: 'billingFirstName', message: 'Please enter a valid first name.' });
-            }
-            if (!lastName) {
-                errors.push({ field: 'billingLastName', message: 'Please enter a valid last name.' });
-            }
-            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                errors.push({ field: 'billingEmail', message: 'Please enter a valid email address.' });
-            }
-            if (!street) {
-                errors.push({ field: 'billingStreet', message: 'Please enter a valid street address.' });
-            }
-            if (!city) {
-                errors.push({ field: 'billingCity', message: 'Please enter a valid city.' });
-            }
-            if (!zip) {
-                errors.push({ field: 'billingZip', message: 'Please enter a valid zip code.' });
-            }
-            if (!country) {
-                errors.push({ field: 'billingCountry', message: 'Please select a country.' });
-            }
-            if (document.getElementById('billingStateSection').style.display === 'block' && !state) {
-                errors.push({ field: 'billingState', message: 'Please select a state.' });
-            }
+        if (!firstName) {
+            errors.push({field: 'billingFirstName', message: 'Please enter a valid first name.'});
         }
-
-        return { valid: errors.length === 0, errors };
+        if (!lastName) {
+            errors.push({field: 'billingLastName', message: 'Please enter a valid last name.'});
+        }
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            errors.push({field: 'billingEmail', message: 'Please enter a valid email address.'});
+        }
+        if (!street) {
+            errors.push({field: 'billingStreet', message: 'Please enter a valid street address.'});
+        }
+        if (!city) {
+            errors.push({field: 'billingCity', message: 'Please enter a valid city.'});
+        }
+        if (!zip) {
+            errors.push({field: 'billingZip', message: 'Please enter a valid zip code.'});
+        }
+        if (!country) {
+            errors.push({field: 'billingCountry', message: 'Please select a country.'});
+        }
+        if (document.getElementById('billingStateSection').style.display === 'block' && !state) {
+            errors.push({field: 'billingState', message: 'Please select a state.'});
+        }
+        return {valid: errors.length === 0, errors};
     }
 
     function showError(errors) {
@@ -198,11 +193,11 @@ const PaymentModule = (function () {
     // Manage loading button state
     function showLoadingButton(show, buttonId) {
         let button = document.getElementById(buttonId);
-        if(button == null) {
+        if (button == null) {
             button = document.getElementById(config.payButtonId);
             buttonId = config.payButtonId;
         }
-        if(button == null) {
+        if (button == null) {
             button = document.getElementById(config.saveCardButtonId);
             buttonId = config.saveCardButtonId;
         }
@@ -222,17 +217,7 @@ const PaymentModule = (function () {
 
         const month = document.getElementById('expMonth').value.trim();
         const year = document.getElementById('expYear').value.trim();
-        const differentBillingAddress = document.getElementById('differentBillingAddress');
-        const isBillingAddressChecked = differentBillingAddress && differentBillingAddress.checked;
         const saveCardCheckbox = document.getElementById(config.saveCardCheckboxId);
-
-        // Validate form inputs
-        const validation = validateFormInputs(month, year, isBillingAddressChecked);
-        if (!validation.valid) {
-            showError(validation.errors);
-            showLoadingButton(false, buttonId);
-            return;
-        }
 
         if (isPayment) {
             const savedCardsSelect = document.getElementById(config.savedCardsId);
@@ -242,7 +227,13 @@ const PaymentModule = (function () {
                 return;
             }
         }
-
+        // Validate form inputs
+        const validation = validateFormInputs(month, year);
+        if (!validation.valid) {
+            showError(validation.errors);
+            showLoadingButton(false, buttonId);
+            return;
+        }
         if (!microform) {
             alert('Card fields are not loaded yet. Please wait a few seconds.');
             showLoadingButton(false, buttonId);
@@ -279,10 +270,15 @@ const PaymentModule = (function () {
         if (match) {
             orderId = match[1];
         }
-        const differentBillingAddress = document.getElementById('differentBillingAddress');
-        let bodyParams = { token, subscriptionId, expirationMonth: month, expirationYear: year, saveCard, orderId: orderId };
-
-        if (differentBillingAddress && differentBillingAddress.checked) {
+        let bodyParams = {
+            token,
+            subscriptionId,
+            expirationMonth: month,
+            expirationYear: year,
+            saveCard,
+            orderId: orderId
+        };
+        if (!subscriptionId) {
             bodyParams.billingAddress = {
                 firstName: document.getElementById('billingFirstName').value,
                 lastName: document.getElementById('billingLastName').value,
@@ -296,7 +292,7 @@ const PaymentModule = (function () {
         }
         fetch(config.apiEndpoints.authorizePayment, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(bodyParams)
         })
             .then(res => res.json())
@@ -332,31 +328,27 @@ const PaymentModule = (function () {
     // Save card
     function saveCard(token, month, year) {
 
-        const differentBillingAddress = document.getElementById('differentBillingAddress');
-        const isBillingAddressChecked = differentBillingAddress && differentBillingAddress.checked;
-        const validation = validateFormInputs(month, year, isBillingAddressChecked);
+        const validation = validateFormInputs(month, year);
         if (!validation.valid) {
             showError(validation.errors);
             showLoadingButton(false, buttonId);
             return;
         }
-        let bodyParams = { token, expirationMonth: month, expirationYear: year };
-        if (differentBillingAddress && differentBillingAddress.checked) {
-            bodyParams.billingAddress = {
-                firstName: document.getElementById('billingFirstName').value,
-                lastName: document.getElementById('billingLastName').value,
-                email: document.getElementById('billingEmail').value,
-                address1: document.getElementById('billingStreet').value,
-                locality: document.getElementById('billingCity').value,
-                postalCode: document.getElementById('billingZip').value,
-                country: document.getElementById('billingCountry').value,
-                state: document.getElementById('billingState').value,
-            };
-        }
+        let bodyParams = {token, expirationMonth: month, expirationYear: year};
+        bodyParams.billingAddress = {
+            firstName: document.getElementById('billingFirstName').value,
+            lastName: document.getElementById('billingLastName').value,
+            email: document.getElementById('billingEmail').value,
+            address1: document.getElementById('billingStreet').value,
+            locality: document.getElementById('billingCity').value,
+            postalCode: document.getElementById('billingZip').value,
+            country: document.getElementById('billingCountry').value,
+            state: document.getElementById('billingState').value,
+        };
         fetch(config.apiEndpoints.addCard, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify( bodyParams )
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(bodyParams)
         })
             .then(res => res.json())
             .then(data => {
@@ -405,12 +397,11 @@ const PaymentModule = (function () {
                 document.body.removeChild(iframe);
                 document.body.removeChild(form);
             }
-        }, { once: true });
+        }, {once: true});
     }
 
     // Proceed with 3DS authentication
     function proceedWithAuthentication(token, subscriptionId, saveCard, month, year, setupData, callbackData) {
-        const differentBillingAddress = document.getElementById('differentBillingAddress');
         let bodyParams = {
             token,
             subscriptionId,
@@ -422,21 +413,19 @@ const PaymentModule = (function () {
             uniqid: setupData.uniqid
         };
 
-        if (differentBillingAddress && differentBillingAddress.checked) {
-            bodyParams.billingAddress = {
-                firstName: document.getElementById('billingFirstName').value,
-                lastName: document.getElementById('billingLastName').value,
-                email: document.getElementById('billingEmail').value,
-                address1: document.getElementById('billingStreet').value,
-                locality: document.getElementById('billingCity').value,
-                postalCode: document.getElementById('billingZip').value,
-                country: document.getElementById('billingCountry').value,
-                state: document.getElementById('billingState').value,
-            };
-        }
+        bodyParams.billingAddress = {
+            firstName: document.getElementById('billingFirstName').value,
+            lastName: document.getElementById('billingLastName').value,
+            email: document.getElementById('billingEmail').value,
+            address1: document.getElementById('billingStreet').value,
+            locality: document.getElementById('billingCity').value,
+            postalCode: document.getElementById('billingZip').value,
+            country: document.getElementById('billingCountry').value,
+            state: document.getElementById('billingState').value,
+        };
         fetch(config.apiEndpoints.proceedAuthentication, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(bodyParams)
         })
             .then(res => res.json())
@@ -526,30 +515,35 @@ const PaymentModule = (function () {
     // Setup event listeners
     function setupEventListeners() {
         if (config.isPaymentForm) {
-            const savedCardsSelect = document.getElementById(config.savedCardsId);
-            if (savedCardsSelect) {
-                savedCardsSelect.addEventListener('change', toggleCardForm);
-            }
-            const payButton = document.getElementById(config.payButtonId);
-            if (payButton) {
-                payButton.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    handlePaymentOrSave(true);
-                });
-            }
-            const submitOrderBtn = document.getElementById('confirmFormSubmit');
-            if (submitOrderBtn) {
-                submitOrderBtn.addEventListener('click', (e) => {
-                    const cybersourceTransactionId = document.getElementById('cybersource_transaction_id');
-                    if (cybersourceTransactionId && cybersourceTransactionId.value === '') {
+            //check dom loaded
+            window.addEventListener('DOMContentLoaded', function () {
+                // confirmOrderForm from get submit button and hide it
+                const confirmOrderForm = document.getElementById('confirmOrderForm');
+                if (confirmOrderForm) {
+                    const submitButton = confirmOrderForm.querySelector('button[type="submit"]');
+                    confirmOrderForm.onsubmit = function (e) {
                         e.preventDefault();
-                        payButton.click();
+                        const cybersourceTransactionId = document.getElementById('cybersource_transaction_id');
+                        if (cybersourceTransactionId && cybersourceTransactionId.value === '') {
+                            payButton.click();
+                        } else {
+                            confirmOrderForm.submit();
+                        }
                     }
-                    else{
-                        document.getElementById('confirmOrderForm').submit();
-                    }
-                });
-            }
+                }
+
+                const savedCardsSelect = document.getElementById(config.savedCardsId);
+                if (savedCardsSelect) {
+                    savedCardsSelect.addEventListener('change', toggleCardForm);
+                }
+                const payButton = document.getElementById(config.payButtonId);
+                if (payButton) {
+                    payButton.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        handlePaymentOrSave(true);
+                    });
+                }
+            });
         }
 
         const addCardButton = document.getElementById(config.addCardButtonId);
@@ -569,7 +563,7 @@ const PaymentModule = (function () {
             });
         }
         document.onload = function () {
-            if(document.getElementById('confirmFormSubmit'))
+            if (document.getElementById('confirmFormSubmit'))
                 document.getElementById('confirmFormSubmit').style.display = 'none';
         };
         window.addEventListener('message', (event) => {
@@ -606,7 +600,7 @@ const PaymentModule = (function () {
         });
     }
 
-    return { init };
+    return {init};
 })();
 
 // Initialize for payment form

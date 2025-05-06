@@ -1,15 +1,12 @@
 document.addEventListener('DOMContentLoaded', function () {
-    const checkbox = document.getElementById('differentBillingAddress');
-    const billingSection = document.getElementById('billingAddressSection');
     const countrySelect = document.getElementById('billingCountry');
     const stateSection = document.getElementById('billingStateSection');
     const stateSelect = document.getElementById('billingState');
     const countryError = document.getElementById('country-error');
     const stateError = document.getElementById('state-error');
+    const billingCountryDefault = document.getElementById('billingCountryDefault');
+    const billingCountryStateDefault = document.getElementById('billingCountryStateDefault');
 
-    checkbox.addEventListener('change', function () {
-        billingSection.style.display = checkbox.checked ? 'block' : 'none';
-    });
 
     fetch('/store-api/country', {
         method: 'POST',
@@ -38,13 +35,23 @@ document.addEventListener('DOMContentLoaded', function () {
         })
         .then(data => {
             if (data.elements && Array.isArray(data.elements)) {
+                let selectedOption = null;
                 data.elements.forEach(country => {
                     const option = document.createElement('option');
                     option.value = country.iso;
                     option.textContent = country.name;
                     option.dataset.countryId = country.id;
+                    if (billingCountryDefault && country.id === billingCountryDefault.value) {
+                        option.selected = true;
+                        selectedOption = option;
+                    }
                     countrySelect.appendChild(option);
                 });
+                if (selectedOption) {
+                    countrySelect.value = selectedOption.value;
+                    countrySelectChanged(countrySelect);
+                }
+
             } else {
                 throw new Error('Invalid country data format');
             }
@@ -58,8 +65,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
     // Handle country selection to fetch states
-    countrySelect.addEventListener('change', function () {
-        const selectedOption = this.options[this.selectedIndex];
+    countrySelect.addEventListener('change', countrySelectChanged);
+
+    function countrySelectChanged(e) {
+        const selectedOption = countrySelect.options[countrySelect.selectedIndex];
         const countryId = selectedOption.dataset.countryId;
         stateSelect.innerHTML = '<option value="">Select State</option>';
         stateSection.style.display = 'none';
@@ -99,6 +108,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             const option = document.createElement('option');
                             option.value = state.shortCode;
                             option.textContent = state.name;
+                            if (billingCountryStateDefault && state.id === billingCountryStateDefault.value) {
+                                option.selected = true;
+                            }
                             stateSelect.appendChild(option);
                         });
                         stateSection.style.display = 'block';
@@ -112,5 +124,5 @@ document.addEventListener('DOMContentLoaded', function () {
                     stateError.style.display = 'block';
                 });
         }
-    });
+    }
 });

@@ -1,3 +1,8 @@
+## [1.2.3] - 2025-05-07
+### Changed
+- Billing information is now collected **only** for saved cards, streamlining checkout for one-time card use cases.
+
+---
 
 ## [1.2.2] - 2025-05-05
 ### Added

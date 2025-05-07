@@ -5,57 +5,6 @@
             <option value="new">Use New Card</option>
         </select>
     </div>
-    <div id="billingSection">
-        <div id="billingAddressSection" >
-            <h3>Billing Address</h3>
-            <div class="form-group">
-                <label for="billingFirstName">First Name</label>
-                <input type="text" id="billingFirstName" name="billingFirstName" placeholder="First Name" value="{{ context.customer.defaultBillingAddress.firstName }}">
-                <div id="billingFirstName-error" class="error-message" style="display: none;">Please enter a valid first name.</div>
-            </div>
-            <div class="form-group">
-                <label for="billingLastName">Last Name</label>
-                <input type="text" id="billingLastName" name="billingLastName" placeholder="Last Name" value="{{ context.customer.defaultBillingAddress.lastName }}">
-                <div id="billingLastName-error" class="error-message" style="display: none;">Please enter a valid last name.</div>
-            </div>
-            <div class="form-group">
-                <label for="billingEmail">Email</label>
-                <input type="email" id="billingEmail" name="billingEmail" placeholder="Email" value="{{ context.customer.email }}">
-                <div id="billingEmail-error" class="error-message" style="display: none;">Please enter a valid email address.</div>
-            </div>
-            <div class="form-group">
-                <label for="billingStreet">Street</label>
-                <input type="text" id="billingStreet" name="billingStreet" placeholder="Street" value="{{ context.customer.defaultBillingAddress.street }}">
-                <div id="billingStreet-error" class="error-message" style="display: none;">Please enter a valid street address.</div>
-            </div>
-            <div class="form-group">
-                <label for="billingCity">City</label>
-                <input type="text" id="billingCity" name="billingCity" placeholder="City" value="{{ context.customer.defaultBillingAddress.city }}">
-                <div id="billingCity-error" class="error-message" style="display: none;">Please enter a valid city.</div>
-            </div>
-            <div class="form-group">
-                <label for="billingZip">Zip Code</label>
-                <input type="text" id="billingZip" name="billingZip" placeholder="Zip Code" value="{{ context.customer.defaultBillingAddress.zipcode }}">
-                <div id="billingZip-error" class="error-message" style="display: none;">Please enter a valid zip code.</div>
-            </div>
-            <div class="form-group">
-                <label for="billingCountry">Country</label>
-                <input type="hidden" id="billingCountryDefault" name="billingCountryDefault" value="{{ context.customer.defaultBillingAddress.country.id }}">
-                <select id="billingCountry" name="billingCountry">
-                    <option value="">Select Country</option>
-                </select>
-                <div id="billingCountry-error" class="error-message" style="display: none;">Please select a country.</div>
-            </div>
-            <div class="form-group" id="billingStateSection" style="display: none;">
-                <label for="billingState">State</label>
-                <input type="hidden" id="billingCountryStateDefault" name="billingCountryStateDefault" value="{{ context.customer.defaultBillingAddress.countryState.id }}">
-                <select id="billingState" name="billingState">
-                    <option value="">Select State</option>
-                </select>
-                <div id="billingState-error" class="error-message" style="display: none;">Please select a state.</div>
-            </div>
-        </div>
-    </div>
     <div id="newCardForm">
         <h3>Credit Card</h3>
         <div class="form-group">
@@ -85,14 +34,10 @@
     <input id="cybersource_subscription_id" type="hidden" name="cybersource_subscription_id" value="">
     <input id="cybersource_expiration_month" type="hidden" name="cybersource_expiration_month" value="">
     <input id="cybersource_expiration_year" type="hidden" name="cybersource_expiration_year" value="">
-    <div class="d-grid" style="display: none">
-        <button id="confirmOrderButton" class="pay-btn btn" type="button">Pay Now</button>
-    </div>
     <div id="step_up"></div>
 </div>
 <script>
     window.salesChannelAccessKey = "{{ context.salesChannel.accessKey }}";
 </script>
 <link rel="stylesheet" href="{{ asset('bundles/cybersourceshopware6/css/payment-credit-card.css') }}">
-<script src="{{ asset('bundles/cybersourceshopware6/js/billing.js') }}"></script>
 <script src="{{ asset('bundles/cybersourceshopware6/js/payment.js') }}"></script>

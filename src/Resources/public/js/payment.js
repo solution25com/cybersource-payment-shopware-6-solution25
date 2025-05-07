@@ -8,7 +8,7 @@ const PaymentModule = (function () {
             containerId: options.containerId || 'paymentForm',
             newCardFormId: options.newCardFormId || 'newCardForm',
             savedCardsId: options.savedCardsId || 'savedCards',
-            payButtonId: options.payButtonId || 'confirmOrderButton',
+            payButtonId: options.payButtonId || 'confirmFormSubmit',
             saveCardButtonId: options.saveCardButtonId || 'saveCardButton',
             addCardButtonId: options.addCardButtonId || 'addCardButton',
             saveCardCheckboxId: options.saveCardCheckboxId || 'saveCard',
@@ -121,47 +121,60 @@ const PaymentModule = (function () {
         } else if (yearNum < currentYear || (yearNum === currentYear && monthNum < currentMonth)) {
             errors.push({field: 'expiry', message: 'Expiration date cannot be in the past.'});
         }
+        if(!config.isPaymentForm) {
+            const firstName = document.getElementById('billingFirstName').value.trim();
+            const lastName = document.getElementById('billingLastName').value.trim();
+            const email = document.getElementById('billingEmail').value.trim();
+            const street = document.getElementById('billingStreet').value.trim();
+            const city = document.getElementById('billingCity').value.trim();
+            const zip = document.getElementById('billingZip').value.trim();
+            const country = document.getElementById('billingCountry').value.trim();
+            const state = document.getElementById('billingState').value.trim();
 
-        const firstName = document.getElementById('billingFirstName').value.trim();
-        const lastName = document.getElementById('billingLastName').value.trim();
-        const email = document.getElementById('billingEmail').value.trim();
-        const street = document.getElementById('billingStreet').value.trim();
-        const city = document.getElementById('billingCity').value.trim();
-        const zip = document.getElementById('billingZip').value.trim();
-        const country = document.getElementById('billingCountry').value.trim();
-        const state = document.getElementById('billingState').value.trim();
+            if (!firstName) {
+                errors.push({field: 'billingFirstName', message: 'Please enter a valid first name.'});
+            }
+            if (!lastName) {
+                errors.push({field: 'billingLastName', message: 'Please enter a valid last name.'});
+            }
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                errors.push({field: 'billingEmail', message: 'Please enter a valid email address.'});
+            }
+            if (!street) {
+                errors.push({field: 'billingStreet', message: 'Please enter a valid street address.'});
+            }
+            if (!city) {
+                errors.push({field: 'billingCity', message: 'Please enter a valid city.'});
+            }
+            if (!zip) {
+                errors.push({field: 'billingZip', message: 'Please enter a valid zip code.'});
+            }
+            if (!country) {
+                errors.push({field: 'billingCountry', message: 'Please select a country.'});
+            }
+            if (document.getElementById('billingStateSection').style.display === 'block' && !state) {
+                errors.push({field: 'billingState', message: 'Please select a state.'});
+            }
+        }
 
-        if (!firstName) {
-            errors.push({field: 'billingFirstName', message: 'Please enter a valid first name.'});
-        }
-        if (!lastName) {
-            errors.push({field: 'billingLastName', message: 'Please enter a valid last name.'});
-        }
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            errors.push({field: 'billingEmail', message: 'Please enter a valid email address.'});
-        }
-        if (!street) {
-            errors.push({field: 'billingStreet', message: 'Please enter a valid street address.'});
-        }
-        if (!city) {
-            errors.push({field: 'billingCity', message: 'Please enter a valid city.'});
-        }
-        if (!zip) {
-            errors.push({field: 'billingZip', message: 'Please enter a valid zip code.'});
-        }
-        if (!country) {
-            errors.push({field: 'billingCountry', message: 'Please select a country.'});
-        }
-        if (document.getElementById('billingStateSection').style.display === 'block' && !state) {
-            errors.push({field: 'billingState', message: 'Please select a state.'});
-        }
+        const requiredFields = document.querySelectorAll('input[required] , select[required]');
+        requiredFields.forEach(field => {
+            if (field.type === 'checkbox' && !field.checked) {
+                errors.push({field: field.id, message: `Please check ${field.name}.`});
+            } else if (field.value.trim() === '') {
+                errors.push({field: field.id, message: `Please fill out ${field.name}.`});
+            }
+        });
         return {valid: errors.length === 0, errors};
     }
 
     function showError(errors) {
         ['expMonth', 'expYear', 'billingFirstName', 'billingLastName', 'billingEmail', 'billingStreet', 'billingCity', 'billingZip', 'billingCountry', 'billingState'].forEach(field => {
             const input = document.getElementById(field);
-            const errorDiv = document.getElementById(`${field}-error`);
+            let errorDiv = document.getElementById(`${field}-error`);
+            if(field === 'expMonth' || field === 'expYear') {
+                errorDiv = document.getElementById(`expiry-error`);
+            }
             if (input) input.classList.remove('error');
             if (errorDiv) errorDiv.style.display = 'none';
         });
@@ -195,18 +208,22 @@ const PaymentModule = (function () {
         let button = document.getElementById(buttonId);
         if (button == null) {
             button = document.getElementById(config.payButtonId);
-            buttonId = config.payButtonId;
+        }
+        const confirmOrderForm = document.getElementById('confirmOrderForm');
+        if (confirmOrderForm) {
+            button = confirmOrderForm.querySelector('button[type="submit"]');
         }
         if (button == null) {
             button = document.getElementById(config.saveCardButtonId);
-            buttonId = config.saveCardButtonId;
         }
         if (show) {
             button.disabled = true;
+            window.orginalBtnText = button.textContent;
             button.textContent = 'Processing...';
         } else {
             button.disabled = false;
-            button.textContent = buttonId === config.saveCardButtonId ? 'Save Card' : 'Pay Now';
+            if(window.orginalBtnText)
+                button.textContent = window.orginalBtnText;
         }
     }
 
@@ -278,18 +295,6 @@ const PaymentModule = (function () {
             saveCard,
             orderId: orderId
         };
-        if (!subscriptionId) {
-            bodyParams.billingAddress = {
-                firstName: document.getElementById('billingFirstName').value,
-                lastName: document.getElementById('billingLastName').value,
-                email: document.getElementById('billingEmail').value,
-                address1: document.getElementById('billingStreet').value,
-                locality: document.getElementById('billingCity').value,
-                postalCode: document.getElementById('billingZip').value,
-                country: document.getElementById('billingCountry').value,
-                state: document.getElementById('billingState').value,
-            };
-        }
         fetch(config.apiEndpoints.authorizePayment, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -413,16 +418,6 @@ const PaymentModule = (function () {
             uniqid: setupData.uniqid
         };
 
-        bodyParams.billingAddress = {
-            firstName: document.getElementById('billingFirstName').value,
-            lastName: document.getElementById('billingLastName').value,
-            email: document.getElementById('billingEmail').value,
-            address1: document.getElementById('billingStreet').value,
-            locality: document.getElementById('billingCity').value,
-            postalCode: document.getElementById('billingZip').value,
-            country: document.getElementById('billingCountry').value,
-            state: document.getElementById('billingState').value,
-        };
         fetch(config.apiEndpoints.proceedAuthentication, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -515,35 +510,34 @@ const PaymentModule = (function () {
     // Setup event listeners
     function setupEventListeners() {
         if (config.isPaymentForm) {
-            //check dom loaded
-            window.addEventListener('DOMContentLoaded', function () {
-                // confirmOrderForm from get submit button and hide it
-                const confirmOrderForm = document.getElementById('confirmOrderForm');
-                if (confirmOrderForm) {
-                    const submitButton = confirmOrderForm.querySelector('button[type="submit"]');
-                    confirmOrderForm.onsubmit = function (e) {
-                        e.preventDefault();
-                        const cybersourceTransactionId = document.getElementById('cybersource_transaction_id');
-                        if (cybersourceTransactionId && cybersourceTransactionId.value === '') {
-                            payButton.click();
-                        } else {
-                            confirmOrderForm.submit();
-                        }
+            const confirmOrderForm = document.getElementById('confirmOrderForm');
+            if (confirmOrderForm) {
+                const submitButton = confirmOrderForm.querySelector('button[type="submit"]');
+                if (submitButton) {
+                    submitButton.id = 'confirmFormSubmit';
+                }
+                confirmOrderForm.onsubmit = function (e) {
+                    e.preventDefault();
+                    const cybersourceTransactionId = document.getElementById('cybersource_transaction_id');
+                    if (cybersourceTransactionId && cybersourceTransactionId.value === '') {
+                        payButton.click();
+                    } else {
+                        confirmOrderForm.submit();
                     }
                 }
+            }
 
-                const savedCardsSelect = document.getElementById(config.savedCardsId);
-                if (savedCardsSelect) {
-                    savedCardsSelect.addEventListener('change', toggleCardForm);
-                }
-                const payButton = document.getElementById(config.payButtonId);
-                if (payButton) {
-                    payButton.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        handlePaymentOrSave(true);
-                    });
-                }
-            });
+            const savedCardsSelect = document.getElementById(config.savedCardsId);
+            if (savedCardsSelect) {
+                savedCardsSelect.addEventListener('change', toggleCardForm);
+            }
+            const payButton = document.getElementById(config.payButtonId);
+            if (payButton) {
+                payButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    handlePaymentOrSave(true);
+                });
+            }
         }
 
         const addCardButton = document.getElementById(config.addCardButtonId);
@@ -562,10 +556,6 @@ const PaymentModule = (function () {
                 handlePaymentOrSave(false);
             });
         }
-        document.onload = function () {
-            if (document.getElementById('confirmFormSubmit'))
-                document.getElementById('confirmFormSubmit').style.display = 'none';
-        };
         window.addEventListener('message', (event) => {
             const origin = event.origin;
             const currentDomain = window.location.origin;
@@ -602,26 +592,27 @@ const PaymentModule = (function () {
 
     return {init};
 })();
+window.addEventListener('DOMContentLoaded', function () {
+    // Initialize for payment form
+    if (document.getElementById('confirmOrderForm')) {
+        PaymentModule.init({
+            isPaymentForm: true,
+            containerId: 'paymentForm',
+            newCardFormId: 'newCardForm',
+            savedCardsId: 'savedCards',
+            payButtonId: 'confirmFormSubmit',
+            saveCardCheckboxId: 'saveCard'
+        });
+    }
 
-// Initialize for payment form
-if (document.getElementById('confirmOrderButton')) {
-    PaymentModule.init({
-        isPaymentForm: true,
-        containerId: 'paymentForm',
-        newCardFormId: 'newCardForm',
-        savedCardsId: 'savedCards',
-        payButtonId: 'confirmOrderButton',
-        saveCardCheckboxId: 'saveCard'
-    });
-}
-
-// Initialize for saved cards page
-if (document.getElementById('addCardButton')) {
-    PaymentModule.init({
-        isPaymentForm: false,
-        containerId: 'paymentForm',
-        newCardFormId: 'newCardForm',
-        saveCardButtonId: 'saveCardButton',
-        addCardButtonId: 'addCardButton'
-    });
-}
+    // Initialize for saved cards page
+    if (document.getElementById('addCardButton')) {
+        PaymentModule.init({
+            isPaymentForm: false,
+            containerId: 'paymentForm',
+            newCardFormId: 'newCardForm',
+            saveCardButtonId: 'saveCardButton',
+            addCardButtonId: 'addCardButton'
+        });
+    }
+});

@@ -178,7 +178,7 @@
     width: 320px;
     height: 190px;
     background: linear-gradient(135deg, #1e5799 0%, #2989d8 50%, #207cca 100%);
-    color: #fff;
+    color: #fff !important;
     border-radius: 12px;
     padding: 20px;
     position: relative;
@@ -279,7 +279,7 @@
     display: inline-flex;
     width: fit-content;
     align-items: center;
-    padding: 0.5rem;
+    padding: 0.3rem 0.7rem;
     border: 1px solid #D72828;
     color: #fff;
     margin: 0 10px 0 0;
@@ -433,3 +433,32 @@ select {
     cursor: pointer;
     user-select: none;
 }
+#newCardForm {
+    max-width: 400px;
+}
+#billingAddressSection h3{
+    margin-bottom: 15px;
+    margin-top: 15px;
+}
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 20px;
+}
+.error-message {
+    color: red;
+    font-size: 0.9em;
+    margin-top: 5px;
+}
+@media (max-width: 768px) {
+    .form-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media (max-width: 500px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+

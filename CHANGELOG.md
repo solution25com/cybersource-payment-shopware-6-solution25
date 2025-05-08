@@ -1,3 +1,9 @@
+## [1.2.4] - 2025-05-08
+### Changed
+- The **"Save Card"** option is now hidden for guest customers to prevent confusion and ensure only registered users can access stored payment methods.
+
+---
+
 ## [1.2.3] - 2025-05-07
 ### Changed
 - Billing information is now collected **only** for saved cards, streamlining checkout for one-time card use cases.

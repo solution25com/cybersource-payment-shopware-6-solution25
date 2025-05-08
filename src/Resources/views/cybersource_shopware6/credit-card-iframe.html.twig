@@ -1,10 +1,12 @@
 <div class="payment-form">
+    {% if context.customer is defined and not context.customer.guest %}
     <div id="saved-cards-section" class="form-group saved-cards-section">
         <label for="savedCards">Saved Cards</label>
         <select id="savedCards" name="savedCards">
             <option value="new">Use New Card</option>
         </select>
     </div>
+    {% endif %}
     <div id="newCardForm">
         <h3>Credit Card</h3>
         <div class="form-group">
@@ -23,10 +25,12 @@
             </div>
             <div id="expiry-error" class="error-message" style="display: none;">Please enter a valid expiration date.</div>
         </div>
-        <div class="form-group save-card">
+        {% if context.customer is defined and not context.customer.guest %}
+        <div class="form-group save-card" >
             <input type="checkbox" id="saveCard" name="saveCard">
             <label for="saveCard">Save Card</label>
         </div>
+        {% endif %}
     </div>
 
     <input id="cybersource_authentication_transaction_id" type="hidden" name="cybersource_authentication_transaction_id" value="">

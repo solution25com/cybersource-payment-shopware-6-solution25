@@ -47,7 +47,9 @@ const PaymentModule = (function () {
                         const option = document.createElement('option');
                         option.value = card.id;
                         option.textContent = `Card: ${card.cardNumber} (Exp: ${card.expirationMonth}/${card.expirationYear})`;
-                        savedCardsSelect.appendChild(option);
+                        if(savedCardsSelect) {
+                            savedCardsSelect.appendChild(option);
+                        }
                     });
                 }
                 toggleCardForm();
@@ -238,10 +240,12 @@ const PaymentModule = (function () {
 
         if (isPayment) {
             const savedCardsSelect = document.getElementById(config.savedCardsId);
-            const subscriptionId = savedCardsSelect.value !== 'new' ? savedCardsSelect.value : null;
-            if (subscriptionId) {
-                authorizePayment(null, subscriptionId);
-                return;
+            if(savedCardsSelect) {
+                const subscriptionId = savedCardsSelect.value !== 'new' ? savedCardsSelect.value : null;
+                if (subscriptionId) {
+                    authorizePayment(null, subscriptionId);
+                    return;
+                }
             }
         }
         // Validate form inputs
@@ -267,7 +271,8 @@ const PaymentModule = (function () {
                 showLoadingButton(false, buttonId);
             } else {
                 if (isPayment) {
-                    authorizePayment(token, null, saveCardCheckbox.checked);
+                    let saveThisCard = saveCardCheckbox && saveCardCheckbox.checked;
+                    authorizePayment(token, null, saveThisCard);
                 } else {
                     saveCard(token, month, year);
                 }

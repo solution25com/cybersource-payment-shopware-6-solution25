@@ -36,6 +36,11 @@ The Cybersource plugin enables secure credit card payments in Shopware stores. I
 git clone https://github.com/solution25com/cybersource-payment-shopware-6-solution25.git
 ```
 
+## Packagist
+ ```
+  composer require solution25/cybersource
+  ```
+
 
 2. **Install the Plugin in Shopware 6**
 

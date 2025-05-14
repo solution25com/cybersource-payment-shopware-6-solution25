@@ -159,7 +159,7 @@ const PaymentModule = (function () {
             }
         }
 
-        const requiredFields = document.querySelectorAll('input[required] , select[required]');
+        const requiredFields = document.querySelectorAll('#confirmOrderForm input[required], #confirmOrderForm select[required], input[form="confirmOrderForm"][required], select[form="confirmOrderForm"][required]');
         requiredFields.forEach(field => {
             if (field.type === 'checkbox' && !field.checked) {
                 errors.push({field: field.id, message: `Please check ${field.name}.`});

@@ -1,3 +1,10 @@
+
+## [1.2.5] - 2025-05-14
+### Fixed
+- Payment.js validation now **only targets** the `confirmOrderForm` to prevent conflicts.
+
+---
+
 ## [1.2.4] - 2025-05-08
 ### Changed
 - The **"Save Card"** option is now hidden for guest customers to prevent confusion and ensure only registered users can access stored payment methods.

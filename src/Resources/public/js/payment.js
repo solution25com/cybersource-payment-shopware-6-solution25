@@ -46,8 +46,8 @@ const PaymentModule = (function () {
                     savedCards.forEach(card => {
                         const option = document.createElement('option');
                         option.value = card.id;
-                        option.textContent = `Card: ${card.cardNumber} (Exp: ${card.expirationMonth}/${card.expirationYear})`;
-                        if(savedCardsSelect) {
+                        option.textContent = `${window.translations.cardNumber} ${card.cardNumber} (${window.translations.expiryDate} ${card.expirationMonth}/${card.expirationYear})`;
+                        if (savedCardsSelect) {
                             savedCardsSelect.appendChild(option);
                         }
                     });
@@ -98,8 +98,8 @@ const PaymentModule = (function () {
                         }
                     });
 
-                    microform.createField('number', {placeholder: 'Card Number'}).load('#number-container');
-                    microform.createField('securityCode', {placeholder: 'CVV'}).load('#securityCode-container');
+                    microform.createField('number', { placeholder: window.translations.cardNumberPlaceholder }).load('#number-container');
+                    microform.createField('securityCode', { placeholder: window.translations.cvvPlaceholder }).load('#securityCode-container');
                     document.getElementById('expMonth').value = "";
                     document.getElementById('expYear').value = "";
                 };
@@ -117,13 +117,13 @@ const PaymentModule = (function () {
 
         // Validate expiration date
         if (!month || !year || !/^\d{2}$/.test(month) || !/^\d{4}$/.test(year)) {
-            errors.push({field: 'expiry', message: 'Please enter a valid expiration date (MM/YYYY).'});
+            errors.push({ field: 'expiry', message: window.translations.pleaseEnterValidExpirationDate });
         } else if (monthNum < 1 || monthNum > 12) {
-            errors.push({field: 'expiry', message: 'Month must be between 01 and 12.'});
+            errors.push({ field: 'expiry', message: window.translations.monthInvalid });
         } else if (yearNum < currentYear || (yearNum === currentYear && monthNum < currentMonth)) {
-            errors.push({field: 'expiry', message: 'Expiration date cannot be in the past.'});
+            errors.push({ field: 'expiry', message: window.translations.expirationDatePast });
         }
-        if(!config.isPaymentForm) {
+        if (!config.isPaymentForm) {
             const firstName = document.getElementById('billingFirstName').value.trim();
             const lastName = document.getElementById('billingLastName').value.trim();
             const email = document.getElementById('billingEmail').value.trim();
@@ -134,47 +134,47 @@ const PaymentModule = (function () {
             const state = document.getElementById('billingState').value.trim();
 
             if (!firstName) {
-                errors.push({field: 'billingFirstName', message: 'Please enter a valid first name.'});
+                errors.push({ field: 'billingFirstName', message: window.translations.pleaseEnterValidFirstName });
             }
             if (!lastName) {
-                errors.push({field: 'billingLastName', message: 'Please enter a valid last name.'});
+                errors.push({ field: 'billingLastName', message: window.translations.pleaseEnterValidLastName });
             }
             if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                errors.push({field: 'billingEmail', message: 'Please enter a valid email address.'});
+                errors.push({ field: 'billingEmail', message: window.translations.pleaseEnterValidEmail });
             }
             if (!street) {
-                errors.push({field: 'billingStreet', message: 'Please enter a valid street address.'});
+                errors.push({ field: 'billingStreet', message: window.translations.pleaseEnterValidStreet });
             }
             if (!city) {
-                errors.push({field: 'billingCity', message: 'Please enter a valid city.'});
+                errors.push({ field: 'billingCity', message: window.translations.pleaseEnterValidCity });
             }
             if (!zip) {
-                errors.push({field: 'billingZip', message: 'Please enter a valid zip code.'});
+                errors.push({ field: 'billingZip', message: window.translations.pleaseEnterValidZip });
             }
             if (!country) {
-                errors.push({field: 'billingCountry', message: 'Please select a country.'});
+                errors.push({ field: 'billingCountry', message: window.translations.pleaseEnterValidCountry });
             }
             if (document.getElementById('billingStateSection').style.display === 'block' && !state) {
-                errors.push({field: 'billingState', message: 'Please select a state.'});
+                errors.push({ field: 'billingState', message: window.translations.pleaseEnterValidState });
             }
         }
 
         const requiredFields = document.querySelectorAll('#confirmOrderForm input[required], #confirmOrderForm select[required], input[form="confirmOrderForm"][required], select[form="confirmOrderForm"][required]');
         requiredFields.forEach(field => {
             if (field.type === 'checkbox' && !field.checked) {
-                errors.push({field: field.id, message: `Please check ${field.name}.`});
+                errors.push({ field: field.id, message: window.translations.requiredCheckbox.replace('{fieldName}', field.name) });
             } else if (field.value.trim() === '') {
-                errors.push({field: field.id, message: `Please fill out ${field.name}.`});
+                errors.push({ field: field.id, message: window.translations.requiredField.replace('{fieldName}', field.name) });
             }
         });
-        return {valid: errors.length === 0, errors};
+        return { valid: errors.length === 0, errors };
     }
 
     function showError(errors) {
         ['expMonth', 'expYear', 'billingFirstName', 'billingLastName', 'billingEmail', 'billingStreet', 'billingCity', 'billingZip', 'billingCountry', 'billingState'].forEach(field => {
             const input = document.getElementById(field);
             let errorDiv = document.getElementById(`${field}-error`);
-            if(field === 'expMonth' || field === 'expYear') {
+            if (field === 'expMonth' || field === 'expYear') {
                 errorDiv = document.getElementById(`expiry-error`);
             }
             if (input) input.classList.remove('error');
@@ -220,12 +220,13 @@ const PaymentModule = (function () {
         }
         if (show) {
             button.disabled = true;
-            window.orginalBtnText = button.textContent;
-            button.textContent = 'Processing...';
+            window.originalBtnText = button.textContent;
+            button.textContent = window.translations.processing;
         } else {
             button.disabled = false;
-            if(window.orginalBtnText)
-                button.textContent = window.orginalBtnText;
+            if (window.originalBtnText) {
+                button.textContent = window.originalBtnText;
+            }
         }
     }
 
@@ -240,7 +241,7 @@ const PaymentModule = (function () {
 
         if (isPayment) {
             const savedCardsSelect = document.getElementById(config.savedCardsId);
-            if(savedCardsSelect) {
+            if (savedCardsSelect) {
                 const subscriptionId = savedCardsSelect.value !== 'new' ? savedCardsSelect.value : null;
                 if (subscriptionId) {
                     authorizePayment(null, subscriptionId);
@@ -256,7 +257,7 @@ const PaymentModule = (function () {
             return;
         }
         if (!microform) {
-            alert('Card fields are not loaded yet. Please wait a few seconds.');
+            alert(window.translations.cardFieldsNotLoaded);
             showLoadingButton(false, buttonId);
             return;
         }
@@ -267,7 +268,7 @@ const PaymentModule = (function () {
         }, function (err, token) {
             if (err) {
                 console.error('Tokenize failed', err);
-                alert('Card information could not be verified.');
+                alert(window.translations.cardVerificationFailed);
                 showLoadingButton(false, buttonId);
             } else {
                 if (isPayment) {
@@ -302,13 +303,13 @@ const PaymentModule = (function () {
         };
         fetch(config.apiEndpoints.authorizePayment, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(bodyParams)
         })
             .then(res => res.json())
             .then(data => {
                 if (!data.success) {
-                    alert(data.message || 'Payment setup failed. Please try again.');
+                    alert(data.message || window.translations.paymentSetupFailed);
                     showLoadingButton(false, config.payButtonId);
                     return;
                 }
@@ -330,21 +331,20 @@ const PaymentModule = (function () {
             })
             .catch(err => {
                 console.error('Payment setup error:', err);
-                alert('An error occurred during payment setup. Please try again.');
+                alert(window.translations.paymentSetupError);
                 showLoadingButton(false, config.payButtonId);
             });
     }
 
     // Save card
     function saveCard(token, month, year) {
-
         const validation = validateFormInputs(month, year);
         if (!validation.valid) {
             showError(validation.errors);
-            showLoadingButton(false, buttonId);
+            showLoadingButton(false, config.saveCardButtonId);
             return;
         }
-        let bodyParams = {token, expirationMonth: month, expirationYear: year};
+        let bodyParams = { token, expirationMonth: month, expirationYear: year };
         bodyParams.billingAddress = {
             firstName: document.getElementById('billingFirstName').value,
             lastName: document.getElementById('billingLastName').value,
@@ -357,13 +357,13 @@ const PaymentModule = (function () {
         };
         fetch(config.apiEndpoints.addCard, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(bodyParams)
         })
             .then(res => res.json())
             .then(data => {
                 if (!data.success) {
-                    alert(data.message || 'Failed to save card. Please try again.');
+                    alert(data.message || window.translations.saveCardFailed);
                     showLoadingButton(false, config.saveCardButtonId);
                     return;
                 }
@@ -371,7 +371,7 @@ const PaymentModule = (function () {
             })
             .catch(err => {
                 console.error('Card save error:', err);
-                alert('An error occurred while saving the card. Please try again.');
+                alert(window.translations.saveCardError);
                 showLoadingButton(false, config.saveCardButtonId);
             });
     }
@@ -407,7 +407,7 @@ const PaymentModule = (function () {
                 document.body.removeChild(iframe);
                 document.body.removeChild(form);
             }
-        }, {once: true});
+        }, { once: true });
     }
 
     // Proceed with 3DS authentication
@@ -425,13 +425,13 @@ const PaymentModule = (function () {
 
         fetch(config.apiEndpoints.proceedAuthentication, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(bodyParams)
         })
             .then(res => res.json())
             .then(data => {
                 if (!data.success) {
-                    alert(data.message || 'Authentication failed. Please try again.');
+                    alert(data.message || window.translations.authenticationFailed);
                     showLoadingButton(false, config.payButtonId);
                     return;
                 }
@@ -497,7 +497,7 @@ const PaymentModule = (function () {
             })
             .catch(err => {
                 console.error('Authentication error:', err);
-                alert('An error occurred during authentication. Please try again.');
+                alert(window.translations.authenticationError);
                 showLoadingButton(false, config.payButtonId);
             });
     }
@@ -550,7 +550,7 @@ const PaymentModule = (function () {
             addCardButton.addEventListener('click', () => {
                 const paymentForm = document.getElementById(config.containerId);
                 paymentForm.style.display = paymentForm.style.display === 'none' ? 'block' : 'none';
-                addCardButton.textContent = paymentForm.style.display === 'none' ? '+ Add Card' : '- Cancel';
+                addCardButton.textContent = paymentForm.style.display === 'none' ? window.translations.addCard : window.translations.cancelCard;
             });
         }
 
@@ -595,7 +595,7 @@ const PaymentModule = (function () {
         });
     }
 
-    return {init};
+    return { init };
 })();
 window.addEventListener('DOMContentLoaded', function () {
     // Initialize for payment form

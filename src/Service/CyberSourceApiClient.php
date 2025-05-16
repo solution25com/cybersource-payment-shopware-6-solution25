@@ -28,6 +28,7 @@ class CyberSourceApiClient
     private Client $client;
     private string $baseUrl;
     private HTTP $signer;
+    private EntityRepository $orderRepository;
 
     public function __construct(
         ConfigurationService $configurationService,
@@ -113,18 +114,23 @@ class CyberSourceApiClient
         }
     }
 
-    function formatCyberSourceError($response) {
-        if (is_string($response)) {
-            $response = json_decode($response, true);
-        }
-        $output = $response['message'] . "\n";
-
-        if (!empty($response['details'])) {
-            foreach ($response['details'] as $detail) {
-                $output .= "- " . $detail['field'] . " - " . $detail['reason'] . "\n";
+    function formatCyberSourceError($response)
+    {
+        try {
+            if (is_string($response)) {
+                $response = json_decode($response, true);
             }
+            $output = $response['message'] . "\n";
+
+            if (!empty($response['details'])) {
+                foreach ($response['details'] as $detail) {
+                    $output .= "- " . $detail['field'] . " - " . $detail['reason'] . "\n";
+                }
+            }
+            return trim($output);
+        } catch (\Exception $e) {
+            return $response;
         }
-        return trim($output);
     }
     /**
      * Build billing information from customer and address.
@@ -174,11 +180,19 @@ class CyberSourceApiClient
     }
 
     /**
+     * Create a shared secret key.
+     */
+    public function createKey(array $payload): array
+    {
+        return $this->executeRequest('Post', '/kms/egress/v2/keys-sym', $payload, 'Create Key');
+    }
+
+    /**
      * Create a webhook.
      */
     public function createWebhook(array $payload, ?string $salesChannelId = null): array
     {
-        return $this->executeRequest('Post', '/notification-subscriptions/v1/webhooks', $payload, 'Create Webhook');
+        return $this->executeRequest('Post', '/notification-subscriptions/v2/webhooks', $payload, 'Create Webhook');
     }
 
     /**
@@ -186,15 +200,22 @@ class CyberSourceApiClient
      */
     public function readWebhook(string $webhookId): array
     {
-        return $this->executeRequest('Get', "/notification-subscriptions/v1/webhooks/{$webhookId}", [], 'Read Webhook');
+        return $this->executeRequest('Get', "/notification-subscriptions/v2/webhooks/{$webhookId}", [], 'Read Webhook');
     }
 
+    /**
+     * Read a webhook.
+     */
+    public function readAllWebhook(string $orgId): array
+    {
+        return $this->executeRequest('Get', "/notification-subscriptions/v2/webhooks?organizationId={$orgId}", [], 'Read Webhooks');
+    }
     /**
      * Update a webhook.
      */
     public function updateWebhook(string $webhookId, array $payload): array
     {
-        return $this->executeRequest('Patch', "/notification-subscriptions/v1/webhooks/{$webhookId}", $payload, 'Update Webhook');
+        return $this->executeRequest('put', "/notification-subscriptions/v2/webhooks/{$webhookId}/status", $payload, 'Update Webhook');
     }
 
     /**
@@ -202,9 +223,16 @@ class CyberSourceApiClient
      */
     public function deleteWebhook(string $webhookId): array
     {
-        return $this->executeRequest('Delete', "/notification-subscriptions/v1/webhooks/{$webhookId}", [], 'Delete Webhook');
+        return $this->executeRequest('Delete', "/notification-subscriptions/v2/webhooks/{$webhookId}", [], 'Delete Webhook');
     }
 
+    /**
+     * Retrieve transaction details by transaction ID.
+     */
+    public function retrieveTransaction(string $transactionId, array $payload): array
+    {
+        return $this->executeRequest('Get', "/pts/v2/refresh-payment-status/{$transactionId}", [], 'Retrieve Transaction');
+    }
     /**
      * Capture a payment.
      */

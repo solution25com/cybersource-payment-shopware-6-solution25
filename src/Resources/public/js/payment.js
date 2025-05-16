@@ -1,9 +1,25 @@
 const PaymentModule = (function () {
     let microform = null;
     let config = {};
+    let translations = {};
+    let salesChannelAccessKey = '';
 
     // Initialize the module with configuration
     function init(options) {
+        // Retrieve data from data-jsData attribute
+        const jsDataDiv = document.querySelector('[data-jsData]');
+        if (jsDataDiv && jsDataDiv.dataset.jsdata) {
+            try {
+                const jsData = JSON.parse(jsDataDiv.dataset.jsdata);
+                salesChannelAccessKey = jsData.salesChannelAccessKey || '';
+                translations = jsData.translations || {};
+            } catch (e) {
+                console.error('Failed to parse data-jsData:', e);
+            }
+        } else {
+            console.warn('No data-jsData attribute found');
+        }
+
         config = {
             containerId: options.containerId || 'paymentForm',
             newCardFormId: options.newCardFormId || 'newCardForm',
@@ -46,7 +62,7 @@ const PaymentModule = (function () {
                     savedCards.forEach(card => {
                         const option = document.createElement('option');
                         option.value = card.id;
-                        option.textContent = `${window.translations.cardNumber} ${card.cardNumber} (${window.translations.expiryDate} ${card.expirationMonth}/${card.expirationYear})`;
+                        option.textContent = `${translations.cardNumber || 'Card Number: '} ${card.cardNumber} (${translations.expiryDate || 'Exp: '} ${card.expirationMonth}/${card.expirationYear})`;
                         if (savedCardsSelect) {
                             savedCardsSelect.appendChild(option);
                         }
@@ -98,8 +114,8 @@ const PaymentModule = (function () {
                         }
                     });
 
-                    microform.createField('number', { placeholder: window.translations.cardNumberPlaceholder }).load('#number-container');
-                    microform.createField('securityCode', { placeholder: window.translations.cvvPlaceholder }).load('#securityCode-container');
+                    microform.createField('number', { placeholder: translations.cardNumberPlaceholder || '1234 1234 1234 1234' }).load('#number-container');
+                    microform.createField('securityCode', { placeholder: translations.cvvPlaceholder || 'CVC' }).load('#securityCode-container');
                     document.getElementById('expMonth').value = "";
                     document.getElementById('expYear').value = "";
                 };
@@ -117,11 +133,11 @@ const PaymentModule = (function () {
 
         // Validate expiration date
         if (!month || !year || !/^\d{2}$/.test(month) || !/^\d{4}$/.test(year)) {
-            errors.push({ field: 'expiry', message: window.translations.pleaseEnterValidExpirationDate });
+            errors.push({ field: 'expiry', message: translations.pleaseEnterValidExpirationDate || 'Please enter a valid expiration date' });
         } else if (monthNum < 1 || monthNum > 12) {
-            errors.push({ field: 'expiry', message: window.translations.monthInvalid });
+            errors.push({ field: 'expiry', message: translations.monthInvalid || 'Month must be between 01 and 12' });
         } else if (yearNum < currentYear || (yearNum === currentYear && monthNum < currentMonth)) {
-            errors.push({ field: 'expiry', message: window.translations.expirationDatePast });
+            errors.push({ field: 'expiry', message: translations.expirationDatePast || 'Expiration date cannot be in the past' });
         }
         if (!config.isPaymentForm) {
             const firstName = document.getElementById('billingFirstName').value.trim();
@@ -134,37 +150,37 @@ const PaymentModule = (function () {
             const state = document.getElementById('billingState').value.trim();
 
             if (!firstName) {
-                errors.push({ field: 'billingFirstName', message: window.translations.pleaseEnterValidFirstName });
+                errors.push({ field: 'billingFirstName', message: translations.pleaseEnterValidFirstName || 'Please enter a valid first name' });
             }
             if (!lastName) {
-                errors.push({ field: 'billingLastName', message: window.translations.pleaseEnterValidLastName });
+                errors.push({ field: 'billingLastName', message: translations.pleaseEnterValidLastName || 'Please enter a valid last name' });
             }
             if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                errors.push({ field: 'billingEmail', message: window.translations.pleaseEnterValidEmail });
+                errors.push({ field: 'billingEmail', message: translations.pleaseEnterValidEmail || 'Please enter a valid email address' });
             }
             if (!street) {
-                errors.push({ field: 'billingStreet', message: window.translations.pleaseEnterValidStreet });
+                errors.push({ field: 'billingStreet', message: translations.pleaseEnterValidStreet || 'Please enter a valid street address' });
             }
             if (!city) {
-                errors.push({ field: 'billingCity', message: window.translations.pleaseEnterValidCity });
+                errors.push({ field: 'billingCity', message: translations.pleaseEnterValidCity || 'Please enter a valid city' });
             }
             if (!zip) {
-                errors.push({ field: 'billingZip', message: window.translations.pleaseEnterValidZip });
+                errors.push({ field: 'billingZip', message: translations.pleaseEnterValidZip || 'Please enter a valid zip code' });
             }
             if (!country) {
-                errors.push({ field: 'billingCountry', message: window.translations.pleaseEnterValidCountry });
+                errors.push({ field: 'billingCountry', message: translations.pleaseEnterValidCountry || 'Please select a country' });
             }
             if (document.getElementById('billingStateSection').style.display === 'block' && !state) {
-                errors.push({ field: 'billingState', message: window.translations.pleaseEnterValidState });
+                errors.push({ field: 'billingState', message: translations.pleaseEnterValidState || 'Please select a state' });
             }
         }
 
         const requiredFields = document.querySelectorAll('#confirmOrderForm input[required], #confirmOrderForm select[required], input[form="confirmOrderForm"][required], select[form="confirmOrderForm"][required]');
         requiredFields.forEach(field => {
             if (field.type === 'checkbox' && !field.checked) {
-                errors.push({ field: field.id, message: window.translations.requiredCheckbox.replace('{fieldName}', field.name) });
+                errors.push({ field: field.id, message: (translations.requiredCheckbox || 'Please check {fieldName}').replace('{fieldName}', field.name) });
             } else if (field.value.trim() === '') {
-                errors.push({ field: field.id, message: window.translations.requiredField.replace('{fieldName}', field.name) });
+                errors.push({ field: field.id, message: (translations.requiredField || 'Please fill out {fieldName}').replace('{fieldName}', field.name) });
             }
         });
         return { valid: errors.length === 0, errors };
@@ -221,7 +237,7 @@ const PaymentModule = (function () {
         if (show) {
             button.disabled = true;
             window.originalBtnText = button.textContent;
-            button.textContent = window.translations.processing;
+            button.textContent = translations.processing || 'Processing...';
         } else {
             button.disabled = false;
             if (window.originalBtnText) {
@@ -257,7 +273,7 @@ const PaymentModule = (function () {
             return;
         }
         if (!microform) {
-            alert(window.translations.cardFieldsNotLoaded);
+            alert(translations.cardFieldsNotLoaded || 'Card fields are not loaded yet. Please wait a few seconds.');
             showLoadingButton(false, buttonId);
             return;
         }
@@ -268,7 +284,7 @@ const PaymentModule = (function () {
         }, function (err, token) {
             if (err) {
                 console.error('Tokenize failed', err);
-                alert(window.translations.cardVerificationFailed);
+                alert(translations.cardVerificationFailed || 'Card information could not be verified.');
                 showLoadingButton(false, buttonId);
             } else {
                 if (isPayment) {
@@ -309,7 +325,7 @@ const PaymentModule = (function () {
             .then(res => res.json())
             .then(data => {
                 if (!data.success) {
-                    alert(data.message || window.translations.paymentSetupFailed);
+                    alert(data.message ||  translations.paymentSetupFailed || 'Payment setup failed. Please try again.');
                     showLoadingButton(false, config.payButtonId);
                     return;
                 }
@@ -331,7 +347,7 @@ const PaymentModule = (function () {
             })
             .catch(err => {
                 console.error('Payment setup error:', err);
-                alert(window.translations.paymentSetupError);
+                alert(translations.paymentSetupError || 'An error occurred during payment setup. Please try again.');
                 showLoadingButton(false, config.payButtonId);
             });
     }
@@ -363,7 +379,7 @@ const PaymentModule = (function () {
             .then(res => res.json())
             .then(data => {
                 if (!data.success) {
-                    alert(data.message || window.translations.saveCardFailed);
+                    alert(data.message || translations.saveCardFailed || 'Failed to save card. Please try again.');
                     showLoadingButton(false, config.saveCardButtonId);
                     return;
                 }
@@ -371,7 +387,7 @@ const PaymentModule = (function () {
             })
             .catch(err => {
                 console.error('Card save error:', err);
-                alert(window.translations.saveCardError);
+                alert(translations.saveCardError || 'An error occurred while saving the card. Please try again.');
                 showLoadingButton(false, config.saveCardButtonId);
             });
     }
@@ -431,7 +447,7 @@ const PaymentModule = (function () {
             .then(res => res.json())
             .then(data => {
                 if (!data.success) {
-                    alert(data.message || window.translations.authenticationFailed);
+                    alert(data.message || translations.authenticationFailed || 'Authentication failed. Please try again.');
                     showLoadingButton(false, config.payButtonId);
                     return;
                 }
@@ -497,7 +513,7 @@ const PaymentModule = (function () {
             })
             .catch(err => {
                 console.error('Authentication error:', err);
-                alert(window.translations.authenticationError);
+                alert(translations.authenticationError || 'An error occurred during authentication. Please try again.');
                 showLoadingButton(false, config.payButtonId);
             });
     }
@@ -550,7 +566,7 @@ const PaymentModule = (function () {
             addCardButton.addEventListener('click', () => {
                 const paymentForm = document.getElementById(config.containerId);
                 paymentForm.style.display = paymentForm.style.display === 'none' ? 'block' : 'none';
-                addCardButton.textContent = paymentForm.style.display === 'none' ? window.translations.addCard : window.translations.cancelCard;
+                addCardButton.textContent = paymentForm.style.display === 'none' ? translations.addCard || '+ Add Card' : translations.cancelCard || '- Cancel';
             });
         }
 

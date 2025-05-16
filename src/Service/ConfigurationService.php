@@ -205,4 +205,15 @@ class ConfigurationService
     {
         return (bool) $this->get('threeDS');
     }
+
+
+    public function getSharedSecretKey(): ?string
+    {
+        return $this->systemConfig->getString('CyberSourceShopware6.config.sharedSecretKey');
+    }
+
+    public function getSharedSecretKeyId(): ?string
+    {
+        return $this->systemConfig->getString('CyberSourceShopware6.config.sharedSecretKeyId');
+    }
 }

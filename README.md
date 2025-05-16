@@ -120,7 +120,7 @@ bin/console cybersource:read-webhook
 ```
 
 ```
-bin/console cybersource:update-webhook
+bin/console cybersource:update-status-webhook --active=true
 ```
 
 ```

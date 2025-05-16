@@ -7,6 +7,7 @@ namespace CyberSource\Shopware6\Subscriber;
 use CyberSource\Shopware6\Service\CyberSourceApiClient;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionEntity;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStates;
+use CyberSource\Shopware6\Service\OrderService;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
@@ -19,18 +20,18 @@ use Psr\Log\LoggerInterface;
 
 class OrderPaymentStatusSubscriber implements EventSubscriberInterface
 {
-    private EntityRepository $orderTransactionRepository;
+    private OrderService $orderService;
     private StateMachineRegistry $stateMachineRegistry;
     private CyberSourceApiClient $cyberSourceApiClient;
     private LoggerInterface $logger;
 
     public function __construct(
-        EntityRepository $orderTransactionRepository,
+        OrderService $orderService,
         StateMachineRegistry $stateMachineRegistry,
         CyberSourceApiClient $cyberSourceApiClient,
         LoggerInterface $logger
     ) {
-        $this->orderTransactionRepository = $orderTransactionRepository;
+        $this->orderService = $orderService;
         $this->stateMachineRegistry = $stateMachineRegistry;
         $this->cyberSourceApiClient = $cyberSourceApiClient;
         $this->logger = $logger;
@@ -65,12 +66,7 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
             return;
         }
 
-        $criteria = (new Criteria([$transactionId]))
-            ->addAssociation('paymentMethod')
-            ->addAssociation('stateMachineState')
-            ->addAssociation('order.currency');
-
-        $orderTransaction = $this->orderTransactionRepository->search($criteria, $context)->first();
+        $orderTransaction = $this->orderService->getOrderTransaction($transactionId, $context);
 
         if (!$orderTransaction instanceof OrderTransactionEntity) {
             $this->logger->error("Transaction not found: {$transactionId}");

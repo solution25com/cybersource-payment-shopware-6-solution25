@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace CyberSource\Shopware6\Helper;
+namespace CyberSource\Shopware6\Service;
 
+use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
-use Shopware\Core\Framework\Context;
 
-class UrlHelper
+class UrlService
 {
     private EntityRepository $salesChannelRepository;
     private EntityRepository $domainRepository;

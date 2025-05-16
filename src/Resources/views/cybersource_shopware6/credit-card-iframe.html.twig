@@ -1,76 +1,67 @@
+<div data-jsData="{{ {
+    'salesChannelAccessKey': context.salesChannel.accessKey,
+    'translations': {
+        'cardNumberPlaceholder': 'cybersource_shopware6.credit_card.cardNumberPlaceholderText' | trans,
+        'cvvPlaceholder': 'cybersource_shopware6.savedCards.cvv' | trans,
+        'expiryDatePlaceholder': 'cybersource_shopware6.credit_card.expiryDatePlaceholderText' | trans,
+        'pleaseEnterValidExpirationDate': 'cybersource_shopware6.savedCards.pleaseEnterValidExpirationDate' | trans,
+        'monthInvalid': 'cybersource_shopware6.savedCards.monthInvalid' | trans,
+        'expirationDatePast': 'cybersource_shopware6.savedCards.expirationDatePast' | trans,
+        'cardFieldsNotLoaded': 'cybersource_shopware6.savedCards.cardFieldsNotLoaded' | trans,
+        'cardVerificationFailed': 'cybersource_shopware6.savedCards.cardVerificationFailed' | trans,
+        'paymentSetupFailed': 'cybersource_shopware6.savedCards.paymentSetupFailed' | trans,
+        'paymentSetupError': 'cybersource_shopware6.savedCards.paymentSetupError' | trans,
+        'saveCardFailed': 'cybersource_shopware6.savedCards.saveCardFailed' | trans,
+        'saveCardError': 'cybersource_shopware6.savedCards.saveCardError' | trans,
+        'authenticationFailed': 'cybersource_shopware6.savedCards.authenticationFailed' | trans,
+        'authenticationError': 'cybersource_shopware6.savedCards.authenticationError' | trans,
+        'requiredField': 'cybersource_shopware6.savedCards.requiredField' | trans,
+        'requiredCheckbox': 'cybersource_shopware6.savedCards.requiredCheckbox' | trans,
+        'processing': 'cybersource_shopware6.savedCards.processing' | trans
+    }
+} | json_encode | escape('html_attr') }}">
+</div>
 <div class="payment-form">
-    {% if context.customer is defined and not context.customer.guest %}
+{% if context.customer is defined and not context.customer.guest %}
     <div id="saved-cards-section" class="form-group saved-cards-section">
-        <label for="savedCards">{{ 'cybersource_shopware6.saved-cards.title' | trans }}</label>
+        <label for="savedCards">{{ 'cybersource_shopware6.savedCards.savedCards' | trans }}</label>
         <select id="savedCards" name="savedCards">
-            <option value="new">{{ 'cybersource_shopware6.savedCards.useNewCardLabel' | trans }}</option>
-        </select>
-    </div>
+                <option value="new">{{ 'cybersource_shopware6.savedCards.useNewCardLabel' | trans }}</option>
+            </select>
+        </div>
     {% endif %}
-    <div id="newCardForm">
+        <div id="newCardForm">
         <h3>{{ 'cybersource_shopware6.savedCards.creditCard' | trans }}</h3>
-        <div class="form-group">
-            <label for="number-container">{{ 'cybersource_shopware6.credit_card.cardNumber' | trans }}</label>
-            <div id="number-container" class="microform-field"></div>
-        </div>
-        <div class="form-group">
-            <label for="securityCode-container">{{ 'cybersource_shopware6.savedCards.cvv' | trans }}</label>
-            <div id="securityCode-container" class="microform-field"></div>
-        </div>
-        <div class="form-group">
-            <label>{{ 'cybersource_shopware6.savedCards.expiryDate' | trans }}</label>
-            <div class="expiry-group">
+            <div class="form-group">
+                <label for="number-container">{{ 'cybersource_shopware6.credit_card.cardNumber' | trans }}</label>
+                <div id="number-container" class="microform-field"></div>
+            </div>
+            <div class="form-group">
+                <label for="securityCode-container">{{ 'cybersource_shopware6.savedCards.cvv' | trans }}</label>
+                <div id="securityCode-container" class="microform-field"></div>
+            </div>
+            <div class="form-group">
+                <label>{{ 'cybersource_shopware6.savedCards.expDate' | trans }}</label>
+                <div class="expiry-group">
                 <input id="expMonth" type="text" placeholder="MM" maxlength="2" required>
                 <input id="expYear" type="text" placeholder="YYYY" maxlength="4" required>
-            </div>
+                </div>
             <div id="expiry-error" class="error-message" style="display: none;">{{ 'cybersource_shopware6.savedCards.pleaseEnterValidExpirationDate' | trans }}.</div>
-        </div>
+            </div>
         {% if context.customer is defined and not context.customer.guest %}
         <div class="form-group save-card" >
-            <input type="checkbox" id="saveCard" name="saveCard">
+                    <input type="checkbox" id="saveCard" name="saveCard">
             <label for="saveCard">{{ 'cybersource_shopware6.savedCards.saveCard' | trans }}</label>
-        </div>
+            </div>
         {% endif %}
-    </div>
+        </div>
 
-    <input id="cybersource_authentication_transaction_id" type="hidden" name="cybersource_authentication_transaction_id" value="">
-    <input id="cybersource_transient_token_jwt" type="hidden" name="cybersource_transient_token_jwt" value="">
-    <input id="cybersource_subscription_id" type="hidden" name="cybersource_subscription_id" value="">
-    <input id="cybersource_expiration_month" type="hidden" name="cybersource_expiration_month" value="">
-    <input id="cybersource_expiration_year" type="hidden" name="cybersource_expiration_year" value="">
-    <div id="step_up"></div>
-</div>
-<script>
-    window.salesChannelAccessKey = "{{ context.salesChannel.accessKey }}";
-    window.translations = {
-        cardNumberPlaceholder: "{{ 'cybersource_shopware6.credit_card.cardNumberPlaceholderText' | trans }}",
-        cvvPlaceholder: "{{ 'cybersource_shopware6.savedCards.cvv' | trans }}",
-        expiryDatePlaceholder: "{{ 'cybersource_shopware6.credit_card.expiryDatePlaceholderText' | trans }}",
-        pleaseEnterValidExpirationDate: "{{ 'cybersource_shopware6.savedCards.pleaseEnterValidExpirationDate' | trans }}",
-        monthInvalid: "{{ 'cybersource_shopware6.savedCards.monthInvalid' | trans }}",
-        expirationDatePast: "{{ 'cybersource_shopware6.savedCards.expirationDatePast' | trans }}",
-        pleaseEnterValidFirstName: "{{ 'cybersource_shopware6.savedCards.pleaseEnterValidFirstName' | trans }}",
-        pleaseEnterValidLastName: "{{ 'cybersource_shopware6.savedCards.pleaseEnterValidLastName' | trans }}",
-        pleaseEnterValidEmail: "{{ 'cybersource_shopware6.savedCards.pleaseEnterValidEmail' | trans }}",
-        pleaseEnterValidStreet: "{{ 'cybersource_shopware6.savedCards.pleaseEnterValidStreet' | trans }}",
-        pleaseEnterValidCity: "{{ 'cybersource_shopware6.savedCards.pleaseEnterValidCity' | trans }}",
-        pleaseEnterValidZip: "{{ 'cybersource_shopware6.savedCards.pleaseEnterValidZip' | trans }}",
-        pleaseEnterValidCountry: "{{ 'cybersource_shopware6.savedCards.pleaseEnterValidCountry' | trans }}",
-        pleaseEnterValidState: "{{ 'cybersource_shopware6.savedCards.pleaseEnterValidState' | trans }}",
-        cardFieldsNotLoaded: "{{ 'cybersource_shopware6.savedCards.cardFieldsNotLoaded' | trans }}",
-        cardVerificationFailed: "{{ 'cybersource_shopware6.savedCards.cardVerificationFailed' | trans }}",
-        paymentSetupFailed: "{{ 'cybersource_shopware6.savedCards.paymentSetupFailed' | trans }}",
-        paymentSetupError: "{{ 'cybersource_shopware6.savedCards.paymentSetupError' | trans }}",
-        saveCardFailed: "{{ 'cybersource_shopware6.savedCards.saveCardFailed' | trans }}",
-        saveCardError: "{{ 'cybersource_shopware6.savedCards.saveCardError' | trans }}",
-        authenticationFailed: "{{ 'cybersource_shopware6.savedCards.authenticationFailed' | trans }}",
-        authenticationError: "{{ 'cybersource_shopware6.savedCards.authenticationError' | trans }}",
-        requiredField: "{{ 'cybersource_shopware6.savedCards.requiredField' | trans }}",
-        requiredCheckbox: "{{ 'cybersource_shopware6.savedCards.requiredCheckbox' | trans }}",
-        addCard: "{{ 'cybersource_shopware6.savedCards.addCard' | trans }}",
-        cancelCard: "{{ 'cybersource_shopware6.savedCards.cancelCard' | trans }}",
-        processing: "{{ 'cybersource_shopware6.savedCards.processing' | trans }}"
-    };
-</script>
-<link rel="stylesheet" href="{{ asset('bundles/cybersourceshopware6/css/payment-credit-card.css') }}">
-<script src="{{ asset('bundles/cybersourceshopware6/js/payment.js') }}"></script>
+        <input id="cybersource_authentication_transaction_id" type="hidden" name="cybersource_authentication_transaction_id" value="">
+        <input id="cybersource_transient_token_jwt" type="hidden" name="cybersource_transient_token_jwt" value="">
+        <input id="cybersource_subscription_id" type="hidden" name="cybersource_subscription_id" value="">
+        <input id="cybersource_expiration_month" type="hidden" name="cybersource_expiration_month" value="">
+        <input id="cybersource_expiration_year" type="hidden" name="cybersource_expiration_year" value="">
+        <div id="step_up"></div>
+    </div>
+    <link rel="stylesheet" href="{{ asset('bundles/cybersourceshopware6/css/payment-credit-card.css') }}">
+    <script src="{{ asset('bundles/cybersourceshopware6/js/payment.js') }}"></script>

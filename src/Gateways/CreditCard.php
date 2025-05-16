@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CyberSource\Shopware6\Gateways;
 
+use CyberSource\Shopware6\Service\OrderService;
 use Shopware\Core\Framework\Context;
 use CyberSource\Shopware6\Library\CyberSource;
 use CyberSource\Shopware6\Exceptions\APIException;
@@ -21,10 +22,8 @@ use Shopware\Core\System\StateMachine\Transition;
 final class CreditCard implements SynchronousPaymentHandlerInterface
 {
     public function __construct(
-        private readonly ConfigurationService $configurationService,
-        private readonly CyberSourceFactory $cyberSourceFactory,
         private readonly OrderTransactionStateHandler $orderTransactionStateHandler,
-        private readonly EntityRepository $orderTransactionRepo,
+        private readonly OrderService $orderService,
         private readonly StateMachineRegistry $stateMachineRegistry
     ) {}
 
@@ -99,7 +98,7 @@ final class CreditCard implements SynchronousPaymentHandlerInterface
 
     private function updateOrderTransactionCustomFields(array $response, string $orderTransactionId, Context $context): void
     {
-        $this->orderTransactionRepo->update([
+        $this->orderService->update([
             [
                 'id' => $orderTransactionId,
                 'customFields' => [

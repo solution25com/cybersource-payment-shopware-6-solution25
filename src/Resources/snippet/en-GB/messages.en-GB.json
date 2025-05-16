@@ -7,7 +7,7 @@
             "cardNumberRequiredMessage": "Card Number is required",
             "cardNumberErrorMessage": "Your card number is not valid",
             "expiryDate": "EXP DATE: ",
-            "expiryDatePlaceholderText": "MM/YY",
+            "expiryDatePlaceholderText": "MM/YYYY",
             "expiryDateRequiredMessage": "EXP DATE is required",
             "expiryDateErrorMessage": "expiry date is not valid",
             "securityCode": "CVC: ",
@@ -48,7 +48,8 @@
             "pleaseEnterValidExpirationDate": "Please enter a valid expiration date",
             "noSavedCards": "No saved cards found.",
             "deleteCard": "Delete",
-            "cancelCard": "- Cancel"
+            "cancelCard": "- Cancel",
+            "processing": "Processing..."
         },
         "request-signature": {
             "JWTNotSupported": "JWT is not supported in the recent version",

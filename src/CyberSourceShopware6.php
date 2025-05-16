@@ -51,7 +51,9 @@ class CyberSourceShopware6 extends Plugin
             $this->setPaymentMethodIsActive(true, $activateContext->getContext(), new $paymentMethod());
         }
         $this->getCustomFieldsInstaller()->createCustomFields($activateContext->getContext());
+        $this->runWebhookCommand('cybersource:create-key');
         $this->runWebhookCommand('cybersource:create-webhook');
+        $this->runWebhookCommand('cybersource:update-status-webhook --active=true');
         parent::activate($activateContext);
     }
 

@@ -7,7 +7,7 @@
             "cardNumberRequiredMessage": "Kartennummer ist erforderlich",
             "cardNumberErrorMessage": "Ihre Kartennummer ist ungültig",
             "expiryDate": "Ablaufdatum: ",
-            "expiryDatePlaceholderText": "MM/YY",
+            "expiryDatePlaceholderText": "MM/YYYY",
             "expiryDateRequiredMessage": "Ablaufdatum ist erforderlich",
             "expiryDateErrorMessage": "Ablaufdatum ist ungültig",
             "securityCode": "CVC: ",
@@ -48,7 +48,8 @@
             "pleaseEnterValidExpirationDate": "Bitte geben Sie ein gültiges Ablaufdatum ein",
             "noSavedCards": "Keine gespeicherten Karten gefunden.",
             "deleteCard": "Löschen",
-            "cancelCard": "- Abbrechen"
+            "cancelCard": "- Abbrechen",
+            "processing": "Verarbeitung..."
         },
         "request-signature": {
             "JWTNotSupported": "JWT wird in der aktuellen Version nicht unterstützt",

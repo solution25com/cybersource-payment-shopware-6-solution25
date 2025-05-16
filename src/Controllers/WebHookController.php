@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CyberSource\Shopware6\Controllers;
 
+use CyberSource\Shopware6\Service\OrderService;
 use Psr\Log\LoggerInterface;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
@@ -15,15 +16,17 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use CyberSource\Shopware6\Service\ConfigurationService;
+
 #[Route(defaults: ['_routeScope' => ['storefront']])]
 class WebHookController extends AbstractController
 {
     public function __construct(
-        private readonly EntityRepository $orderTransactionRepo,
+        private readonly OrderService $orderService,
         private readonly StateMachineRegistry $stateMachineRegistry,
         private readonly LoggerInterface $logger,
         private readonly ConfigurationService $configurationService
     ) {}
+
     #[Route(path: '/cybersource/webhook/health', name: 'api.cybersource.webhook.health', methods: ['GET'])]
     public function healthCheck(Request $request, Context $context): JsonResponse
     {
@@ -33,6 +36,7 @@ class WebHookController extends AbstractController
 
         return new JsonResponse(['status' => 'healthy'], Response::HTTP_OK);
     }
+
     #[Route(path: '/cybersource/webhook', name: 'api.cybersource.webhook', methods: ['POST'])]
     public function handleWebhook(Request $request, Context $context): JsonResponse
     {
@@ -44,25 +48,25 @@ class WebHookController extends AbstractController
 
         $this->logger->info('Webhook received', ['payload' => $payload]);
 
-//        $signature = $request->headers->get('x-cybersource-signature');
         $signature = $request->headers->get('v-c-signature');
         if (!$this->verifySignature($request->getContent(), $signature)) {
             $this->logger->error('Invalid webhook signature');
             return new JsonResponse(['status' => 'error', 'message' => 'Invalid signature'], 401);
         }
 
-        $transactionId = $payload['data']['id'] ?? null;
+        $eventType = $payload['eventType'] ?? null;
+        if (!$eventType) {
+            $this->logger->error('Missing eventType in webhook payload');
+            return new JsonResponse(['status' => 'error', 'message' => 'Missing eventType'], 400);
+        }
+
+        $transactionId = $payload['payloads']['testPayload']['transactionId'] ?? null;
         if (!$transactionId) {
             $this->logger->error('Missing transaction ID in webhook payload');
             return new JsonResponse(['status' => 'error', 'message' => 'Missing transaction ID'], 400);
         }
 
-        $criteria = new \Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria();
-        $criteria->addFilter(new \Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter(
-            'customFields.cybersource_payment_details.transaction_id',
-            $transactionId
-        ));
-        $orderTransaction = $this->orderTransactionRepo->search($criteria, $context)->first();
+        $orderTransaction = $this->orderService->getTransactionFromCustomFieldsDetails($transactionId, $context);
 
         if (!$orderTransaction) {
             $this->logger->error('Order transaction not found for transaction ID', ['transactionId' => $transactionId]);
@@ -70,33 +74,43 @@ class WebHookController extends AbstractController
         }
 
         $orderTransactionId = $orderTransaction->getId();
-        $status = $payload['data']['status'] ?? null;
 
-        if (!$status) {
-            $this->logger->error('Missing status in webhook payload');
-            return new JsonResponse(['status' => 'error', 'message' => 'Missing status'], 400);
-        }
+        // Map CyberSource event types to Shopware payment states
+        $stateMapping = [
+            'payments.payments.accept' => ['state' => 'paid', 'transition' => 'pay'],
+            'payments.payments.reject' => ['state' => 'failed', 'transition' => 'decline'],
+            'payments.payments.review' => ['state' => 'pending_review', 'transition' => 'pending_review'],
+            'payments.payments.partial.approval' => ['state' => 'partially_paid', 'transition' => 'partial_payment'],
+            'payments.reversals.accept' => ['state' => 'cancelled', 'transition' => 'cancel'],
+            'payments.reversals.reject' => ['state' => 'failed', 'transition' => 'decline'],
+            'payments.captures.accept' => ['state' => 'paid', 'transition' => 'pay'],
+            'payments.captures.review' => ['state' => 'pending_review', 'transition' => 'pending_review'],
+            'payments.captures.reject' => ['state' => 'failed', 'transition' => 'decline'],
+            'payments.refunds.accept' => ['state' => 'refunded', 'transition' => 'refund'],
+            'payments.refunds.reject' => ['state' => 'failed', 'transition' => 'decline'],
+            'payments.refunds.partial.approval' => ['state' => 'partially_refunded', 'transition' => 'partial_refunded'],
+            'payments.credits.accept' => ['state' => 'refunded', 'transition' => 'refund'],
+            'payments.credits.review' => ['state' => 'pending_review', 'transition' => 'pending_review'],
+            'payments.credits.reject' => ['state' => 'failed', 'transition' => 'decline'],
+            'payments.credits.partial.approval' => ['state' => 'partially_refunded', 'transition' => 'partial_refunded'],
+            'payments.voids.accept' => ['state' => 'cancelled', 'transition' => 'cancel'],
+            'payments.voids.reject' => ['state' => 'failed', 'transition' => 'decline'],
+            'risk.profile.decision.review' => ['state' => 'pending_review', 'transition' => 'pending_review'],
+            'risk.profile.decision.reject' => ['state' => 'failed', 'transition' => 'decline'],
+            'risk.casemanagement.decision.accept' => ['state' => 'paid', 'transition' => 'pay'],
+            'risk.casemanagement.decision.reject' => ['state' => 'failed', 'transition' => 'decline'],
+            'payments.payments.updated' => ['state' => 'in_progress', 'transition' => 'update'],
+        ];
 
-        switch ($status) {
-            case 'AUTHORIZED':
-                $this->updatePaymentStatus($orderTransactionId, 'paid', 'pay', $context);
-                break;
-
-            case 'DECLINED':
-                $this->updatePaymentStatus($orderTransactionId, 'failed', 'decline', $context);
-                break;
-
-            case 'AUTHORIZED_PENDING_REVIEW':
-                $this->updatePaymentStatus($orderTransactionId, 'pending_review', 'pending_review', $context);
-                break;
-
-            case 'PENDING_REVIEW':
-                $this->updatePaymentStatus($orderTransactionId, 'pre_review', 'pre_review', $context);
-                break;
-
-            default:
-                $this->logger->info('Unhandled webhook status', ['status' => $status]);
-                break;
+        if (isset($stateMapping[$eventType])) {
+            $this->updatePaymentStatus(
+                $orderTransactionId,
+                $stateMapping[$eventType]['state'],
+                $stateMapping[$eventType]['transition'],
+                $context
+            );
+        } else {
+            $this->logger->info('Unhandled webhook event type', ['eventType' => $eventType]);
         }
 
         return new JsonResponse(['status' => 'success']);
@@ -128,7 +142,12 @@ class WebHookController extends AbstractController
 
     private function verifySignature(string $payload, ?string $signature): bool
     {
-        $secretKey = $this->configurationService->getSecretKey();
+        $secretKey = $this->configurationService->getSharedSecretKey();
+        if (!$secretKey) {
+            $this->logger->error('Shared secret key not configured');
+            return false;
+        }
+
         $expectedSignature = base64_encode(hash_hmac('sha256', $payload, $secretKey, true));
         return $signature && hash_equals($expectedSignature, $signature);
     }

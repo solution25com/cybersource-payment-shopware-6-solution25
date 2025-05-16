@@ -6,13 +6,24 @@ document.addEventListener('DOMContentLoaded', function () {
     const stateError = document.getElementById('state-error');
     const billingCountryDefault = document.getElementById('billingCountryDefault');
     const billingCountryStateDefault = document.getElementById('billingCountryStateDefault');
-
+    const jsDataDiv = document.querySelector('[data-jsData]');
+    let salesChannelAccessKey = '';
+    if (jsDataDiv && jsDataDiv.dataset.jsdata) {
+        try {
+            const jsData = JSON.parse(jsDataDiv.dataset.jsdata);
+            salesChannelAccessKey = jsData.salesChannelAccessKey || '';
+        } catch (e) {
+            console.error('Failed to parse data-jsData:', e);
+        }
+    } else {
+        console.warn('No data-jsData attribute found');
+    }
 
     fetch('/store-api/country', {
         method: 'POST',
         headers: {
             'Accept': 'application/json',
-            'sw-access-key': window.salesChannelAccessKey,
+            'sw-access-key': salesChannelAccessKey,
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({

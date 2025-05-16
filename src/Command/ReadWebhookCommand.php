@@ -38,20 +38,38 @@ class ReadWebhookCommand extends Command
         $webhookId = $this->systemConfigService->get('CyberSourceShopware6.config.webhookId');
 
         if (!$webhookId) {
-            $output->writeln('Error: No webhook ID found in configuration. Please create a webhook first.');
-            return Command::FAILURE;
+            try {
+                $orgId = $this->apiClient->getConfigurationService()->getOrganizationID();
+                $response = $this->apiClient->readAllWebhook($orgId);
+                $output->writeln('Webhook read response:');
+                $output->writeln('Status Code: ' . $response['statusCode']);
+                $output->writeln('Body: ' . json_encode($response['body'], JSON_PRETTY_PRINT));
+                //check body first element and update webhookId
+                if (isset($response['body'][0]['webhookId'])) {
+                    $webhookId = $response['body'][0]['webhookId'];
+                    $this->systemConfigService->set('CyberSourceShopware6.config.webhookId', $webhookId);
+                    $output->writeln('Webhook ID updated: ' . $webhookId);
+                } else {
+                    $output->writeln('No webhook found.');
+                }
+            } catch (\Exception $e) {
+                $output->writeln('Error reading webhook: ' . $e->getMessage());
+                return Command::FAILURE;
+            }
         }
+        else {
 
-        $output->writeln('Reading CyberSource webhook with ID: ' . $webhookId);
+            $output->writeln('Reading CyberSource webhook with ID: ' . $webhookId);
 
-        try {
-            $response = $this->apiClient->readWebhook($webhookId);
-            $output->writeln('Webhook read response:');
-            $output->writeln('Status Code: ' . $response['statusCode']);
-            $output->writeln('Body: ' . json_encode($response['body'], JSON_PRETTY_PRINT));
-        } catch (\Exception $e) {
-            $output->writeln('Error reading webhook: ' . $e->getMessage());
-            return Command::FAILURE;
+            try {
+                $response = $this->apiClient->readWebhook($webhookId);
+                $output->writeln('Webhook read response:');
+                $output->writeln('Status Code: ' . $response['statusCode']);
+                $output->writeln('Body: ' . json_encode($response['body'], JSON_PRETTY_PRINT));
+            } catch (\Exception $e) {
+                $output->writeln('Error reading webhook: ' . $e->getMessage());
+                return Command::FAILURE;
+            }
         }
 
         return Command::SUCCESS;

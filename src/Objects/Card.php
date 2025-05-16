@@ -37,11 +37,11 @@ class Card
 
     public function toInstrumentArray(): array
     {
-        return [];
-//            'card' => [
-//                'number' => $this->number,
-//            ],
-//        ];
+        return [
+            'card' => [
+                'number' => $this->number,
+            ],
+        ];
     }
 
     public function toPaymentInstrumentCardArray(): array

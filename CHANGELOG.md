@@ -1,3 +1,25 @@
+## [1.2.6] - 2025-05-19
+### Added
+- Webhooks V2 implementation for more reliable and structured event handling.
+
+### Changed
+- Migrated all static strings to the Shopware snippet system for better localization and translation support.
+- Codebase refactored for improved clarity and maintainability (CR fixes).
+
+---
+
+## [1.2.5] - 2025-05-14
+### Fixed
+- Payment.js validation now **only targets** the `confirmOrderForm` to prevent conflicts.
+
+---
+
+## [1.2.4] - 2025-05-08
+### Changed
+- The **"Save Card"** option is now hidden for guest customers to prevent confusion and ensure only registered users can access stored payment methods.
+
+---
+
 
 ## [1.2.5] - 2025-05-14
 ### Fixed

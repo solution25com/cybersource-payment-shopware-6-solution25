@@ -22,6 +22,7 @@ use Shopware\Core\System\StateMachine\Transition;
 final class CreditCard implements SynchronousPaymentHandlerInterface
 {
     public function __construct(
+        private readonly ConfigurationService $configurationService,
         private readonly OrderTransactionStateHandler $orderTransactionStateHandler,
         private readonly OrderService $orderService,
         private readonly StateMachineRegistry $stateMachineRegistry
@@ -53,7 +54,12 @@ final class CreditCard implements SynchronousPaymentHandlerInterface
 
         switch ($status) {
             case 'AUTHORIZED':
-                $this->orderTransactionStateHandler->authorize($orderTransactionId, $context);
+                $transactionType = $this->configurationService->getTransactionType();
+                if ($transactionType === 'auth') {
+                    $this->orderTransactionStateHandler->authorize($orderTransactionId, $context);
+                } else {
+                    $this->orderTransactionStateHandler->paid($orderTransactionId, $context);
+                }
                 break;
 
             case 'PARTIAL_AUTHORIZED':

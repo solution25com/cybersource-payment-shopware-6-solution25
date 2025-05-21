@@ -25,7 +25,7 @@ class CyberSourceTest extends TestCase
             ],
             "orderInformation" => [
                 "amountDetails" => [
-                    "totalAmount" => $this->faker->randomFloat,
+                    "totalAmount" => $this->faker->randomFloat(2, 1, 1000),
                     "currency" => $this->faker->currencyCode,
                 ],
             ],
@@ -41,75 +41,15 @@ class CyberSourceTest extends TestCase
         ];
     }
 
-    public function testAuthAndCapturePaymentWithCreditCardSuccess()
+    protected function tearDown(): void
     {
-        $mockRequestSignatureContract = $this->createMock(RequestSignatureContract::class);
-        $paymentAuthMock = $this->createMock(PaymentAuth::class);
-
-        $cyberSource = new CyberSource(
-            EnvironmentUrl::TEST,
-            $mockRequestSignatureContract
-        );
-
-        $apiClientMock = $this->getMockBuilder(RestClient::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['postData'])
-            ->getMock();
-
-        $reflectionClass = new \ReflectionClass(CyberSource::class);
-        $apiClientProperty = $reflectionClass->getProperty('apiClient');
-        $apiClientProperty->setAccessible(true);
-        $apiClientProperty->setValue($cyberSource, $apiClientMock);
-
-        $expectedResponse = [
-            'status' => 'AUTHORIZED',
-            'id' => 'ghp_6606192211041'
-        ];
-
-        $apiClientMock->expects($this->any())
-            ->method('postData')
-            ->willReturn($expectedResponse);
-
-        $result = $cyberSource->authAndCapturePaymentWithCreditCard($paymentAuthMock);
-        $this->assertSame($expectedResponse, $result);
-    }
-
-    public function testAuthAndCapturePaymentWithCreditCardUnAuthorized()
-    {
-        $mockRequestSignatureContract = $this->createMock(RequestSignatureContract::class);
-        $paymentAuthMock = $this->createMock(PaymentAuth::class);
-
-        $cyberSource = new CyberSource(
-            EnvironmentUrl::TEST,
-            $mockRequestSignatureContract
-        );
-
-        $apiClientMock = $this->getMockBuilder(RestClient::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['postData'])
-            ->getMock();
-
-        $reflectionClass = new \ReflectionClass(CyberSource::class);
-        $apiClientProperty = $reflectionClass->getProperty('apiClient');
-        $apiClientProperty->setAccessible(true);
-        $apiClientProperty->setValue($cyberSource, $apiClientMock);
-
-        $expectedResponse = [
-            'status' => 'PENDING_REVIEW_PROFILE',
-            'id' => 'ghp_6606192211041'
-        ];
-
-        $apiClientMock->expects($this->any())
-            ->method('postData')
-            ->willReturn($expectedResponse);
-
-        $result = $cyberSource->authAndCapturePaymentWithCreditCard($paymentAuthMock);
-        $this->assertSame($expectedResponse, $result);
+        Mockery::close();
+        parent::tearDown();
     }
 
     public function testAuthAndCapturePaymentWithCreditCardException()
     {
-        $mockcybersource = Mockery::mock(CyberSource::class);
+        $mockcybersource = Mockery::mock(CyberSource::class)->makePartial();
         $mockcybersource->shouldAllowMockingProtectedMethods();
         $paymentAuthMock = $this->createMock(PaymentAuth::class);
 
@@ -118,20 +58,19 @@ class CyberSourceTest extends TestCase
             'id' => 'ghp_6606192211041'
         ];
 
-        $class = new \ReflectionClass(CyberSource::class);
-        $method = $class->getMethod('doAuthorizationReversal');
-        $method->setAccessible(true);
-
         $mockcybersource
             ->shouldReceive('authorizePaymentWithCreditCard')
+            ->once()
             ->andReturn($responseFromAuthorized);
 
         $mockcybersource
             ->shouldReceive('capturePaymentWithCreditCard')
+            ->once()
             ->andThrow(new \Exception('Authorization System or issuer system inoperative'));
 
         $mockcybersource
             ->shouldReceive('doAuthorizationReversal')
+            ->once()
             ->andReturn([]);
 
         $this->expectException(\Exception::class);

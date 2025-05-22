@@ -13,7 +13,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class CreateWebhookCommand extends Command
 {
-    protected static $defaultName = 'cybersource:create-webhook';
+    protected static ?string $defaultName = 'cybersource:create-webhook';
 
     private CyberSourceApiClient $apiClient;
     private SystemConfigService $systemConfigService;

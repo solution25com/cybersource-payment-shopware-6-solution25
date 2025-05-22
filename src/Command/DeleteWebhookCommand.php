@@ -12,7 +12,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class DeleteWebhookCommand extends Command
 {
-    protected static $defaultName = 'cybersource:delete-webhook';
+    protected static ?string $defaultName = 'cybersource:delete-webhook';
 
     private CyberSourceApiClient $apiClient;
     private SystemConfigService $systemConfigService;
@@ -40,7 +40,10 @@ class DeleteWebhookCommand extends Command
             $output->writeln('Error: No webhook ID found in configuration. Please create a webhook first.');
             return Command::FAILURE;
         }
-
+        if (!is_string($webhookId)) {
+            $output->writeln('Error: Invalid webhook ID format.');
+            return Command::FAILURE;
+        }
         $output->writeln('Deleting CyberSource webhook with ID: ' . $webhookId);
 
         try {

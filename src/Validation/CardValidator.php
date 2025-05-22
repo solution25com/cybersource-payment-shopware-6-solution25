@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CyberSource\Shopware6\Validation;
 
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 use Symfony\Component\Validator\Validation;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -66,9 +67,7 @@ class CardValidator
                     'pattern' => '/^\d{2}\/\d{2}$/',
                     'message' => $expiryDateErrorMessage,
                 ]),
-                new Assert\Callback([
-                    'callback' => [$this, 'validateExpirationDate'],
-                ]),
+                new Assert\Callback([$this, 'validateExpirationDate'])
             ],
             'securityCode' => [
                 new Assert\NotBlank(['message' => $securityRequiredMessage]),
@@ -106,7 +105,7 @@ class CardValidator
         }
     }
 
-    public function validateExpirationDate($value, $context)
+    public function validateExpirationDate(string $value, ExecutionContextInterface $context): void
     {
         $expiryDateErrorMessage = $this->translator->trans(
             'cybersource_shopware6.credit_card.expiryDateErrorMessage'

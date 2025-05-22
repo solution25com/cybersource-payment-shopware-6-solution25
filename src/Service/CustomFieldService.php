@@ -9,7 +9,9 @@ use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
+use Shopware\Core\System\CustomField\Aggregate\CustomFieldSet\CustomFieldSetCollection;
 use Shopware\Core\System\CustomField\CustomFieldTypes;
+use Shopware\Core\System\CustomField\Aggregate\CustomFieldSetRelation\CustomFieldSetRelationCollection;
 
 class CustomFieldService
 {
@@ -41,7 +43,10 @@ class CustomFieldService
             ],
         ],
     ];
-
+    /**
+     * @param EntityRepository<CustomFieldSetCollection> $customFieldSetRepository
+     * @param EntityRepository<CustomFieldSetRelationCollection> $customFieldSetRelationRepository
+     */
     public function __construct(
         private readonly EntityRepository $customFieldSetRepository,
         private readonly EntityRepository $customFieldSetRelationRepository
@@ -98,12 +103,13 @@ class CustomFieldService
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     private function getCustomFieldSetIds(Context $context): array
     {
         $criteria = new Criteria();
         $criteria->addFilter(new EqualsFilter('name', self::CUSTOM_FIELDSET_NAME));
-        return $this->customFieldSetRepository->searchIds($criteria, $context)->getIds();
+        $ids = $this->customFieldSetRepository->searchIds($criteria, $context)->getIds();
+        return array_values(array_filter($ids, 'is_string'));
     }
 }

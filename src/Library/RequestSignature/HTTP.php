@@ -29,13 +29,12 @@ final class HTTP extends AbstractContract
         $signature = base64_encode(
             hash_hmac(Hash::SHA256, $signatureString, $decodedKey, true)
         );
-        $signatureHeader = array(
+        $signatureHeader = [
             sprintf("keyid=%s", '"' . $this->accessKey . '"'),
-            sprintf("algorithm=%s", '"' .  Hash::HMACSHA256 . '"'),
-            sprintf("headers=%s", '"' .  $headerKeysString . '"'),
+            sprintf("algorithm=%s", '"' . Hash::HMACSHA256 . '"'),
+            sprintf("headers=%s", '"' . $headerKeysString . '"'),
             sprintf("signature=%s", '"' . $signature . '"')
-        );
-
-        return s(',')->join($signatureHeader);
+        ];
+        return new UnicodeString(implode(',', $signatureHeader));
     }
 }

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace CyberSource\Shopware6\Service;
 
 use CyberSource\Shopware6\Library\RequestSignature\HTTP;
+use CyberSource\Shopware6\Library\RequestSignature\JWT;
+use CyberSource\Shopware6\Library\RequestSignature\Oauth;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Psr\Log\LoggerInterface;
@@ -14,22 +16,35 @@ use Shopware\Core\Checkout\Customer\CustomerEntity;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
+use Shopware\Core\System\Country\CountryEntity;
+use Shopware\Core\System\Currency\CurrencyEntity;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Shopware\Core\Checkout\Customer\CustomerCollection as CustomerEntityCollection;
+use Shopware\Core\Checkout\Order\OrderCollection as OrderEntityCollection;
 
 class CyberSourceApiClient
 {
     private ConfigurationService $configurationService;
+    /**
+     * @var EntityRepository<CustomerEntityCollection>
+     */
     private EntityRepository $customerRepository;
     private CartService $cartService;
     private LoggerInterface $logger;
     private Client $client;
     private string $baseUrl;
-    private HTTP $signer;
+    private HTTP|JWT|Oauth $signer;
+    /**
+     * @var EntityRepository<OrderEntityCollection>
+     */
     private EntityRepository $orderRepository;
-
+    /**
+     * @param EntityRepository<CustomerEntityCollection> $customerRepository
+     * @param EntityRepository<OrderEntityCollection> $orderRepository
+     */
     public function __construct(
         ConfigurationService $configurationService,
         CartService $cartService,
@@ -82,6 +97,9 @@ class CyberSourceApiClient
         string $logContext = 'API Request'
     ): array {
         $payloadJson = !empty($payload) ? json_encode($payload, JSON_PRETTY_PRINT) : '';
+        if ($payloadJson === false) {
+            throw new \RuntimeException('Failed to encode payload to JSON');
+        }
         $headers = $this->generateHeaders($method, $endpoint, $payloadJson);
 
         try {
@@ -114,7 +132,7 @@ class CyberSourceApiClient
         }
     }
 
-    function formatCyberSourceError($response)
+    function formatCyberSourceError(string|array $response): string
     {
         try {
             if (is_string($response)) {
@@ -149,15 +167,16 @@ class CyberSourceApiClient
                 'postalCode' => '00000',
             ];
         }
-
+        $country = $billingAddress->getCountry();
+        $countryCode = $country instanceof CountryEntity ? $country->getIso() : 'US';
         $billTo = [
-            'firstName' => $billingAddress->getFirstName() ?? 'Unknown',
-            'lastName' => $billingAddress->getLastName() ?? 'Unknown',
-            'email' => $customer->getEmail() ?? 'no-email@example.com',
-            'address1' => $billingAddress->getStreet() ?? 'Unknown Street',
-            'postalCode' => $billingAddress->getZipcode() ?? '00000',
-            'locality' => $billingAddress->getCity() ?? 'Unknown City',
-            'country' => $billingAddress->getCountry()->getIso() ?? 'US',
+            'firstName' => $billingAddress->getFirstName() ?: 'Unknown',
+            'lastName' => $billingAddress->getLastName() ?: 'Unknown',
+            'email' => $customer->getEmail() ?: 'no-email@example.com',
+            'address1' => $billingAddress->getStreet() ?: 'Unknown Street',
+            'postalCode' => $billingAddress->getZipcode() ?: '00000',
+            'locality' => $billingAddress->getCity() ?: 'Unknown City',
+            'country' => $countryCode,
         ];
 
         if ($billingAddress->getPhoneNumber()) {
@@ -170,8 +189,7 @@ class CyberSourceApiClient
                 if (count($shortCode) > 1) {
                     $billTo['administrativeArea'] = $shortCode[1];
                 }
-            }
-            else if($shortCode){
+            } elseif ($shortCode) {
                 $billTo['administrativeArea'] = $shortCode;
             }
         }
@@ -309,8 +327,12 @@ class CyberSourceApiClient
             return new JsonResponse(['error' => 'Missing token or subscriptionId'], 400);
         }
         $customer = $context->getCustomer();
-        $billingAddress = $customer ? $customer->getActiveBillingAddress() : null;
-        if($orderId){
+        if (!$customer) {
+            return new JsonResponse(['error' => 'Customer not found'], 403);
+        }
+        $customerId = $customer->getId();
+        $billingAddress = $customer->getActiveBillingAddress();
+        if ($orderId) {
             $criteria = new Criteria([$orderId]);
             $criteria->addAssociation('currency');
             $order = $this->orderRepository->search($criteria, $context->getContext())->first();
@@ -318,28 +340,26 @@ class CyberSourceApiClient
                 return new JsonResponse(['error' => 'Order not found'], 404);
             }
             $amount = (string)$order->getPrice()->getTotalPrice();
-            $currency = $order->getCurrency()->getIsoCode();
-        }
-        else {
+            $currency = $order->getCurrency();
+            $currency = $currency instanceof CurrencyEntity ? $currency->getIsoCode() : $context->getCurrency()->getIsoCode();
+        } else {
             $cart = $this->cartService->getCart($context->getToken(), $context);
             $amount = (string)$cart->getPrice()->getTotalPrice();
             $currency = $context->getCurrency()->getIsoCode();
         }
         $uniqid = uniqid();
-        if($billTo){
+        if ($billTo) {
             $shortCode = $billTo['state'];
             if (strpos($shortCode, '-') !== false) {
                 $shortCode = explode('-', $shortCode);
                 if (count($shortCode) > 1) {
                     $billTo['administrativeArea'] = $shortCode[1];
                 }
-            }
-            else if($shortCode){
+            } elseif ($shortCode) {
                 $billTo['administrativeArea'] = $shortCode;
             }
             unset($billTo['state']);
-        }
-        else{
+        } else {
             $billTo = $this->buildBillTo($customer, $billingAddress);
         }
 
@@ -356,7 +376,7 @@ class CyberSourceApiClient
             $saveCard = false;
         }
 
-        if (!$this->configurationService->isThreeDSEnabled() ) {
+        if (!$this->configurationService->isThreeDSEnabled()) {
             return $this->completePayment(
                 $context,
                 [],
@@ -367,7 +387,7 @@ class CyberSourceApiClient
                 $expirationMonth,
                 $expirationYear,
                 $orderInfo,
-                $customer->getId()
+                $customerId
             );
         }
 
@@ -441,23 +461,25 @@ class CyberSourceApiClient
 
         $cart = $this->cartService->getCart($context->getToken(), $context);
         $customer = $context->getCustomer();
-        $billingAddress = $customer ? $customer->getActiveBillingAddress() : null;
+        if (!$customer) {
+            return new JsonResponse(['error' => 'Customer not found'], 403);
+        }
+        $customerId = $customer->getId();
+        $billingAddress = $customer->getActiveBillingAddress();
         $amount = (string) $cart->getPrice()->getTotalPrice();
         $currency = $context->getCurrency()->getIsoCode();
-        if($billTo){
+        if ($billTo) {
             $shortCode = $billTo['state'];
             if (strpos($shortCode, '-') !== false) {
                 $shortCode = explode('-', $shortCode);
                 if (count($shortCode) > 1) {
                     $billTo['administrativeArea'] = $shortCode[1];
                 }
-            }
-            else if($shortCode){
+            } elseif ($shortCode) {
                 $billTo['administrativeArea'] = $shortCode;
             }
             unset($billTo['state']);
-        }
-        else{
+        } else {
             $billTo = $this->buildBillTo($customer, $billingAddress);
         }
         $orderInfo = [
@@ -535,7 +557,7 @@ class CyberSourceApiClient
                         'expirationMonth' => $expirationMonth,
                         'expirationYear' => $expirationYear,
                         'saveCard' => $saveCard,
-                        'customerId' => $customer->getId(),
+                        'customerId' => $customerId,
                     ]);
                 }
                 return new JsonResponse([
@@ -556,7 +578,7 @@ class CyberSourceApiClient
                     $expirationMonth,
                     $expirationYear,
                     $orderInfo,
-                    $customer->getId()
+                    $customerId
                 );
             }
 
@@ -584,8 +606,7 @@ class CyberSourceApiClient
         ?string $expirationYear,
         array $orderInfo,
         ?string $customerId
-    ): JsonResponse
-    {
+    ): JsonResponse {
         $capture = $this->configurationService->getTransactionType() === 'auth_capture';
         $payload = [
             'clientReferenceInformation' => [
@@ -742,7 +763,7 @@ class CyberSourceApiClient
     /**
      * Get saved cards for a customer.
      */
-    public function getSavedCards(SalesChannelContext $context, string $customerId = null): array
+    public function getSavedCards(SalesChannelContext $context, ?string $customerId = null): array
     {
         $customer = $context->getCustomer();
         if (!$customer) {
@@ -800,12 +821,16 @@ class CyberSourceApiClient
     public function saveCard(
         SalesChannelContext $context,
         string $paymentToken,
-        string $expirationMonth,
-        string $expirationYear,
+        ?string $expirationMonth,
+        ?string $expirationYear,
         array $orderInfo = [],
         ?string $cardType = null,
         ?string $customerId = null
     ): bool {
+        if ($expirationMonth === null || $expirationYear === null) {
+            $this->logger->error('Expiration month or year is missing.');
+            return false;
+        }
         $criteria = new Criteria();
         $criteria->addFilter(new EqualsFilter('id', $customerId));
         $criteria->addAssociation('defaultBillingAddress');
@@ -824,12 +849,12 @@ class CyberSourceApiClient
         if (!$customerTokenId) {
             $payload = [
                 'customerInformation' => [
-                    'email' => $customer->getEmail() ?? 'no-email@example.com',
+                    'email' => $customer->getEmail(),
                 ],
             ];
             try {
                 $response = $this->executeRequest('Post', '/tms/v2/customers', $payload, 'Create Customer Token');
-                $customerTokenId = $response['body']['id'] ?? null;
+                $customerTokenId = $response['body']['id'];
 
                 if (!$customerTokenId) {
                     throw new \RuntimeException('Failed to create customer token: No customerTokenId returned');
@@ -891,7 +916,7 @@ class CyberSourceApiClient
     public function handle3dsCallback(Request $request, SalesChannelContext $context): Response
     {
         $data = $request->request->get('MD');
-        $data = $data ? json_decode($data, true) : [];
+        $data = is_string($data) ? json_decode($data, true) : [];
 
         $authenticationTransactionId = $data['authenticationTransactionId'] ?? null;
         $orderInfo = $data['orderInfo'] ?? null;
@@ -994,7 +1019,9 @@ class CyberSourceApiClient
         if (!$instrumentId || !$customerId) {
             return new JsonResponse(['error' => 'Missing instrumentId or customerId'], 400);
         }
-
+        if (!is_string($customerId)) {
+            return new JsonResponse(['error' => 'Customer not found'], 403);
+        }
         $cardsResponse = $this->getSavedCards($context, $customerId);
         $cards = $cardsResponse['cards'] ?? [];
         $targetCard = null;
@@ -1066,20 +1093,18 @@ class CyberSourceApiClient
 
         $customerId = $customer->getId();
         $billingAddress = $customer->getActiveBillingAddress();
-        if($billTo){
+        if ($billTo) {
             $shortCode = $billTo['state'];
             if (strpos($shortCode, '-') !== false) {
                 $shortCode = explode('-', $shortCode);
                 if (count($shortCode) > 1) {
                     $billTo['administrativeArea'] = $shortCode[1];
                 }
-            }
-            else if($shortCode){
+            } elseif ($shortCode) {
                 $billTo['administrativeArea'] = $shortCode;
             }
             unset($billTo['state']);
-        }
-        else{
+        } else {
             $billTo = $this->buildBillTo($customer, $billingAddress);
         }
         $uniqid = uniqid();
@@ -1157,7 +1182,7 @@ class CyberSourceApiClient
         }
     }
 
-    private function getCardCustomerId(mixed $subscriptionId, SalesChannelContext $context, string $customerId = null) : ?string
+    private function getCardCustomerId(mixed $subscriptionId, SalesChannelContext $context, string $customerId = null): ?string
     {
         $cardsResponse = $this->getSavedCards($context, $customerId);
         $cards = $cardsResponse['cards'] ?? [];

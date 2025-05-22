@@ -12,7 +12,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class CreateKeyCommand extends Command
 {
-    protected static $defaultName = 'cybersource:create-key';
+    protected static ?string $defaultName = 'cybersource:create-key';
 
     private CyberSourceApiClient $apiClient;
     private SystemConfigService $systemConfigService;
@@ -48,7 +48,7 @@ class CreateKeyCommand extends Command
 
         try {
             $response = $this->apiClient->createKey($payload);
-             if ($response['statusCode'] === 201) {
+            if ($response['statusCode'] === 201) {
                 if (isset($response['body']['status']) && $response['body']['status'] === 'SUCCESS') {
                     $keyId = $response['body']['keyInformation']['keyId'];
                     $key = $response['body']['keyInformation']['key'];
@@ -60,7 +60,6 @@ class CreateKeyCommand extends Command
                 $output->writeln('Failed to create key: ' . $response['statusMessage']);
                 return Command::FAILURE;
             }
-
         } catch (\Exception $e) {
             $output->writeln('Error creating key: ' . $e->getMessage());
             return Command::FAILURE;

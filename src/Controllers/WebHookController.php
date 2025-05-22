@@ -25,7 +25,8 @@ class WebHookController extends AbstractController
         private readonly StateMachineRegistry $stateMachineRegistry,
         private readonly LoggerInterface $logger,
         private readonly ConfigurationService $configurationService
-    ) {}
+    ) {
+    }
 
     #[Route(path: '/cybersource/webhook/health', name: 'api.cybersource.webhook.health', methods: ['GET'])]
     public function healthCheck(Request $request, Context $context): JsonResponse

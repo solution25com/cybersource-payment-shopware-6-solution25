@@ -88,10 +88,10 @@ class CyberSource
         );
     }
 
-    public function refundPayment(string $transactionId, array $requestData)
+    public function refundPayment(string $transactionId, array $requestData): array
     {
         return $this->apiClient->postData(
-            sprintf('%s%s%s', '/pts/v2/payments/', $transactionId, '/refunds'),
+            sprintf('%s%s%s', '/pts/v2/payments/', $transactionId, self::REFUND_PAYMENT_SUFFIX),
             $requestData
         );
     }
@@ -111,36 +111,5 @@ class CyberSource
             self::PAYMENT_URL . $transactionId . self::AUTH_REVERSAL_PAYMENT_SUFFIX,
             $requestDataForAuthReversal->makeAuthReversalPaymentRequest()
         );
-    }
-
-    public function generateInstrumentIdentifier(PaymentAuth $requestData): array
-    {
-        return $this->apiClient->postData(
-            '/tms/v1/instrumentidentifiers',
-            $requestData->makeInstrumentIdentifierRequest()
-        );
-    }
-
-    public function createPaymentInstrument(
-        PaymentAuth $requestData,
-        string $cybersourceCustomerId,
-        string $instrumentIdentifierId
-    ): array {
-        return $this->apiClient->postData(
-            sprintf('%s%s%s', '/tms/v2/customers/', $cybersourceCustomerId, '/payment-instruments'),
-            $requestData->getPaymentInstrumentRequestPayload($instrumentIdentifierId)
-        );
-    }
-
-    public function createCybersourceCustomer(PaymentAuth $requestData, string $customerId, string $email): array
-    {
-        return $this->apiClient->postData(
-            '/tms/v2/customers',
-            $requestData->getCybersourceCustomerRequestPayload($customerId, $email)
-        );
-    }
-    public function getPaymentStatus(string $transactionId): array
-    {
-        return $this->apiClient->getData(self::PAYMENT_URL . $transactionId);
     }
 }

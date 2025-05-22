@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace CyberSource\Shopware6\Storefront\Controller;
 
@@ -9,12 +11,11 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Storefront\Page\GenericPageLoader;
-use CyberSource\Shopware6\Service\CybersourceApiClient;
+use CyberSource\Shopware6\Service\CyberSourceApiClient;
 
 #[Route(defaults: ['_routeScope' => ['storefront']])]
 class CustomController extends StorefrontController
 {
-
     private GenericPageLoader $genericPageLoader;
     private CybersourceApiClient $apiClient;
     public function __construct(
@@ -70,7 +71,7 @@ class CustomController extends StorefrontController
 
         $response = $this->renderStorefront('@Storefront/storefront/page/account/saved_cards.html.twig', [
             'page' => $page,
-            'cards' => $cards ?? [],
+            'cards' => $cards,
             'paymentMethodId' => $context->getPaymentMethod()->getId()
         ]);
 

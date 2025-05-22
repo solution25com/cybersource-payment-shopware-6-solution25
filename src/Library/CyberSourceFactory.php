@@ -11,7 +11,7 @@ class CyberSourceFactory
     public function createCyberSource(
         EnvironmentUrl $environmentUrl,
         RequestSignatureContract $requestSignature
-    ) {
+    ): CyberSource {
         return new CyberSource($environmentUrl, $requestSignature);
     }
 }

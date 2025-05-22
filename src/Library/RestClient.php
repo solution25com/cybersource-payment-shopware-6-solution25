@@ -24,7 +24,7 @@ class RestClient
         $this->headerSignature = $headerSignature;
     }
 
-    public function getData(string $endpoint)
+    public function getData(string $endpoint): array
     {
         $headers = $this->headerSignature->getHeadersForGetMethod($endpoint);
         $options = [
@@ -35,9 +35,12 @@ class RestClient
         return $response->toArray();
     }
 
-    public function postData(string $endpoint, array $requestBody)
+    public function postData(string $endpoint, array $requestBody): array
     {
         $jsonRequestBody = json_encode($requestBody);
+        if ($jsonRequestBody === false) {
+            throw new \RuntimeException('Failed to encode request body to JSON');
+        }
         $headers = $this->headerSignature->getHeadersForPostMethod(
             $endpoint,
             $jsonRequestBody
@@ -48,7 +51,6 @@ class RestClient
             'body' => $jsonRequestBody
         ];
         $response = $this->client->request(Request::METHOD_POST, $endpoint, $options);
-
         return $response->toArray();
     }
 }

@@ -9,8 +9,8 @@ class OrderTransactionNotFoundException extends ShopwareHttpException
 {
     protected string $errorCode;
     public function __construct(
-        $message,
-        $errorCode
+        string $message,
+        string $errorCode
     ) {
         parent::__construct(
             $message

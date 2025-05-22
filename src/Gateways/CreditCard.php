@@ -26,7 +26,8 @@ final class CreditCard implements SynchronousPaymentHandlerInterface
         private readonly OrderTransactionStateHandler $orderTransactionStateHandler,
         private readonly OrderService $orderService,
         private readonly StateMachineRegistry $stateMachineRegistry
-    ) {}
+    ) {
+    }
 
     public function pay(
         SyncPaymentTransactionStruct $transaction,
@@ -87,7 +88,6 @@ final class CreditCard implements SynchronousPaymentHandlerInterface
     private function setPaymentStatus(string $orderTransactionId, string $newState, Context $context): bool
     {
         try {
-
             $transition = new Transition(
                 'order_transaction',
                 $orderTransactionId,

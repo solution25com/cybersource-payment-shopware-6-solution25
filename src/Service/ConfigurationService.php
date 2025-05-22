@@ -25,12 +25,10 @@ class ConfigurationService
         $this->translator = $translator;
     }
 
-    public function get(string $key, ?string $salesChannelId = null)
+    public function get(string $key, ?string $salesChannelId = null): ?string
     {
-        return $this->systemConfig->get(
-            self::CONFIGURATION_KEY . '.config.' . $key,
-            $salesChannelId
-        );
+        $value = $this->systemConfig->get(self::CONFIGURATION_KEY . '.config.' . $key, $salesChannelId);
+        return is_string($value) ? $value : null;
     }
 
     public function isProductionActive(?string $salesChannelId = null): string
@@ -126,7 +124,7 @@ class ConfigurationService
      *
      * @return HTTP|JWT|Oauth
      */
-    public function getSignatureContract()
+    public function getSignatureContract() : HTTP|JWT|Oauth
     {
         // TODO: Currently, we are supporting the HTTP connection method only.
         // Later on, retrieve it from the configuration.
@@ -168,12 +166,12 @@ class ConfigurationService
                 'cybersource_shopware6.request-signature.JWTNotSupported'
             )
         );
-
-        $p12 = $this->getP12();
-        $orgId = $this->getOrganizationID();
-        $environmentUrl = $this->getBaseUrl();
-
-        return new JWT($environmentUrl, $orgId, $p12);
+// uncomment this when JWT is supported
+//        $p12 = $this->getP12();
+//        $orgId = $this->getOrganizationID();
+//        $environmentUrl = $this->getBaseUrl();
+//
+//        return new JWT($environmentUrl, $orgId, $p12);
     }
 
     /**
@@ -188,12 +186,12 @@ class ConfigurationService
                 'cybersource_shopware6.request-signature.OauthNotSupported'
             )
         );
-
-        $accessToken = $this->getAccessToken();
-        $orgId = $this->getOrganizationID();
-        $environmentUrl = $this->getBaseUrl();
-
-        return new Oauth($environmentUrl, $orgId, $accessToken);
+// uncomment this when Oauth is supported
+//        $accessToken = $this->getAccessToken();
+//        $orgId = $this->getOrganizationID();
+//        $environmentUrl = $this->getBaseUrl();
+//
+//        return new Oauth($environmentUrl, $orgId, $accessToken);
     }
 
     public function getTransactionType(?string $salesChannelId = null): ?string
@@ -201,9 +199,9 @@ class ConfigurationService
         return $this->get('transactionType', $salesChannelId);
     }
 
-    public function isThreeDSEnabled() : bool
+    public function isThreeDSEnabled(): bool
     {
-        return (bool) $this->get('threeDS');
+        return $this->systemConfig->getBool('CyberSourceShopware6.config.threeDS');
     }
 
 

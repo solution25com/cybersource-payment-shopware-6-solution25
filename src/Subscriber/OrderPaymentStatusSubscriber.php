@@ -49,11 +49,13 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
         $request = $event->getRequest();
         $route = $request->attributes->get('_route');
 
-        if (!in_array($route, [
+        if (
+            !in_array($route, [
             'api.action.state_machine.transition',
             'state_machine.order_transaction.state_changed',
             'api.action.order.state_machine.order_transaction.transition_state',
-        ], true)) {
+            ], true)
+        ) {
             return;
         }
 
@@ -73,7 +75,12 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
             return;
         }
 
-        $paymentMethodHandler = $orderTransaction->getPaymentMethod()->getHandlerIdentifier();
+        $paymentMethod = $orderTransaction->getPaymentMethod();
+        if (!$paymentMethod) {
+            $this->logger->error("Payment method not found for transaction: {$transactionId}");
+            return;
+        }
+        $paymentMethodHandler = $paymentMethod->getHandlerIdentifier();
         if (!$paymentMethodHandler) {
             $this->logger->error("Payment method not found for transaction: {$transactionId}");
             return;
@@ -84,7 +91,12 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
             return;
         }
 
-        $currentState = $orderTransaction->getStateMachineState()->getTechnicalName();
+        $stateMachineState = $orderTransaction->getStateMachineState();
+        if (!$stateMachineState) {
+            $this->logger->error("State machine state not found for transaction: {$transactionId}");
+            return;
+        }
+        $currentState = $stateMachineState->getTechnicalName();
         $customFields = $orderTransaction->getCustomFields();
         $cyberSourceTransactionId = $customFields['cybersource_payment_details']['transaction_id'] ?? null;
         $cyberSourceUniqId = $customFields['cybersource_payment_details']['uniqid'] ?? null;
@@ -99,7 +111,7 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
         try {
             if (($currentState === OrderTransactionStates::STATE_AUTHORIZED  && $newState === OrderTransactionStates::STATE_PAID) || ( $currentState === 'pending_review' && $newState === 'paid_authorized')) {
                 $this->logger->info("Capturing transaction {$transactionId} for amount {$amount}.");
-                $response = $this->capturePayment($cyberSourceTransactionId, $cyberSourceUniqId,$orderTransaction);
+                $response = $this->capturePayment($cyberSourceTransactionId, $cyberSourceUniqId, $orderTransaction);
 
                 if ($response['statusCode'] !== 201) {
                     $this->revertTransactionState($transactionId, $currentState, $context);
@@ -108,7 +120,7 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                 }
             } elseif ($currentState === OrderTransactionStates::STATE_AUTHORIZED && ($newState === OrderTransactionStates::STATE_CANCELLED || $newState === 'cancel')) {
                 $this->logger->info("Voiding transaction {$transactionId}.");
-                $response = $this->voidPayment($cyberSourceTransactionId, $cyberSourceUniqId,$orderTransaction);
+                $response = $this->voidPayment($cyberSourceTransactionId, $cyberSourceUniqId, $orderTransaction);
 
                 if ($response['statusCode'] !== 201) {
                     $this->revertTransactionState($transactionId, $currentState, $context);
@@ -117,36 +129,33 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                 }
             } elseif ($currentState === OrderTransactionStates::STATE_PAID && ($newState === OrderTransactionStates::STATE_REFUNDED || $newState === 'refund')) {
                 $this->logger->info("Refunding transaction {$transactionId} for amount {$amount}.");
-                $response = $this->refundPayment($cyberSourceTransactionId,$cyberSourceUniqId, $orderTransaction);
+                $response = $this->refundPayment($cyberSourceTransactionId, $cyberSourceUniqId, $orderTransaction);
 
                 if ($response['statusCode'] !== 201) {
                     $this->revertTransactionState($transactionId, $currentState, $context);
                     $this->logger->error("Failed to refund transaction: " . json_encode($response['body']));
                     throw new \RuntimeException('Failed to refund payment.');
                 }
-            }
-            elseif ($currentState === OrderTransactionStates::STATE_PAID && $newState === OrderTransactionStates::STATE_CANCELLED) {
+            } elseif ($currentState === OrderTransactionStates::STATE_PAID && $newState === OrderTransactionStates::STATE_CANCELLED) {
                 $this->logger->info("Voiding transaction {$transactionId}.");
-                $response = $this->voidPayment($cyberSourceTransactionId, $cyberSourceUniqId,$orderTransaction);
+                $response = $this->voidPayment($cyberSourceTransactionId, $cyberSourceUniqId, $orderTransaction);
 
                 if ($response['statusCode'] !== 201) {
                     $this->revertTransactionState($transactionId, $currentState, $context);
                     $this->logger->error("Failed to void transaction: " . json_encode($response['body']));
                     throw new \RuntimeException('Failed to void payment.');
                 }
-            }
-            elseif ($currentState === 'pre_review' && $newState === OrderTransactionStates::STATE_AUTHORIZED) {
+            } elseif ($currentState === 'pre_review' && $newState === OrderTransactionStates::STATE_AUTHORIZED) {
                 $this->logger->info("Capturing transaction {$transactionId} for amount {$amount}.");
                 //todo check can we capture the payment here? or should we need to make authorize first?
-                $response = $this->capturePayment($cyberSourceTransactionId, $cyberSourceUniqId,$orderTransaction);
+                $response = $this->capturePayment($cyberSourceTransactionId, $cyberSourceUniqId, $orderTransaction);
 
                 if ($response['statusCode'] !== 201) {
                     $this->revertTransactionState($transactionId, $currentState, $context);
                     $this->logger->error("Failed to capture transaction: " . json_encode($response['body']));
                     throw new \RuntimeException('Failed to capture payment.');
                 }
-            }
-            else {
+            } else {
                 $this->logger->info("No action required for transaction {$transactionId}.");
             }
         } catch (\Exception $e) {
@@ -157,14 +166,23 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
 
     private function capturePayment(string $transactionId, string $cyberSourceUniqId, OrderTransactionEntity $orderTransaction): array
     {
+        $order = $orderTransaction->getOrder();
+        if (!$order) {
+            $this->logger->error("Order not found for transaction: {$transactionId}");
+            throw new \RuntimeException('Order not found.');
+        }
+        $currency = $order->getCurrency();
+        if (!$currency) {
+            throw new \RuntimeException('Currency not found.');
+        }
         $payload = [
             'clientReferenceInformation' => [
-                'code' => 'Order-'. $cyberSourceUniqId,
+                'code' => 'Order-' . $cyberSourceUniqId,
             ],
             'orderInformation' => [
                 'amountDetails' => [
                     'totalAmount' => (string) $orderTransaction->getAmount()->getTotalPrice(),
-                    'currency' => $orderTransaction->getOrder()->getCurrency()->getIsoCode(),
+                    'currency' => $currency->getIsoCode(),
                 ],
             ],
         ];
@@ -176,23 +194,32 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
     {
         $payload = [
             'clientReferenceInformation' => [
-                'code' => 'Order-'. $cyberSourceUniqId,
+                'code' => 'Order-' . $cyberSourceUniqId,
             ],
         ];
 
         return $this->cyberSourceApiClient->voidPayment($transactionId, $payload);
     }
 
-    private function refundPayment(string $transactionId,string $cyberSourceUniqId, OrderTransactionEntity $orderTransaction): array
+    private function refundPayment(string $transactionId, string $cyberSourceUniqId, OrderTransactionEntity $orderTransaction): array
     {
+        $order = $orderTransaction->getOrder();
+        if (!$order) {
+            $this->logger->error("Order not found for transaction: {$transactionId}");
+            throw new \RuntimeException('Order not found.');
+        }
+        $currency = $order->getCurrency();
+        if (!$currency) {
+            throw new \RuntimeException('Currency not found.');
+        }
         $payload = [
             'clientReferenceInformation' => [
-                'code' => 'Order-'. $cyberSourceUniqId,
+                'code' => 'Order-' . $cyberSourceUniqId,
             ],
             'orderInformation' => [
                 'amountDetails' => [
                     'totalAmount' => (string) $orderTransaction->getAmount()->getTotalPrice(),
-                    'currency' => $orderTransaction->getOrder()->getCurrency()->getIsoCode(),
+                    'currency' => $currency->getIsoCode(),
                 ],
             ],
         ];

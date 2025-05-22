@@ -4,7 +4,10 @@ namespace CyberSource\Shopware6\Controllers;
 
 use CyberSource\Shopware6\Service\CyberSourceApiClient;
 use CyberSource\Shopware6\Service\OrderService;
+use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionEntity;
+use Shopware\Core\Checkout\Order\OrderEntity;
 use Shopware\Core\Framework\Context;
+use Shopware\Core\System\Currency\CurrencyEntity;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -59,7 +62,7 @@ class CyberSourceController extends AbstractController
     public function getShopwareOrderTransactionDetails(
         string $orderId,
         Context $context
-    ) {
+    ): JsonResponse {
         $orderTransaction = $this->orderService->getOrderTransactionByOrderId($orderId, $context);
         if (empty($orderTransaction)) {
             throw new OrderTransactionNotFoundException(
@@ -74,10 +77,13 @@ class CyberSourceController extends AbstractController
         $customField = $orderTransaction->getCustomFields();
         $cybersourceTransactionId = $customField['cybersource_payment_details']['transaction_id'] ?? null;
         $cybersourceUniqid = $customField['cybersource_payment_details']['uniqid'] ?? null;
-        if($cybersourceTransactionId == null){
+        if ($cybersourceTransactionId == null) {
             return new JsonResponse(["error" => "No CyberSource transaction ID found"], 404);
         }
         $orderData = $orderTransaction->getOrder();
+        if (!$orderData instanceof OrderEntity) {
+            return new JsonResponse(['error' => 'Order not found'], 404);
+        }
         $shopwareAmount = $orderData->getAmountTotal();
         $shopwareOrderTransactionId = $orderTransaction->getId();
         // Initialize response
@@ -184,7 +190,7 @@ class CyberSourceController extends AbstractController
         string $orderId,
         string $cybersourceTransactionId,
         Context $context
-    ) {
+    ): JsonResponse {
         $orderTransaction = $this->orderService->getOrderTransactionByOrderId($orderId, $context);
         if (empty($orderTransaction)) {
             throw new OrderTransactionNotFoundException(
@@ -195,19 +201,29 @@ class CyberSourceController extends AbstractController
             );
         }
         $orderEntity = $orderTransaction->getOrder();
+        if (!$orderEntity instanceof OrderEntity) {
+            return new JsonResponse(['error' => 'Order not found'], 404);
+        }
         $currencyEntity = $orderEntity->getCurrency();
-        $currency = $currencyEntity->getShortName();
+        if (!$currencyEntity instanceof CurrencyEntity) {
+            throw new \RuntimeException('Currency not found for order.');
+        }
+        $currency = $currencyEntity->getIsoCode();
         $totalOrderAmount = $orderEntity->getAmountTotal();
         $environmentUrl = $this->configurationService->getBaseUrl();
         $requestSignature = $this->configurationService->getSignatureContract();
-        $shopwareOrderTransactionId = $orderTransaction->id;
-        $lineItems = $orderEntity->getLineItems();
+        $shopwareOrderTransactionId = $orderTransaction->getId();
 
         $cyberSource = $this->cyberSourceFactory->createCyberSource(
             $environmentUrl,
             $requestSignature
         );
-        $orderLineItemsData = $this->orderService->transformLineItems($lineItems);
+        $lineItems = $orderEntity->getLineItems();
+        if ($lineItems === null) {
+            $orderLineItemsData = [];
+        } else {
+            $orderLineItemsData = $this->orderService->transformLineItems($lineItems);
+        }
         $clientReference = $this->orderService->getClientReference($orderEntity);
         $orderData = [
             'orderInformation' => [
@@ -241,9 +257,9 @@ class CyberSourceController extends AbstractController
         string $cybersourceTransactionId,
         Context $context,
         Request $request
-    ) {
+    ): JsonResponse {
         $rawRequestBody = $request->getContent();
-        if ($rawRequestBody === null || !json_validate($rawRequestBody)) {
+        if (!json_validate($rawRequestBody)) {
             throw PaymentException::refundInterrupted(
                 $cybersourceTransactionId,
                 $this->translator->trans(
@@ -272,7 +288,9 @@ class CyberSourceController extends AbstractController
             );
         }
         $orderEntity = $orderTransaction->getOrder();
-
+        if (!$orderEntity instanceof OrderEntity) {
+            return new JsonResponse(['error' => 'Order not found'], 404);
+        }
         if (!$this->canRefund($orderTransaction)) {
             throw new OrderRefundPaymentStateException();
         }
@@ -286,24 +304,32 @@ class CyberSourceController extends AbstractController
             );
         }
         $currencyEntity = $orderEntity->getCurrency();
-        $currency = $currencyEntity->getShortName();
+        $currency = $currencyEntity instanceof CurrencyEntity ? $currencyEntity->getShortName() : 'USD';
 
         $environmentUrl = $this->configurationService->getBaseUrl();
         $requestSignature = $this->configurationService->getSignatureContract();
-        $shopwareOrderTransactionId = $orderTransaction->id;
+        $shopwareOrderTransactionId = $orderTransaction->getId();
 
         $cyberSource = $this->cyberSourceFactory->createCyberSource(
             $environmentUrl,
             $requestSignature
         );
         if ($requestLineItems !== null) {
+            $lineItemsEncoded = json_encode($requestLineItems);
+            if ($lineItemsEncoded === false) {
+                throw new \RuntimeException('Failed to encode line items to JSON: ' . json_last_error_msg());
+            }
             $orderLineItemsData = json_decode(
-                json_encode($requestLineItems),
+                $lineItemsEncoded,
                 true
             );
         } else {
-            $lineItems = $orderEntity->getLineItems()->getElements();
-            $orderLineItemsData = $this->orderService->transformLineItems($lineItems);
+            $lineItems = $orderEntity->getLineItems();
+            if ($lineItems === null) {
+                $orderLineItemsData = [];
+            } else {
+                $orderLineItemsData = $this->orderService->transformLineItems($lineItems);
+            }
         }
 
         $clientReference = $this->orderService->getClientReference($orderEntity);
@@ -327,6 +353,7 @@ class CyberSourceController extends AbstractController
                 $this->orderTransactionStateHandler->refund($shopwareOrderTransactionId, $context);
             }
             $paymentStatus = $this->orderService->getPaymentStatus($orderTransaction);
+            $paymentStatus = is_string($paymentStatus) ? $paymentStatus : 'unknown';
             $transactionId = $this->orderService->getCybersourcePaymentTransactionId($orderTransaction, $paymentStatus);
             $this->orderService->update([
                 [
@@ -346,7 +373,7 @@ class CyberSourceController extends AbstractController
         return new JsonResponse($refundPaymentResponse);
     }
 
-    public function canRefund($orderTransaction): bool
+    public function canRefund(OrderTransactionEntity $orderTransaction): bool
     {
         $paymentStatus = $this->orderService->getPaymentStatus($orderTransaction);
         return in_array($paymentStatus, [

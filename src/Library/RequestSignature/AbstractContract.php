@@ -22,8 +22,8 @@ abstract class AbstractContract implements Contract
     {
         $dateTime = new \DateTime('now', new \DateTimeZone('UTC'));
         $this->currentUTCDateTime = $dateTime->format(DATE_RFC7231);
-        $this->host = parse_url($this->baseUrl, PHP_URL_HOST);
-
+        $host = parse_url($this->baseUrl, PHP_URL_HOST);
+        $this->host = is_string($host) ? $host : '';
         $this->defaultHeaders = [
             'host' => $this->host,
             'Content-Type' => 'application/json',

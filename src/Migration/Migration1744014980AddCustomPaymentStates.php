@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace CyberSource\Shopware6\Migration;
 
@@ -19,7 +21,6 @@ class Migration1744014980AddCustomPaymentStates extends MigrationStep
 
     public function updateDestructive(Connection $connection): void
     {
-
     }
 
     private function addCustomPaymentStates(Connection $connection): void

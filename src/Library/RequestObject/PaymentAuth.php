@@ -97,25 +97,6 @@ class PaymentAuth
         );
     }
 
-    public function makeInstrumentIdentifierRequest(): array
-    {
-        return $this->card->toInstrumentArray();
-    }
-
-    public function getPaymentInstrumentRequestPayload(string $instrumentIdentifierId): array
-    {
-        return array_merge(
-            $this->card->toPaymentInstrumentCardArray(),
-            $this->order->toPaymentInstrumentBillToArray(),
-            [
-                "instrumentIdentifier" =>
-                [
-                    "id" => $instrumentIdentifierId
-                ],
-            ]
-        );
-    }
-
     public function getCybersourceCustomerRequestPayload(string $customerId, string $email): array
     {
         return array_merge(

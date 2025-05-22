@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace CyberSource\Shopware6\Command;
 
 use CyberSource\Shopware6\Service\CyberSourceApiClient;
-
 use Shopware\Core\System\SystemConfig\SystemConfigService;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -13,7 +12,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class ReadWebhookCommand extends Command
 {
-    protected static $defaultName = 'cybersource:read-webhook';
+    protected static ?string $defaultName = 'cybersource:read-webhook';
 
     private CyberSourceApiClient $apiClient;
     private SystemConfigService $systemConfigService;
@@ -56,9 +55,11 @@ class ReadWebhookCommand extends Command
                 $output->writeln('Error reading webhook: ' . $e->getMessage());
                 return Command::FAILURE;
             }
-        }
-        else {
-
+        } else {
+            if (!is_string($webhookId)) {
+                $output->writeln('Error: Invalid webhook ID format.');
+                return Command::FAILURE;
+            }
             $output->writeln('Reading CyberSource webhook with ID: ' . $webhookId);
 
             try {

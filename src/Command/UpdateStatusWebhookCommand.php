@@ -13,7 +13,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class UpdateStatusWebhookCommand extends Command
 {
-    protected static $defaultName = 'cybersource:update-status-webhook';
+    protected static ?string $defaultName = 'cybersource:update-status-webhook';
 
     private CyberSourceApiClient $apiClient;
     private SystemConfigService $systemConfigService;
@@ -55,7 +55,10 @@ class UpdateStatusWebhookCommand extends Command
         $payload = [
             'status' => $status
         ];
-
+        if (!is_string($webhookId)) {
+            $output->writeln('Error: Invalid webhook ID format.');
+            return Command::FAILURE;
+        }
         $output->writeln('Updating CyberSource webhook with ID: ' . $webhookId . ' to status: ' . $status);
 
         try {

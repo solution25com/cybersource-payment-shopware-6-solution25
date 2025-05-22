@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CyberSource\Shopware6;
 
 use CyberSource\Shopware6\Service\CustomFieldService;
+use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\Plugin;
 use Shopware\Core\Framework\Context;
 use CyberSource\Shopware6\PaymentMethods;
@@ -18,11 +19,8 @@ use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
-
 class CyberSourceShopware6 extends Plugin
 {
-    private ?CustomFieldService $customFieldService = null;
-
     public function install(InstallContext $installContext): void
     {
         foreach (PaymentMethods\PaymentMethods::PAYMENT_METHODS as $paymentMethod) {
@@ -77,8 +75,7 @@ class CyberSourceShopware6 extends Plugin
             if (!$process->isSuccessful()) {
                 throw new ProcessFailedException($process);
             }
-        }
-        catch (ProcessFailedException $exception) {
+        } catch (ProcessFailedException $exception) {
             // Handle the exception as needed
         }
     }
@@ -90,7 +87,14 @@ class CyberSourceShopware6 extends Plugin
      */
     private function getProjectDir(): string
     {
-        return $this->container->getParameter('kernel.project_dir');
+        if ($this->container === null) {
+            throw new \RuntimeException('Container is not initialized.');
+        }
+        $projectDir = $this->container->getParameter('kernel.project_dir');
+        if (!is_string($projectDir)) {
+            throw new \RuntimeException('Project directory is not a string.');
+        }
+        return $projectDir;
     }
 
     private function addPaymentMethod(Identity $paymentMethod, Context $context): void
@@ -171,12 +175,20 @@ class CyberSourceShopware6 extends Plugin
         $paymentRepository->update([$paymentMethodData], $context);
     }
 
-    public function getDependency($name): mixed
+    public function getDependency(string $name): mixed
     {
+        if ($this->container === null) {
+            throw new \RuntimeException('Container is not initialized.');
+        }
         return $this->container->get($name);
     }
+
     private function getCustomFieldsInstaller(): CustomFieldService
     {
+        if ($this->container === null) {
+            throw new \RuntimeException('Container is not initialized.');
+        }
+
         if ($this->container->has(CustomFieldService::class)) {
             $installer = $this->container->get(CustomFieldService::class);
             if ($installer instanceof CustomFieldService) {
@@ -184,9 +196,13 @@ class CyberSourceShopware6 extends Plugin
             }
         }
 
-        return new CustomFieldService(
-            $this->container->get('custom_field_set.repository'),
-            $this->container->get('custom_field_set_relation.repository')
-        );
+        $customFieldSetRepository = $this->container->get('custom_field_set.repository');
+        $customFieldSetRelationRepository = $this->container->get('custom_field_set_relation.repository');
+
+        if (!$customFieldSetRepository instanceof EntityRepository || !$customFieldSetRelationRepository instanceof EntityRepository) {
+            throw new \RuntimeException('Invalid repository type.');
+        }
+
+        return new CustomFieldService($customFieldSetRepository, $customFieldSetRelationRepository);
     }
 }

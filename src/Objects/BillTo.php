@@ -55,7 +55,7 @@ class BillTo
         ];
 
         $filteredBillingData = array_filter($billingData, function ($value) {
-            return !empty($value) && $value !== null;
+            return !empty($value);
         });
 
         return $filteredBillingData;

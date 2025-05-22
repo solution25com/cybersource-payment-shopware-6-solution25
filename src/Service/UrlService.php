@@ -8,17 +8,29 @@ use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
+use Shopware\Core\System\SalesChannel\Aggregate\SalesChannelDomain\SalesChannelDomainCollection;
+use Shopware\Core\System\SalesChannel\SalesChannelCollection;
 
 class UrlService
 {
-    private EntityRepository $salesChannelRepository;
-    private EntityRepository $domainRepository;
+    /**
+     * @var EntityRepository<SalesChannelCollection>
+     */
+    private $salesChannelRepository;
 
+    /**
+     * @var EntityRepository<SalesChannelDomainCollection>
+     */
+    private $domainRepository;
+
+    /**
+     * @param EntityRepository<SalesChannelCollection> $salesChannelRepository
+     * @param EntityRepository<SalesChannelDomainCollection> $domainRepository
+     */
     public function __construct(
         EntityRepository $salesChannelRepository,
         EntityRepository $domainRepository
-    )
-    {
+    ) {
         $this->salesChannelRepository = $salesChannelRepository;
         $this->domainRepository = $domainRepository;
     }

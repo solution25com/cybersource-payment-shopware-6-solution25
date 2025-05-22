@@ -8,7 +8,7 @@ use CyberSource\Shopware6\Library\Constants\Hash;
 
 final class Digest
 {
-    public static function generate(string $requestPayload)
+    public static function generate(string $requestPayload): string
     {
         $digestEncode = hash(Hash::SHA256, $requestPayload, true);
 

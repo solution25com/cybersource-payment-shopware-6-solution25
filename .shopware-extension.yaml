@@ -1,0 +1,11 @@
+validation:
+  ignore:
+    - message: 'file /home/runner/work/paytrace-payment-shopware-6-solution25/paytrace-payment-shopware-6-solution25/vendor/phpstan/phpstan/phpstan.phar is not allowed in the zip file'
+    - message: 'file /home/runner/work/paytrace-payment-shopware-6-solution25/paytrace-payment-shopware-6-solution25/vendor/shopware/core/Framework/Test/Plugin/_fixture/archives/App.zip is not allowed in the zip file'
+    - message: 'file /home/runner/work/paytrace-payment-shopware-6-solution25/paytrace-payment-shopware-6-solution25/vendor/shopware/core/Framework/Test/Plugin/_fixture/archives/NoPlugin.zip is not allowed in the zip file'
+    - message: 'file /home/runner/work/paytrace-payment-shopware-6-solution25/paytrace-payment-shopware-6-solution25/vendor/shopware/core/Framework/Test/Plugin/_fixture/archives/NoZip.zip is not allowed in the zip file'
+    - message: 'file /home/runner/work/paytrace-payment-shopware-6-solution25/paytrace-payment-shopware-6-solution25/vendor/shopware/core/Framework/Test/Plugin/_fixture/archives/SwagFashionTheme.zip is not allowed in the zip file'
+    - message: 'file /home/runner/work/paytrace-payment-shopware-6-solution25/paytrace-payment-shopware-6-solution25/vendor/shopware/core/Framework/Test/Plugin/_fixture/archives/SwagFashionTheme.zip is not allowed in the zip file'
+    - message: 'file /home/runner/work/paytrace-payment-shopware-6-solution25/paytrace-payment-shopware-6-solution25/vendor/shopware/storefront/Resources/app/storefront/.eslintrc.js is not allowed in the zip file'
+    - message: 'file /home/runner/work/paytrace-payment-shopware-6-solution25/paytrace-payment-shopware-6-solution25/vendor/shopware/storefront/Resources/app/storefront/stylelint.config.js is not allowed in the zip file'
+    - message: 'file /home/runner/work/paytrace-payment-shopware-6-solution25/paytrace-payment-shopware-6-solution25/vendor/shopware/storefront/Resources/app/storefront/vendor/tiny-slider/src/.DS_Store is not allowed in the zip file'

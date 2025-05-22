@@ -41,7 +41,9 @@ jobs:
           docker run --rm \
             -v "$PWD:/ext" \
             shopware/shopware-cli \
-            extension validate --full /ext --check-against ${{ matrix.version-selection }}
+            extension validate --full /ext \
+            --check-against ${{ matrix.version-selection }} \
+            --reporter github
 
       - name: ✅ Extension Verifier Passed – No errors found
         if: success()

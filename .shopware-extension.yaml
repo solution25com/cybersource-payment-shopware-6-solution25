@@ -1,0 +1,11 @@
+validation:
+  ignore:
+    - path: 'vendor/bin/phpstan.phar'
+    - path: 'vendor/phpstan/phpstan/phpstan.phar'
+    - path: 'vendor/shopware/core/Framework/Test/Plugin/_fixture/archives/App.zip'
+    - path: 'vendor/shopware/core/Framework/Test/Plugin/_fixture/archives/NoPlugin.zip'
+    - path: 'vendor/shopware/core/Framework/Test/Plugin/_fixture/archives/NoZip.zip'
+    - path: 'vendor/shopware/core/Framework/Test/Plugin/_fixture/archives/SwagFashionTheme.zip'
+    - path: 'vendor/shopware/storefront/Resources/app/storefront/.eslintrc.js'
+    - path: 'vendor/shopware/storefront/Resources/app/storefront/stylelint.config.js'
+    - path: 'vendor/shopware/storefront/Resources/app/storefront/vendor/tiny-slider/src/.DS_Store'

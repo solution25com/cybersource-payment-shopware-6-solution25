@@ -14,7 +14,7 @@
             <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
             <argument type="service" id="translator" />
         </service>
-        
+
         <service id="CyberSource\Shopware6\Library\RequestObject\PaymentAuthFactory"
             class="CyberSource\Shopware6\Library\RequestObject\PaymentAuthFactory">
             <argument type="service" id="translator" />
@@ -89,31 +89,23 @@
         </service>
 
         <service id="CyberSource\Shopware6\Command\CreateWebhookCommand">
-            <argument type="service" id="CyberSource\Shopware6\Service\CyberSourceApiClient"/>
-            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
-            <argument type="service" id="CyberSource\Shopware6\Service\UrlService"/>
-            <tag name="console.command"/>
-        </service>
-
-        <service id="CyberSource\Shopware6\Command\ReadWebhookCommand">
-            <argument type="service" id="CyberSource\Shopware6\Service\CyberSourceApiClient"/>
-            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
-            <tag name="console.command"/>
-        </service>
-
-        <service id="CyberSource\Shopware6\Command\DeleteWebhookCommand">
-            <argument type="service" id="CyberSource\Shopware6\Service\CyberSourceApiClient"/>
-            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
-            <tag name="console.command"/>
-        </service>
-        <service id="CyberSource\Shopware6\Command\CreateKeyCommand">
-            <argument type="service" id="CyberSource\Shopware6\Service\CyberSourceApiClient"/>
-            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+            <argument type="service" id="CyberSource\Shopware6\Service\WebhookService"/>
             <tag name="console.command"/>
         </service>
         <service id="CyberSource\Shopware6\Command\UpdateStatusWebhookCommand">
-            <argument type="service" id="CyberSource\Shopware6\Service\CyberSourceApiClient"/>
-            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+            <argument type="service" id="CyberSource\Shopware6\Service\WebhookService"/>
+            <tag name="console.command"/>
+        </service>
+        <service id="CyberSource\Shopware6\Command\CreateKeyCommand">
+            <argument type="service" id="CyberSource\Shopware6\Service\WebhookService"/>
+            <tag name="console.command"/>
+        </service>
+        <service id="CyberSource\Shopware6\Command\DeleteWebhookCommand">
+            <argument type="service" id="CyberSource\Shopware6\Service\WebhookService"/>
+            <tag name="console.command"/>
+        </service>
+        <service id="CyberSource\Shopware6\Command\ReadWebhookCommand">
+            <argument type="service" id="CyberSource\Shopware6\Service\WebhookService"/>
             <tag name="console.command"/>
         </service>
         <service id="CyberSource\Shopware6\Storefront\Controller\CustomController" public="true">
@@ -125,6 +117,11 @@
             <call method="setTwig">
                 <argument type="service" id="twig"/>
             </call>
+        </service>
+        <service id="CyberSource\Shopware6\Service\WebhookService">
+            <argument type="service" id="CyberSource\Shopware6\Service\CyberSourceApiClient"/>
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+            <argument type="service" id="CyberSource\Shopware6\Service\UrlService"/>
         </service>
      </services>
 </container>

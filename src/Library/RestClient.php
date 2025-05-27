@@ -14,43 +14,51 @@ class RestClient
 {
     private HttpClientInterface $client;
     private readonly RequestSignatureContract $headerSignature;
-    private readonly string $baseUri;
 
     public function __construct(string $baseUri, RequestSignatureContract $headerSignature)
     {
         $httpClient = HttpClient::create(['base_uri' => $baseUri]);
-        $this->baseUri = $baseUri;
         $this->client = new ScopingHttpClient($httpClient, []);
         $this->headerSignature = $headerSignature;
     }
 
+    /**
+     * @return array<string, mixed>
+     * @throws \Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface
+     * @throws \Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface
+     * @throws \Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface
+     * @throws \Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface
+     */
     public function getData(string $endpoint): array
     {
         $headers = $this->headerSignature->getHeadersForGetMethod($endpoint);
-        $options = [
-            'headers' => $headers
-        ];
-        $response = $this->client->request(Request::METHOD_GET, $endpoint, $options);
+        $response = $this->client->request(Request::METHOD_GET, $endpoint, [
+            'headers' => $headers,
+        ]);
 
         return $response->toArray();
     }
 
+    /**
+     * @param array<string, mixed> $requestBody
+     * @return array<string, mixed>
+     * @throws \Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface
+     * @throws \Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface
+     * @throws \Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface
+     * @throws \Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface
+     */
     public function postData(string $endpoint, array $requestBody): array
     {
         $jsonRequestBody = json_encode($requestBody);
         if ($jsonRequestBody === false) {
             throw new \RuntimeException('Failed to encode request body to JSON');
         }
-        $headers = $this->headerSignature->getHeadersForPostMethod(
-            $endpoint,
-            $jsonRequestBody
-        );
-        $options = [
+        $headers = $this->headerSignature->getHeadersForPostMethod($endpoint, $jsonRequestBody);
+        $response = $this->client->request(Request::METHOD_POST, $endpoint, [
             'headers' => $headers,
-            'base_uri' => $this->baseUri,
-            'body' => $jsonRequestBody
-        ];
-        $response = $this->client->request(Request::METHOD_POST, $endpoint, $options);
+            'body' => $jsonRequestBody,
+        ]);
+
         return $response->toArray();
     }
 }

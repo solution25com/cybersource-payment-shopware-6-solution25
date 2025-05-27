@@ -5,7 +5,14 @@ declare(strict_types=1);
 namespace CyberSource\Shopware6;
 
 use CyberSource\Shopware6\Service\CustomFieldService;
+use CyberSource\Shopware6\Service\WebhookService;
+use Shopware\Core\Checkout\Payment\PaymentMethodEntity;
+use Shopware\Core\Checkout\Payment\PaymentMethodCollection;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
+use Shopware\Core\System\CustomField\Aggregate\CustomFieldSet\CustomFieldSetEntity;
+use Shopware\Core\System\CustomField\Aggregate\CustomFieldSet\CustomFieldSetCollection;
+use Shopware\Core\System\CustomField\Aggregate\CustomFieldSetRelation\CustomFieldSetRelationEntity;
+use Shopware\Core\System\CustomField\Aggregate\CustomFieldSetRelation\CustomFieldSetRelationCollection;
 use Shopware\Core\Framework\Plugin;
 use Shopware\Core\Framework\Context;
 use CyberSource\Shopware6\PaymentMethods;
@@ -17,8 +24,12 @@ use Shopware\Core\Framework\Plugin\Context\UninstallContext;
 use Shopware\Core\Framework\Plugin\Context\DeactivateContext;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
+
 class CyberSourceShopware6 extends Plugin
 {
     public function install(InstallContext $installContext): void
@@ -42,16 +53,29 @@ class CyberSourceShopware6 extends Plugin
         }
         $this->getCustomFieldsInstaller()->remove($uninstallContext->getContext());
     }
-
     public function activate(ActivateContext $activateContext): void
     {
         foreach (PaymentMethods\PaymentMethods::PAYMENT_METHODS as $paymentMethod) {
             $this->setPaymentMethodIsActive(true, $activateContext->getContext(), new $paymentMethod());
         }
         $this->getCustomFieldsInstaller()->createCustomFields($activateContext->getContext());
-        $this->runWebhookCommand('cybersource:create-key');
-        $this->runWebhookCommand('cybersource:create-webhook');
-        $this->runWebhookCommand('cybersource:update-status-webhook --active=true');
+
+        if ($this->container === null) {
+            throw new \RuntimeException('Container is not initialized.');
+        }
+        /** @var WebhookService $webhookService */
+        $webhookService = $this->container->get(WebhookService::class);
+        $io = new SymfonyStyle(new ArrayInput([]), new ConsoleOutput());
+
+        $webhookService->createKey($io);
+        $webhookService->createWebhook(
+            'ShopwarePaymentWebhook-' . time(),
+            $webhookService->getWebhookUrl($activateContext->getContext()),
+            $webhookService->getHealthCheckUrl($activateContext->getContext()),
+            $io
+        );
+        $webhookService->updateWebhookStatus(true, $io);
+
         parent::activate($activateContext);
     }
 
@@ -60,46 +84,20 @@ class CyberSourceShopware6 extends Plugin
         foreach (PaymentMethods\PaymentMethods::PAYMENT_METHODS as $paymentMethod) {
             $this->setPaymentMethodIsActive(false, $deactivateContext->getContext(), new $paymentMethod());
         }
-        $this->runWebhookCommand('cybersource:delete-webhook');
-        parent::deactivate($deactivateContext);
-    }
-
-
-    private function runWebhookCommand(string $command): void
-    {
-        try {
-            $process = new Process(['php', 'bin/console', $command], $this->getProjectDir());
-            $process->setTimeout(60);
-            $process->run();
-
-            if (!$process->isSuccessful()) {
-                throw new ProcessFailedException($process);
-            }
-        } catch (ProcessFailedException $exception) {
-            // Handle the exception as needed
-        }
-    }
-
-    /**
-     * Get the project root directory.
-     *
-     * @return string
-     */
-    private function getProjectDir(): string
-    {
         if ($this->container === null) {
             throw new \RuntimeException('Container is not initialized.');
         }
-        $projectDir = $this->container->getParameter('kernel.project_dir');
-        if (!is_string($projectDir)) {
-            throw new \RuntimeException('Project directory is not a string.');
-        }
-        return $projectDir;
+        /** @var WebhookService $webhookService */
+        $webhookService = $this->container->get(WebhookService::class);
+        $io = new SymfonyStyle(new ArrayInput([]), new ConsoleOutput());
+        $webhookService->deleteWebhook($io);
+
+        parent::deactivate($deactivateContext);
     }
 
     private function addPaymentMethod(Identity $paymentMethod, Context $context): void
     {
-        $paymentMethodId = $this->getPaymentMethodId($paymentMethod->getPaymentHandler());
+        $paymentMethodId = $this->getPaymentMethodId($paymentMethod->getPaymentHandler(), $context);
 
         $pluginIdProvider = $this->getDependency(PluginIdProvider::class);
         $pluginId = $pluginIdProvider->getPluginIdByBaseClass(get_class($this), $context);
@@ -123,45 +121,40 @@ class CyberSourceShopware6 extends Plugin
             ],
         ];
 
+        /** @var EntityRepository<PaymentMethodCollection> $paymentRepository */
         $paymentRepository = $this->getDependency('payment_method.repository');
         $paymentRepository->create([$paymentData], $context);
     }
 
     private function setPluginId(string $paymentMethodId, string $pluginId, Context $context): void
     {
+        /** @var EntityRepository<PaymentMethodCollection> $paymentRepository */
         $paymentRepository = $this->getDependency('payment_method.repository');
         $paymentMethodData = [
             'id' => $paymentMethodId,
             'pluginId' => $pluginId,
         ];
-
         $paymentRepository->update([$paymentMethodData], $context);
     }
 
-    private function getPaymentMethodId(string $paymentMethodHandler): ?string
+    private function getPaymentMethodId(string $paymentMethodHandler, Context $context): ?string
     {
+        /** @var EntityRepository<PaymentMethodCollection> $paymentRepository */
         $paymentRepository = $this->getDependency('payment_method.repository');
-        $paymentCriteria = (new Criteria())->addFilter(new EqualsFilter(
-            'handlerIdentifier',
-            $paymentMethodHandler
-        ));
+        $criteria = new Criteria();
+        $criteria->addFilter(new EqualsFilter('handlerIdentifier', $paymentMethodHandler));
+        $criteria->setLimit(1);
 
-        $paymentIds = $paymentRepository->searchIds($paymentCriteria, Context::createDefaultContext());
+        $paymentMethod = $paymentRepository->search($criteria, $context)->first();
 
-        if ($paymentIds->getTotal() === 0) {
-            return null;
-        }
-
-        return $paymentIds->getIds()[0];
+        return $paymentMethod instanceof PaymentMethodEntity ? $paymentMethod->getId() : null;
     }
 
-    private function setPaymentMethodIsActive(
-        bool $active,
-        Context $context,
-        Identity $paymentMethod
-    ): void {
+    private function setPaymentMethodIsActive(bool $active, Context $context, Identity $paymentMethod): void
+    {
+        /** @var EntityRepository<PaymentMethodCollection> $paymentRepository */
         $paymentRepository = $this->getDependency('payment_method.repository');
-        $paymentMethodId = $this->getPaymentMethodId($paymentMethod->getPaymentHandler());
+        $paymentMethodId = $this->getPaymentMethodId($paymentMethod->getPaymentHandler(), $context);
 
         if (!$paymentMethodId) {
             return;
@@ -196,12 +189,10 @@ class CyberSourceShopware6 extends Plugin
             }
         }
 
+        /** @var EntityRepository<CustomFieldSetCollection> $customFieldSetRepository */
         $customFieldSetRepository = $this->container->get('custom_field_set.repository');
+        /** @var EntityRepository<CustomFieldSetRelationCollection> $customFieldSetRelationRepository */
         $customFieldSetRelationRepository = $this->container->get('custom_field_set_relation.repository');
-
-        if (!$customFieldSetRepository instanceof EntityRepository || !$customFieldSetRelationRepository instanceof EntityRepository) {
-            throw new \RuntimeException('Invalid repository type.');
-        }
 
         return new CustomFieldService($customFieldSetRepository, $customFieldSetRelationRepository);
     }

@@ -9,13 +9,10 @@ use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionEnti
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStates;
 use CyberSource\Shopware6\Service\OrderService;
 use Shopware\Core\Framework\Context;
-use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
-use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
-use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
 use Shopware\Core\System\StateMachine\StateMachineRegistry;
 use Shopware\Core\System\StateMachine\Transition;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\HttpKernel\Event\ControllerEvent;
+use Shopware\Core\System\StateMachine\Event\StateMachineStateChangeEvent;
 use Psr\Log\LoggerInterface;
 
 class OrderPaymentStatusSubscriber implements EventSubscriberInterface
@@ -40,53 +37,28 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
     public static function getSubscribedEvents(): array
     {
         return [
-            ControllerEvent::class => 'onTransactionStateChanged',
+            StateMachineStateChangeEvent::class => 'onTransactionStateChanged',
         ];
     }
 
-    public function onTransactionStateChanged(ControllerEvent $event): void
+    public function onTransactionStateChanged(StateMachineStateChangeEvent $event): void
     {
-        $request = $event->getRequest();
-        $route = $request->attributes->get('_route');
-
-        if (
-            !in_array($route, [
-            'api.action.state_machine.transition',
-            'state_machine.order_transaction.state_changed',
-            'api.action.order.state_machine.order_transaction.transition_state',
-            ], true)
-        ) {
+        if ($event->getStateMachine()->getTechnicalName() !== 'order_transaction.state') {
             return;
         }
 
-        $context = Context::createDefaultContext();
-        $newState = $request->attributes->get('transition');
-        $transactionId = $request->attributes->get('orderTransactionId');
-
-        if (!$transactionId || !$newState) {
-            $this->logger->error('Missing parameters: Transaction ID or Action Name is NULL.');
-            return;
-        }
+        $context = $event->getContext();
+        $transactionId = $event->getTransition()->getEntityId();
+        $newState = $event->getNextState()->getTechnicalName();
 
         $orderTransaction = $this->orderService->getOrderTransaction($transactionId, $context);
-
         if (!$orderTransaction instanceof OrderTransactionEntity) {
             $this->logger->error("Transaction not found: {$transactionId}");
             return;
         }
 
         $paymentMethod = $orderTransaction->getPaymentMethod();
-        if (!$paymentMethod) {
-            $this->logger->error("Payment method not found for transaction: {$transactionId}");
-            return;
-        }
-        $paymentMethodHandler = $paymentMethod->getHandlerIdentifier();
-        if (!$paymentMethodHandler) {
-            $this->logger->error("Payment method not found for transaction: {$transactionId}");
-            return;
-        }
-
-        if ($paymentMethodHandler !== 'CyberSource\Shopware6\Gateways\CreditCard') {
+        if (!$paymentMethod || $paymentMethod->getHandlerIdentifier() !== 'CyberSource\Shopware6\Gateways\CreditCard') {
             $this->logger->info("Skipping transaction {$transactionId} - not CyberSource.");
             return;
         }
@@ -97,7 +69,8 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
             return;
         }
         $currentState = $stateMachineState->getTechnicalName();
-        $customFields = $orderTransaction->getCustomFields();
+
+        $customFields = $orderTransaction->getCustomFields() ?? [];
         $cyberSourceTransactionId = $customFields['cybersource_payment_details']['transaction_id'] ?? null;
         $cyberSourceUniqId = $customFields['cybersource_payment_details']['uniqid'] ?? null;
 
@@ -106,11 +79,10 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
             return;
         }
 
-        $amount = $orderTransaction->getAmount()->getTotalPrice();
-
         try {
-            if (($currentState === OrderTransactionStates::STATE_AUTHORIZED  && $newState === OrderTransactionStates::STATE_PAID) || ( $currentState === 'pending_review' && $newState === 'paid_authorized')) {
-                $this->logger->info("Capturing transaction {$transactionId} for amount {$amount}.");
+            if (($currentState === OrderTransactionStates::STATE_AUTHORIZED && $newState === OrderTransactionStates::STATE_PAID) ||
+                ($currentState === 'pending_review' && $newState === 'paid')) {
+                $this->logger->info("Capturing transaction {$transactionId} for amount {$orderTransaction->getAmount()->getTotalPrice()}.");
                 $response = $this->capturePayment($cyberSourceTransactionId, $cyberSourceUniqId, $orderTransaction);
 
                 if ($response['statusCode'] !== 201) {
@@ -128,8 +100,8 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                     throw new \RuntimeException('Failed to void payment.');
                 }
             } elseif ($currentState === OrderTransactionStates::STATE_PAID && ($newState === OrderTransactionStates::STATE_REFUNDED || $newState === 'refund')) {
-                $this->logger->info("Refunding transaction {$transactionId} for amount {$amount}.");
-                $response = $this->refundPayment($cyberSourceTransactionId, $cyberSourceUniqId, $orderTransaction);
+                $this->logger->info("Refunding transaction {$transactionId} for amount {$orderTransaction->getAmount()->getTotalPrice()}.");
+                $response = $response = $this->refundPayment($cyberSourceTransactionId, $cyberSourceUniqId, $orderTransaction);
 
                 if ($response['statusCode'] !== 201) {
                     $this->revertTransactionState($transactionId, $currentState, $context);
@@ -146,8 +118,7 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                     throw new \RuntimeException('Failed to void payment.');
                 }
             } elseif ($currentState === 'pre_review' && $newState === OrderTransactionStates::STATE_AUTHORIZED) {
-                $this->logger->info("Capturing transaction {$transactionId} for amount {$amount}.");
-                //todo check can we capture the payment here? or should we need to make authorize first?
+                $this->logger->info("Capturing transaction {$transactionId} for amount {$orderTransaction->getAmount()->getTotalPrice()}.");
                 $response = $this->capturePayment($cyberSourceTransactionId, $cyberSourceUniqId, $orderTransaction);
 
                 if ($response['statusCode'] !== 201) {
@@ -164,7 +135,7 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
         }
     }
 
-    private function capturePayment(string $transactionId, string $cyberSourceUniqId, OrderTransactionEntity $orderTransaction): array
+    private function capturePayment(string $transactionId, ?string $cyberSourceUniqId, OrderTransactionEntity $orderTransaction): array
     {
         $order = $orderTransaction->getOrder();
         if (!$order) {
@@ -172,12 +143,12 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
             throw new \RuntimeException('Order not found.');
         }
         $currency = $order->getCurrency();
-        if (!$currency) {
+        if (!$currency || !$currency->getIsoCode()) {
             throw new \RuntimeException('Currency not found.');
         }
         $payload = [
             'clientReferenceInformation' => [
-                'code' => 'Order-' . $cyberSourceUniqId,
+                'code' => 'Order-' . ($cyberSourceUniqId ?? $transactionId),
             ],
             'orderInformation' => [
                 'amountDetails' => [
@@ -190,18 +161,18 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
         return $this->cyberSourceApiClient->capturePayment($transactionId, $payload);
     }
 
-    private function voidPayment(string $transactionId, string $cyberSourceUniqId, OrderTransactionEntity $orderTransaction): array
+    private function voidPayment(string $transactionId, ?string $cyberSourceUniqId, OrderTransactionEntity $orderTransaction): array
     {
         $payload = [
             'clientReferenceInformation' => [
-                'code' => 'Order-' . $cyberSourceUniqId,
+                'code' => 'Order-' . ($cyberSourceUniqId ?? $transactionId),
             ],
         ];
 
         return $this->cyberSourceApiClient->voidPayment($transactionId, $payload);
     }
 
-    private function refundPayment(string $transactionId, string $cyberSourceUniqId, OrderTransactionEntity $orderTransaction): array
+    private function refundPayment(string $transactionId, ?string $cyberSourceUniqId, OrderTransactionEntity $orderTransaction): array
     {
         $order = $orderTransaction->getOrder();
         if (!$order) {
@@ -209,12 +180,12 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
             throw new \RuntimeException('Order not found.');
         }
         $currency = $order->getCurrency();
-        if (!$currency) {
+        if (!$currency || !$currency->getIsoCode()) {
             throw new \RuntimeException('Currency not found.');
         }
         $payload = [
             'clientReferenceInformation' => [
-                'code' => 'Order-' . $cyberSourceUniqId,
+                'code' => 'Order-' . ($cyberSourceUniqId ?? $transactionId),
             ],
             'orderInformation' => [
                 'amountDetails' => [
@@ -235,7 +206,7 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                 new Transition(
                     'order_transaction',
                     $transactionId,
-                    $previousState,
+                    'reopen_payment',
                     'stateId'
                 ),
                 $context

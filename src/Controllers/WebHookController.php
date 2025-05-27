@@ -7,7 +7,7 @@ namespace CyberSource\Shopware6\Controllers;
 use CyberSource\Shopware6\Service\OrderService;
 use Psr\Log\LoggerInterface;
 use Shopware\Core\Framework\Context;
-use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
+use Shopware\Core\Framework\Validation\DataBag\RequestDataBag;
 use Shopware\Core\System\StateMachine\StateMachineRegistry;
 use Shopware\Core\System\StateMachine\Transition;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -29,7 +29,7 @@ class WebHookController extends AbstractController
     }
 
     #[Route(path: '/cybersource/webhook/health', name: 'api.cybersource.webhook.health', methods: ['GET'])]
-    public function healthCheck(Request $request, Context $context): JsonResponse
+    public function healthCheck(Request $request): JsonResponse
     {
         $this->logger->info('Received health check request from CyberSource', [
             'headers' => $request->headers->all(),
@@ -39,9 +39,9 @@ class WebHookController extends AbstractController
     }
 
     #[Route(path: '/cybersource/webhook', name: 'api.cybersource.webhook', methods: ['POST'])]
-    public function handleWebhook(Request $request, Context $context): JsonResponse
+    public function handleWebhook(Request $request, RequestDataBag $dataBag, Context $context): JsonResponse
     {
-        $payload = json_decode($request->getContent(), true);
+        $payload = $dataBag->all();
         if (!$payload) {
             $this->logger->error('Invalid webhook payload received');
             return new JsonResponse(['status' => 'error', 'message' => 'Invalid payload'], 400);
@@ -50,7 +50,8 @@ class WebHookController extends AbstractController
         $this->logger->info('Webhook received', ['payload' => $payload]);
 
         $signature = $request->headers->get('v-c-signature');
-        if (!$this->verifySignature($request->getContent(), $signature)) {
+        $rawContent = $request->getContent();
+        if (!$this->verifySignature($rawContent, $signature)) {
             $this->logger->error('Invalid webhook signature');
             return new JsonResponse(['status' => 'error', 'message' => 'Invalid signature'], 401);
         }

@@ -1,8 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
 namespace CyberSource\Shopware6\Library;
 
-use CyberSource\Shopware6\Library\CyberSource;
 use CyberSource\Shopware6\Library\Constants\EnvironmentUrl;
 use CyberSource\Shopware6\Library\RequestSignature\Contract as RequestSignatureContract;
 

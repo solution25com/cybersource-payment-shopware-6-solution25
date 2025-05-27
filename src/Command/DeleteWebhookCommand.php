@@ -4,63 +4,33 @@ declare(strict_types=1);
 
 namespace CyberSource\Shopware6\Command;
 
-use CyberSource\Shopware6\Service\CyberSourceApiClient;
-use Shopware\Core\System\SystemConfig\SystemConfigService;
+use CyberSource\Shopware6\Service\WebhookService;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
 
+#[AsCommand(name: 'cybersource:delete-webhook')]
 class DeleteWebhookCommand extends Command
 {
-    protected static ?string $defaultName = 'cybersource:delete-webhook';
+    private WebhookService $webhookService;
 
-    private CyberSourceApiClient $apiClient;
-    private SystemConfigService $systemConfigService;
-
-    public function __construct(
-        CyberSourceApiClient $apiClient,
-        SystemConfigService $systemConfigService
-    ) {
+    public function __construct(WebhookService $webhookService)
+    {
         parent::__construct();
-        $this->apiClient = $apiClient;
-        $this->systemConfigService = $systemConfigService;
+        $this->webhookService = $webhookService;
     }
 
     protected function configure(): void
     {
-        $this->setName('cybersource:delete-webhook');
         $this->setDescription('Deletes an existing CyberSource webhook.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $webhookId = $this->systemConfigService->get('CyberSourceShopware6.config.webhookId');
-
-        if (!$webhookId) {
-            $output->writeln('Error: No webhook ID found in configuration. Please create a webhook first.');
-            return Command::FAILURE;
-        }
-        if (!is_string($webhookId)) {
-            $output->writeln('Error: Invalid webhook ID format.');
-            return Command::FAILURE;
-        }
-        $output->writeln('Deleting CyberSource webhook with ID: ' . $webhookId);
-
-        try {
-            $response = $this->apiClient->deleteWebhook($webhookId);
-            $output->writeln('Webhook deletion response:');
-            $output->writeln('Status Code: ' . $response['statusCode']);
-
-            if ($response['statusCode'] === 204) {
-                $this->systemConfigService->set('CyberSourceShopware6.config.webhookId', null);
-                $this->systemConfigService->set('CyberSourceShopware6.config.webhookSharedSecret', null);
-                $output->writeln('Cleared webhook ID and shared secret from configuration.');
-            }
-        } catch (\Exception $e) {
-            $output->writeln('Error deleting webhook: ' . $e->getMessage());
-            return Command::FAILURE;
-        }
-
-        return Command::SUCCESS;
+        $io = new SymfonyStyle($input, $output);
+        $success = $this->webhookService->deleteWebhook($io);
+        return $success ? Command::SUCCESS : Command::FAILURE;
     }
 }

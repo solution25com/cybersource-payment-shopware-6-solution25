@@ -16,23 +16,13 @@ class CyberSource
     private const AUTH_REVERSAL_PAYMENT_SUFFIX = '/reversals';
     private const REFUND_PAYMENT_SUFFIX = '/refunds';
 
-    /**
-     * __construct
-     *
-     * @param  EnvironmentUrl $environmentUrl
-     * @param  RequestSignatureContract $requestSignature
-     * @return void
-     */
     public function __construct(EnvironmentUrl $environmentUrl, RequestSignatureContract $requestSignature)
     {
         $this->apiClient = new RestClient($environmentUrl->value, $requestSignature);
     }
 
     /**
-     * authAndCapturePaymentWithCreditCard
-     *
-     * @param  PaymentAuth $requestData
-     * @return array
+     * @return array<string, mixed>
      */
     public function authAndCapturePaymentWithCreditCard(PaymentAuth $requestData): array
     {
@@ -42,7 +32,10 @@ class CyberSource
             !empty($responseFromAuthPayment['status']) &&
             $responseFromAuthPayment['status'] === 'AUTHORIZED'
         ) {
-            $transactionId = $responseFromAuthPayment['id'];
+            $transactionId = $responseFromAuthPayment['id'] ?? '';
+            if (!$transactionId) {
+                throw new \RuntimeException('Transaction ID not found in response.');
+            }
             try {
                 return $this->capturePaymentWithCreditCard($requestData, $transactionId);
             } catch (\Exception $exception) {
@@ -55,10 +48,7 @@ class CyberSource
     }
 
     /**
-     * authorizePaymentWithCreditCard
-     *
-     * @param  PaymentAuth $requestData
-     * @return array
+     * @return array<string, mixed>
      */
     public function authorizePaymentWithCreditCard(PaymentAuth $requestData): array
     {
@@ -66,11 +56,7 @@ class CyberSource
     }
 
     /**
-     * capturePaymentWithCreditCard
-     *
-     * @param  PaymentAuth $requestDataForCapture
-     * @param  string $captureId
-     * @return array
+     * @return array<string, mixed>
      */
     public function capturePaymentWithCreditCard(PaymentAuth $requestDataForCapture, string $captureId): array
     {
@@ -80,6 +66,9 @@ class CyberSource
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function capturePayment(string $captureId, array $requestData): array
     {
         return $this->apiClient->postData(
@@ -88,6 +77,9 @@ class CyberSource
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function refundPayment(string $transactionId, array $requestData): array
     {
         return $this->apiClient->postData(
@@ -97,11 +89,7 @@ class CyberSource
     }
 
     /**
-     * doAuthorizationReversal
-     *
-     * @param PaymentAuth $requestDataForAuthReversal
-     * @param string $transactionId
-     * @return array
+     * @return array<string, mixed>
      */
     protected function doAuthorizationReversal(
         PaymentAuth $requestDataForAuthReversal,

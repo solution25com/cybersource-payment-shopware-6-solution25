@@ -15,51 +15,62 @@ class OrderMapper
     public static function mapToOrder(OrderEntity $order, CustomerEntity $customer): Order
     {
         $currency = $order->getCurrency();
-        if (!$currency) {
+        if (!$currency || !$currency->getIsoCode()) {
             throw new \RuntimeException('Currency not found for order.');
         }
         $totalAmount = $order->getAmountTotal();
-        $currency = $currency->getIsoCode();
+        $currencyCode = $currency->getIsoCode();
         $billTo = CustomerMapper::mapToBillTo($customer);
         $orderLineItems = self::getOrderLineItemsData($order);
 
-        return new Order($totalAmount, $currency, $billTo, $orderLineItems);
+        return new Order($totalAmount, $currencyCode, $billTo, $orderLineItems);
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public static function getOrderLineItemsData(OrderEntity $order): array
     {
         $lineItems = $order->getLineItems();
-        if ($lineItems === null) {
+        if (!$lineItems instanceof OrderLineItemCollection) {
             return [];
         }
-        $orderLineItemData = self::formatLineItemData($lineItems);
-        return $orderLineItemData;
+
+        return self::formatLineItemData($lineItems);
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public static function formatLineItemData(OrderLineItemCollection $lineItems): array
     {
         $lineItemNumber = 1;
         $orderLineItemData = [];
         foreach ($lineItems as $lineItem) {
+            if (!$lineItem instanceof OrderLineItemEntity) {
+                continue;
+            }
             $price = $lineItem->getPrice();
-            if ($price === null) {
+            if (!$price) {
                 continue;
             }
             $taxAmount = 0;
             foreach ($price->getCalculatedTaxes() as $tax) {
                 $taxAmount += $tax->getTax();
             }
+            $payload = $lineItem->getPayload() ?? [];
             $orderLineItemData[] = [
                 'number' => $lineItemNumber++,
                 'productName' => $lineItem->getLabel(),
-                'productCode' => $lineItem->getPayload()['productNumber'] ?? '',
+                'productCode' => $payload['productNumber'] ?? '',
                 'unitPrice' => $price->getUnitPrice(),
                 'totalAmount' => $price->getTotalPrice(),
                 'quantity' => $lineItem->getQuantity(),
                 'taxAmount' => $taxAmount,
-                'productSku' => $lineItem->getPayload()['productNumber'] ?? '',
+                'productSku' => $payload['productNumber'] ?? '',
             ];
         }
+
         return $orderLineItemData;
     }
 }

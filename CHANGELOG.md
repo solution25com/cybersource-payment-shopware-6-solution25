@@ -1,3 +1,9 @@
+## [1.2.7] - 2025-05-29
+### Fixed
+- Resolved an issue where the payment method form would not render properly due to a static payment method name.
+
+---
+
 ## [1.2.6] - 2025-05-19
 ### Added
 - Webhooks V2 implementation for more reliable and structured event handling.

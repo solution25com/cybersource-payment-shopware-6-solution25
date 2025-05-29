@@ -2,7 +2,10 @@
 
 {% block component_payment_method_field %}
 {{ parent() }}
-    {% if payment.name == 'CyberSourceCreditCard' %}
+
+    {% set paymentMethod = payment.formattedHandlerIdentifier %}
+
+    {% if paymentMethod == 'handler_cybersource_creditcard' %}
         {% if page.extensions.cybersource_shopware6 %}
             <script src="{{ asset('bundles/cybersourceshopware6/js/cleave-zen.umd.js') }}"></script>
             {% sw_include page.extensions.cybersource_shopware6.template %}

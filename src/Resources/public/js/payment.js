@@ -383,7 +383,8 @@ const PaymentModule = (function () {
                     showLoadingButton(false, config.saveCardButtonId);
                     return;
                 }
-                window.location.reload();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                setTimeout(() => window.location.reload(), 300);
             })
             .catch(err => {
                 console.error('Card save error:', err);
@@ -626,7 +627,6 @@ window.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Initialize for saved cards page
     if (document.getElementById('addCardButton')) {
         PaymentModule.init({
             isPaymentForm: false,

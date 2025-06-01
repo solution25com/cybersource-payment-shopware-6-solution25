@@ -34,6 +34,7 @@
         }
     } | json_encode | escape('html_attr') }}">
     </div>
+
     <div class="account-welcome">
         <h1>{{ 'cybersource_shopware6.savedCards.savedCards' | trans }}</h1>
     </div>
@@ -41,6 +42,17 @@
     {% if cards is empty %}
         <p>{{ 'cybersource_shopware6.savedCards.noSavedCards' | trans }}</p>
     {% else %}
+        {% set cardTypeMap = {
+            '001': 'VISA',
+            '002': 'MASTERCARD',
+            '003': 'AMEX',
+            '004': 'DISCOVER',
+            '005': 'DINERS',
+            '006': 'JCB',
+            '007': 'MAESTRO',
+            '014': 'DANKORT',
+            '024': 'UNIONPAY'
+        } %}
         {% set cardImages = {
             'AMEX': 'https://files.readme.io/97e7acc-Amex.png',
             'DINERS': 'https://files.readme.io/8c73810-Diners_Club.png',
@@ -50,14 +62,12 @@
             'VISA': 'https://files.readme.io/9018c4f-Visa.png',
             'MAESTRO': 'https://files.readme.io/79d7723-Maestro.png',
             'UNIONPAY': 'https://files.readme.io/92c35c7-UnionPay.png',
-            'ELECTRON': 'https://files.readme.io/def3490-Electron.png',
-            'DANKORT': 'https://files.readme.io/ff5319d-Dankort.png',
-            'INTERPAYMENT': 'https://files.readme.io/cf79c1b-Interpayment.png',
-            'CUP': 'https://files.readme.io/92c35c7-UnionPay.png'
+            'DANKORT': 'https://files.readme.io/ff5319d-Dankort.png'
         } %}
+
         <div class="cards-container">
             {% for card in cards %}
-                {% set cardType = card.type|upper %}
+                {% set cardType = cardTypeMap[card.type] ?? card.type %}
                 <div class="credit-card {{ cardType|lower }}" data-payment-profile-id="{{ card.id }}">
                     <div class="card-header">
                         <span class="card-type">
@@ -67,7 +77,9 @@
                             {{ cardType }}
                         </span>
                     </div>
-                    <div class="card-number">{{ 'cybersource_shopware6.credit_card.cardNumber' | trans }} {{ card.cardNumber }}</div>
+                    <div class="card-number">
+                        {{ 'cybersource_shopware6.credit_card.cardNumber' | trans }} {{ card.cardNumber }}
+                    </div>
                     <div class="card-details">
                         <span>{{ 'cybersource_shopware6.savedCards.expDate' | trans }} {{ card.expirationMonth }}/{{ card.expirationYear }}</span>
                     </div>
@@ -75,7 +87,9 @@
                         <form method="post" action="{{ path('frontend.cybersource.delete_card') }}" style="display:inline;">
                             <input type="hidden" name="instrumentId" value="{{ card.id }}">
                             <input type="hidden" name="customerId" value="{{ card.customerId }}">
-                            <button type="submit" class="delete-card-btn">{{ 'cybersource_shopware6.savedCards.deleteCard' | trans }}</button>
+                            <button type="submit" class="delete-card-btn">
+                                {{ 'cybersource_shopware6.savedCards.deleteCard' | trans }}
+                            </button>
                         </form>
                     </div>
                 </div>
@@ -83,10 +97,8 @@
         </div>
     {% endif %}
 
+
     <div>
-        {% if cards is not empty %}
-            <p>{{ 'cybersource_shopware6.savedCards.addCard' | trans }}</p>
-        {% endif %}
         <button id="addCardButton">{{ 'cybersource_shopware6.savedCards.addCard' | trans }}</button>
         <div id="paymentForm" style="display: none;">
             <div id="billingSection">

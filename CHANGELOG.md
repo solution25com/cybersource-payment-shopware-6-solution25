@@ -1,3 +1,13 @@
+## [1.2.8] - 2025-06-01
+
+### Fixed
+- Resolved an issue where saved credit cards did not display corresponding card type logos (e.g., VISA, Mastercard, American Express) during checkout.
+
+### Improved
+- Enhanced the visual rendering of saved credit card information for a clearer and more user-friendly checkout experience.
+
+---
+
 ## [1.2.7] - 2025-05-29
 ### Fixed
 - Resolved an issue where the payment method form would not render properly due to a static payment method name.

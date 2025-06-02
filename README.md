@@ -134,6 +134,40 @@ bin/console cybersource:delete-webhook
   - Check your server logs for any error messages related to the plugin.
   - Make sure to use HTTPS 
 
+# FAQ
+
+### How can I configure custom fraud validation rules in CyberSource?
+
+If you're facing transaction issues due to fraud validation (e.g. CVV mismatch, AVS mismatch), these settings can be reviewed and configured in your CyberSource Business Center.
+
+#### Steps to Configure Custom Fraud Rules:
+
+1. Log in to your CyberSource account at: [https://businesscentertest.cybersource.com/ebc2](https://businesscentertest.cybersource.com/ebc2)
+2. Navigate to **Fraud Management** in the left-hand menu.
+3. Go to **Rule Configuration**.
+4. In the **Standard Rules** panel, you'll see predefined rules like:
+   - AVS Mismatch
+   - CVV Mismatch
+   - Invalid Address
+   - Billing-Shipping Mismatch
+   - Billing-IP Country Mismatch
+5. Each rule can be set to one of the following:
+   - **Monitor**
+   - **Reject**
+   - **Review**
+6. You can customize these rules based on your business needs. For example:
+   - Set "CVV Not Verifiable" to **Reject** to block transactions without valid CVV.
+   - Set "AVS Partial Match" to **Disabled** if you want to allow more leniency.
+
+>  Every user or merchant can define their own fraud detection rules in this panel to control transaction flow and reduce false rejections.
+
+#### Why is this important?
+
+Many issues reported by customers regarding rejected payments are due to fraud rule settings. Ensuring these are configured appropriately helps reduce false positives and improves customer experience.
+
+If you're unsure how to proceed, please contact your fraud management team or refer to CyberSource's official [Fraud Management Guide](https://www.cybersource.com) (login may be required).
+
+
 
 ## Support & Contact
 

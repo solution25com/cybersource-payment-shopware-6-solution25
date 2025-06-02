@@ -69,7 +69,7 @@ class CyberSourceShopware6 extends Plugin
 
         $webhookService->createKey($io);
         $webhookService->createWebhook(
-            'ShopwarePaymentWebhook-' . time(),
+            'ShopwarePaymentWebhook' . time(),
             $webhookService->getWebhookUrl($activateContext->getContext()),
             $webhookService->getHealthCheckUrl($activateContext->getContext()),
             $io

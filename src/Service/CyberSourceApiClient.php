@@ -147,7 +147,7 @@ class CyberSourceApiClient
             }
             return trim($output);
         } catch (\Exception $e) {
-            return $response;
+            return "Failed to format error response: " . $e->getMessage();
         }
     }
     /**

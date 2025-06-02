@@ -118,7 +118,7 @@
                 <argument type="service" id="twig"/>
             </call>
         </service>
-        <service id="CyberSource\Shopware6\Service\WebhookService">
+        <service id="CyberSource\Shopware6\Service\WebhookService" public="true">
             <argument type="service" id="CyberSource\Shopware6\Service\CyberSourceApiClient"/>
             <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
             <argument type="service" id="CyberSource\Shopware6\Service\UrlService"/>

@@ -356,10 +356,6 @@ select {
     transition: background-color 0.3s;
 }
 
-.btn:hover {
-    background-color: #0056b3;
-}
-
 #step_up_iframe {
     margin-top: 20px;
     border: 1px solid #ddd;
@@ -461,4 +457,3 @@ select {
         grid-template-columns: 1fr;
     }
 }
-

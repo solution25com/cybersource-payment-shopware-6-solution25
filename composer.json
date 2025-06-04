@@ -2,7 +2,7 @@
   "name": "solution25/cybersource",
   "description": "CyberSource Payment for Shopware6",
   "type": "shopware-platform-plugin",
-  "version": "v1.2.9",
+  "version": "v1.3.0",
   "authors": [
     {
       "name": "Solution25",

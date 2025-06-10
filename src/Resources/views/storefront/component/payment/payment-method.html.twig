@@ -1,10 +1,12 @@
 {% sw_extends '@Storefront/storefront/component/payment/payment-method.html.twig' %}
 
 {% block component_payment_method_field %}
-{{ parent() }}
-
     {% set paymentMethod = payment.formattedHandlerIdentifier %}
-
+    <div class="payment-form-group form-group  {% if paymentMethod == 'handler_cybersource_creditcard' %}cybersource-payment{% endif %}">
+        {% block component_payment_method_control %}
+            {{ parent() }}
+        {% endblock %}
+    </div>
     {% if paymentMethod == 'handler_cybersource_creditcard' %}
         {% if page.extensions.cybersource_shopware6 %}
             <script src="{{ asset('bundles/cybersourceshopware6/js/cleave-zen.umd.js') }}"></script>

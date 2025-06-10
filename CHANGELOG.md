@@ -1,7 +1,16 @@
+## [1.3.1] - 2025-06-10
+
+### Fixed
+- Fixed the issue with the global css .
+
+---
+
 ## [1.3.0] - 2025-06-04
 
 ### Fixed
 - CSS style fix .
+
+---
   
 ## [1.2.8] - 2025-06-01
 

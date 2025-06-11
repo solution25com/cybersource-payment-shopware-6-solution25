@@ -107,37 +107,37 @@
                     <div class="form-grid">
                         <div class="form-group">
                             <label for="billingFirstName" class="form-label">{{ 'cybersource_shopware6.savedCards.firstName' | trans }}</label>
-                            <input type="text" id="billingFirstName" name="billingFirstName" class="form-control" placeholder="{{ 'cybersource_shopware6.savedCards.firstName' | trans }}" value="{{ context.customer.defaultBillingAddress.firstName }}">
+                            <input type="text" id="billingFirstName" name="billingFirstName" class="form-control" placeholder="{{ 'cybersource_shopware6.savedCards.firstName' | trans }}">
                             <div id="billingFirstName-error" class="error-message" style="display: none;">{{ 'cybersource_shopware6.savedCards.pleaseEnterValidFirstName' | trans }}</div>
                         </div>
                         <div class="form-group">
                             <label for="billingLastName" class="form-label">{{ 'cybersource_shopware6.savedCards.lastName' | trans }}</label>
-                            <input type="text" id="billingLastName" name="billingLastName" class="form-control" placeholder="{{ 'cybersource_shopware6.savedCards.lastName' | trans }}" value="{{ context.customer.defaultBillingAddress.lastName }}">
+                            <input type="text" id="billingLastName" name="billingLastName" class="form-control" placeholder="{{ 'cybersource_shopware6.savedCards.lastName' | trans }}">
                             <div id="billingLastName-error" class="error-message" style="display: none;">{{ 'cybersource_shopware6.savedCards.pleaseEnterValidLastName' | trans }}</div>
                         </div>
                         <div class="form-group">
                             <label for="billingEmail" class="form-label">{{ 'cybersource_shopware6.savedCards.email' | trans }}</label>
-                            <input type="email" id="billingEmail" name="billingEmail" class="form-control" placeholder="{{ 'cybersource_shopware6.savedCards.email' | trans }}" value="{{ context.customer.email }}">
+                            <input type="email" id="billingEmail" name="billingEmail" class="form-control" placeholder="{{ 'cybersource_shopware6.savedCards.email' | trans }}">
                             <div id="billingEmail-error" class="error-message" style="display: none;">{{ 'cybersource_shopware6.savedCards.pleaseEnterValidEmail' | trans }}</div>
                         </div>
                         <div class="form-group">
                             <label for="billingStreet" class="form-label">{{ 'cybersource_shopware6.savedCards.street' | trans }}</label>
-                            <input type="text" id="billingStreet" name="billingStreet" class="form-control" placeholder="{{ 'cybersource_shopware6.savedCards.street' | trans }}" value="{{ context.customer.defaultBillingAddress.street }}">
+                            <input type="text" id="billingStreet" name="billingStreet" class="form-control" placeholder="{{ 'cybersource_shopware6.savedCards.street' | trans }}">
                             <div id="billingStreet-error" class="error-message" style="display: none;">{{ 'cybersource_shopware6.savedCards.pleaseEnterValidStreet' | trans }}</div>
                         </div>
                         <div class="form-group">
                             <label for="billingCity" class="form-label">{{ 'cybersource_shopware6.savedCards.city' | trans }}</label>
-                            <input type="text" id="billingCity" name="billingCity" class="form-control" placeholder="{{ 'cybersource_shopware6.savedCards.city' | trans }}" value="{{ context.customer.defaultBillingAddress.city }}">
+                            <input type="text" id="billingCity" name="billingCity" class="form-control" placeholder="{{ 'cybersource_shopware6.savedCards.city' | trans }}">
                             <div id="billingCity-error" class="error-message" style="display: none;">{{ 'cybersource_shopware6.savedCards.pleaseEnterValidCity' | trans }}</div>
                         </div>
                         <div class="form-group">
                             <label for="billingZip" class="form-label">{{ 'cybersource_shopware6.savedCards.zip' | trans }}</label>
-                            <input type="text" id="billingZip" name="billingZip" class="form-control" placeholder="{{ 'cybersource_shopware6.savedCards.zip' | trans }}" value="{{ context.customer.defaultBillingAddress.zipcode }}">
+                            <input type="text" id="billingZip" name="billingZip" class="form-control" placeholder="{{ 'cybersource_shopware6.savedCards.zip' | trans }}">
                             <div id="billingZip-error" class="error-message" style="display: none;">{{ 'cybersource_shopware6.savedCards.pleaseEnterValidZip' | trans }}</div>
                         </div>
                         <div class="form-group">
                             <label for="billingCountry" class="form-label">{{ 'cybersource_shopware6.savedCards.country' | trans }}</label>
-                            <input type="hidden" id="billingCountryDefault" name="billingCountryDefault" value="{{ context.customer.defaultBillingAddress.country.id }}">
+                            <input type="hidden" id="billingCountryDefault" name="billingCountryDefault">
                             <select id="billingCountry" name="billingCountry" class="form-select">
                                 <option value="">{{ 'cybersource_shopware6.savedCards.country' | trans }}</option>
                             </select>
@@ -145,7 +145,7 @@
                         </div>
                         <div class="form-group" id="billingStateSection" style="display: none;">
                             <label for="billingState" class="form-label">{{ 'cybersource_shopware6.savedCards.state' | trans }}</label>
-                            <input type="hidden" id="billingCountryStateDefault" name="billingCountryStateDefault" value="{{ context.customer.defaultBillingAddress.countryState.id }}">
+                            <input type="hidden" id="billingCountryStateDefault" name="billingCountryStateDefault">
                             <select id="billingState" name="billingState" class="form-select">
                                 <option value="">{{ 'cybersource_shopware6.savedCards.selectState' | trans }}</option>
                             </select>

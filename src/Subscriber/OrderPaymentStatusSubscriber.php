@@ -120,7 +120,33 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                     $this->logger->error("Failed to capture transaction: " . json_encode($response['body']));
                     throw new \RuntimeException('Failed to capture payment.');
                 }
-            } else {
+            } elseif ($currentState === OrderTransactionStates::STATE_CANCELLED && $newState === OrderTransactionStates::STATE_PAID) {
+                $this->logger->info("Reverting transaction {$transactionId} from cancelled to paid.");
+                $this->revertTransactionState($transactionId, OrderTransactionStates::STATE_CANCELLED, $context);
+            } elseif ($currentState === 'pending_review' && $newState === 'cancel') {
+                $this->logger->info("Voiding transaction {$transactionId}.");
+                $response = $this->voidPayment($cyberSourceTransactionId, $cyberSourceUniqId, $orderTransaction);
+
+                if ($response['statusCode'] !== 201) {
+                    $this->revertTransactionState($transactionId, $currentState, $context);
+                    $this->logger->error("Failed to void transaction: " . json_encode($response['body']));
+                    throw new \RuntimeException('Failed to void payment.');
+                }
+            }
+            elseif ($currentState === 'pending_review' && $newState === 'paid') {
+                $this->logger->info("Capturing transaction {$transactionId} for amount {$orderTransaction->getAmount()->getTotalPrice()}.");
+                $response = $this->capturePayment($cyberSourceTransactionId, $cyberSourceUniqId, $orderTransaction);
+
+                if ($response['statusCode'] !== 201) {
+                    $this->revertTransactionState($transactionId, $currentState, $context);
+                    $this->logger->error("Failed to capture transaction: " . json_encode($response['body']));
+                    throw new \RuntimeException('Failed to capture payment.');
+                }
+            } elseif (($currentState === OrderTransactionStates::STATE_REFUNDED || $currentState === 'refund') && $newState === OrderTransactionStates::STATE_PAID) {
+                $this->logger->info("Reverting transaction {$transactionId} from refunded to paid.");
+                $this->revertTransactionState($transactionId, OrderTransactionStates::STATE_REFUNDED, $context);
+            }
+            else {
                 $this->logger->info("No action required for transaction {$transactionId}.");
             }
         } catch (\Exception $e) {

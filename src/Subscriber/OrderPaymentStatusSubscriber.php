@@ -11,8 +11,8 @@ use CyberSource\Shopware6\Service\OrderService;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\System\StateMachine\StateMachineRegistry;
 use Shopware\Core\System\StateMachine\Transition;
+use Shopware\Core\System\StateMachine\Event\StateMachineTransitionEvent;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Shopware\Core\System\StateMachine\Event\StateMachineStateChangeEvent;
 use Psr\Log\LoggerInterface;
 
 class OrderPaymentStatusSubscriber implements EventSubscriberInterface
@@ -37,19 +37,20 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
     public static function getSubscribedEvents(): array
     {
         return [
-            StateMachineStateChangeEvent::class => 'onTransactionStateChanged',
+            StateMachineTransitionEvent::class => 'onTransactionStateTransition',
         ];
     }
 
-    public function onTransactionStateChanged(StateMachineStateChangeEvent $event): void
+    public function onTransactionStateTransition(StateMachineTransitionEvent $event): void
     {
-        if ($event->getStateMachine()->getTechnicalName() !== 'order_transaction.state') {
+        if ($event->getEntityName() !== 'order_transaction') {
             return;
         }
 
         $context = $event->getContext();
-        $transactionId = $event->getTransition()->getEntityId();
-        $newState = $event->getNextState()->getTechnicalName();
+        $transactionId = $event->getEntityId();
+        $newState = $event->getToPlace()->getTechnicalName();
+        $currentState = $event->getFromPlace()->getTechnicalName();
 
         $orderTransaction = $this->orderService->getOrderTransaction($transactionId, $context);
         if (!$orderTransaction instanceof OrderTransactionEntity) {
@@ -62,13 +63,6 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
             $this->logger->info("Skipping transaction {$transactionId} - not CyberSource.");
             return;
         }
-
-        $stateMachineState = $orderTransaction->getStateMachineState();
-        if (!$stateMachineState) {
-            $this->logger->error("State machine state not found for transaction: {$transactionId}");
-            return;
-        }
-        $currentState = $stateMachineState->getTechnicalName();
 
         $customFields = $orderTransaction->getCustomFields() ?? [];
         $cyberSourceTransactionId = $customFields['cybersource_payment_details']['transaction_id'] ?? null;
@@ -101,7 +95,7 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                 }
             } elseif ($currentState === OrderTransactionStates::STATE_PAID && ($newState === OrderTransactionStates::STATE_REFUNDED || $newState === 'refund')) {
                 $this->logger->info("Refunding transaction {$transactionId} for amount {$orderTransaction->getAmount()->getTotalPrice()}.");
-                $response = $response = $this->refundPayment($cyberSourceTransactionId, $cyberSourceUniqId, $orderTransaction);
+                $response = $this->refundPayment($cyberSourceTransactionId, $cyberSourceUniqId, $orderTransaction);
 
                 if ($response['statusCode'] !== 201) {
                     $this->revertTransactionState($transactionId, $currentState, $context);

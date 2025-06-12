@@ -249,7 +249,15 @@ class CyberSourceApiClient
      */
     public function retrieveTransaction(string $transactionId, array $payload): array
     {
-        return $this->executeRequest('Get', "/pts/v2/refresh-payment-status/{$transactionId}", [], 'Retrieve Transaction');
+        try {
+            return $this->executeRequest('POST', "/pts/v2/refresh-payment-status/{$transactionId}", [], 'Retrieve Transaction');
+        }
+        catch (\RuntimeException $e) {
+            return [
+                'statusCode' => 401,
+                'body' => []
+            ];
+        }
     }
     /**
      * Capture a payment.

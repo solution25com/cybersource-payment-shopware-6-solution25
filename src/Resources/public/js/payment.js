@@ -527,6 +527,16 @@ const PaymentModule = (function () {
         document.getElementById('cybersource_subscription_id').value = subscriptionId || '';
         document.getElementById('cybersource_expiration_month').value = month;
         document.getElementById('cybersource_expiration_year').value = year;
+
+        let paymentDataInput = document.getElementById('cybersource_payment_data');
+        if (!paymentDataInput) {
+            paymentDataInput = document.createElement('input');
+            paymentDataInput.type = 'hidden';
+            paymentDataInput.id = 'cybersource_payment_data';
+            paymentDataInput.name = 'cybersource_payment_data';
+            document.getElementById('confirmOrderForm').appendChild(paymentDataInput);
+        }
+        paymentDataInput.value = data.paymentData ? JSON.stringify(data.paymentData) : '';
     }
 
     // Setup event listeners
@@ -601,6 +611,16 @@ const PaymentModule = (function () {
 
                 document.getElementById('cybersource_payment_status').value = data.status;
                 document.getElementById('cybersource_payment_uniqid').value = data.uniqid;
+                let paymentDataInput = document.getElementById('cybersource_payment_data');
+                if (!paymentDataInput) {
+                    paymentDataInput = document.createElement('input');
+                    paymentDataInput.type = 'hidden';
+                    paymentDataInput.id = 'cybersource_payment_data';
+                    paymentDataInput.name = 'cybersource_payment_data';
+                    document.getElementById('confirmOrderForm').appendChild(paymentDataInput);
+                }
+                paymentDataInput.value = data.paymentData ? JSON.stringify(data.paymentData) : '';
+
                 if (data.success) {
                     document.getElementById('cybersource_transaction_id').value = data.transactionId;
                     document.getElementById('confirmOrderForm').submit();

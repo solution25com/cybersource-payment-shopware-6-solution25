@@ -1,0 +1,13 @@
+{% block sw_order_detail_general %}
+<sw-card title="CyberSource Payment Transactions" position-identifier="cybersource-transactions">
+    <sw-data-grid
+        :dataSource="cybersourceTransactions"
+        :columns="cybersourceColumns"
+        :showSelection="false"
+        enable-columns-resize
+    />
+</sw-card>
+
+
+    {% parent() %}
+{% endblock %}

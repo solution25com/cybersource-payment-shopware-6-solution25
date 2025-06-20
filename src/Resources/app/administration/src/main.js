@@ -5,3 +5,4 @@ import './init/cyber-source-api-service.init';
 import './page/sw-order-detail';
 
 import './app/component/sw-order-update-page-modal';
+import './module/extension/sw-order/view/sw-order-detail-general'

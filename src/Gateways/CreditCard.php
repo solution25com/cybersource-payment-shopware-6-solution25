@@ -4,18 +4,16 @@ declare(strict_types=1);
 
 namespace CyberSource\Shopware6\Gateways;
 
+use CyberSource\Shopware6\Service\ConfigurationService;
 use CyberSource\Shopware6\Service\OrderService;
-use Shopware\Core\Framework\Context;
-use CyberSource\Shopware6\Library\CyberSource;
+use CyberSource\Shopware6\Service\TransactionLogger;
 use CyberSource\Shopware6\Exceptions\APIException;
-use CyberSource\Shopware6\Library\CyberSourceFactory;
+use Shopware\Core\Checkout\Payment\Cart\PaymentHandler\SynchronousPaymentHandlerInterface;
 use Shopware\Core\Checkout\Payment\Cart\SyncPaymentTransactionStruct;
+use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\Validation\DataBag\RequestDataBag;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler;
-use Shopware\Core\Checkout\Payment\Cart\PaymentHandler\SynchronousPaymentHandlerInterface;
-use CyberSource\Shopware6\Service\ConfigurationService;
-use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\System\StateMachine\StateMachineRegistry;
 use Shopware\Core\System\StateMachine\Transition;
 
@@ -25,7 +23,8 @@ final class CreditCard implements SynchronousPaymentHandlerInterface
         private readonly ConfigurationService $configurationService,
         private readonly OrderTransactionStateHandler $orderTransactionStateHandler,
         private readonly OrderService $orderService,
-        private readonly StateMachineRegistry $stateMachineRegistry
+        private readonly StateMachineRegistry $stateMachineRegistry,
+        private readonly TransactionLogger $transactionLogger,
     ) {
     }
 
@@ -49,9 +48,14 @@ final class CreditCard implements SynchronousPaymentHandlerInterface
             $this->setPaymentStatus($orderTransactionId, 'fail', $context);
             throw new APIException($orderTransactionId, 'MISSING_PAYMENT_STATUS', 'Missing CyberSource payment status.');
         }
-
-        // Save transaction ID to customFields
-        $this->updateOrderTransactionCustomFields(['id' => $transactionId, 'uniqid' => $uniqid], $orderTransactionId, $context);
+        $cybersource_payment_data = $dataBag->get('cybersource_payment_data');
+        $this->transactionLogger->logTransactionFromDataBag(
+            'Payment',
+            $cybersource_payment_data,
+            $orderTransactionId,
+            $context,
+            $uniqid
+        );
 
         switch ($status) {
             case 'AUTHORIZED':
@@ -100,20 +104,5 @@ final class CreditCard implements SynchronousPaymentHandlerInterface
         } catch (\Exception $e) {
             return false;
         }
-    }
-
-    private function updateOrderTransactionCustomFields(array $response, string $orderTransactionId, Context $context): void
-    {
-        $this->orderService->update([
-            [
-                'id' => $orderTransactionId,
-                'customFields' => [
-                    'cybersource_payment_details' => [
-                        'transaction_id' => $response['id'] ?? null,
-                        'uniqid' => $response['uniqid'] ?? null,
-                    ]
-                ]
-            ]
-        ], $context);
     }
 }

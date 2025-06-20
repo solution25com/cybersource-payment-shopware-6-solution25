@@ -13,6 +13,7 @@ use Psr\Log\LoggerInterface;
 use Shopware\Core\Checkout\Cart\SalesChannel\CartService;
 use Shopware\Core\Checkout\Customer\Aggregate\CustomerAddress\CustomerAddressEntity;
 use Shopware\Core\Checkout\Customer\CustomerEntity;
+use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
@@ -41,6 +42,8 @@ class CyberSourceApiClient
      * @var EntityRepository<OrderEntityCollection>
      */
     private EntityRepository $orderRepository;
+    private OrderService $orderService;
+    private TransactionLogger $transactionLogger;
     /**
      * @param EntityRepository<CustomerEntityCollection> $customerRepository
      * @param EntityRepository<OrderEntityCollection> $orderRepository
@@ -50,13 +53,17 @@ class CyberSourceApiClient
         CartService $cartService,
         EntityRepository $customerRepository,
         LoggerInterface $logger,
-        EntityRepository $orderRepository
+        EntityRepository $orderRepository,
+        OrderService $orderService,
+        TransactionLogger $transactionLogger
     ) {
         $this->configurationService = $configurationService;
         $this->cartService = $cartService;
         $this->customerRepository = $customerRepository;
         $this->logger = $logger;
         $this->orderRepository = $orderRepository;
+        $this->orderService = $orderService;
+        $this->transactionLogger = $transactionLogger;
         $this->signer = $configurationService->getSignatureContract();
         $this->baseUrl = $configurationService->getBaseUrl()->value;
         $this->client = new Client([
@@ -93,9 +100,10 @@ class CyberSourceApiClient
     private function executeRequest(
         string $method,
         string $endpoint,
-        array $payload = [],
+        array  $payload = [],
         string $logContext = 'API Request'
-    ): array {
+    ): array
+    {
         $payloadJson = !empty($payload) ? json_encode($payload, JSON_PRETTY_PRINT) : '';
         if ($payloadJson === false) {
             throw new \RuntimeException('Failed to encode payload to JSON');
@@ -150,6 +158,7 @@ class CyberSourceApiClient
             return "Failed to format error response: " . $e->getMessage();
         }
     }
+
     /**
      * Build billing information from customer and address.
      */
@@ -228,6 +237,7 @@ class CyberSourceApiClient
     {
         return $this->executeRequest('Get', "/notification-subscriptions/v2/webhooks?organizationId={$orgId}", [], 'Read Webhooks');
     }
+
     /**
      * Update a webhook.
      */
@@ -247,40 +257,49 @@ class CyberSourceApiClient
     /**
      * Retrieve transaction details by transaction ID.
      */
-    public function retrieveTransaction(string $transactionId, array $payload): array
+    public function retrieveTransaction(string $cybersourcePaymentId, array $payload): array
     {
         try {
-            return $this->executeRequest('POST', "/pts/v2/refresh-payment-status/{$transactionId}", [], 'Retrieve Transaction');
-        }
-        catch (\RuntimeException $e) {
+            return $this->executeRequest('POST', "/pts/v2/refresh-payment-status/{$cybersourcePaymentId}", [], 'Retrieve Transaction');
+        } catch (\RuntimeException $e) {
             return [
                 'statusCode' => 401,
                 'body' => []
             ];
         }
     }
+
     /**
      * Capture a payment.
      */
-    public function capturePayment(string $transactionId, array $payload): array
+    public function capturePayment(string $transactionId, array $payload, string $orderTransactionId, Context $context): array
     {
-        return $this->executeRequest('Post', "/pts/v2/payments/{$transactionId}/captures", $payload, 'Capture Payment');
+        $response = $this->executeRequest('Post', "/pts/v2/payments/{$transactionId}/captures", $payload, 'Capture Payment');
+        $responseData = $response['body'];
+        $this->transactionLogger->logTransaction('Capture', $responseData, $orderTransactionId, $context);
+        return $response;
     }
 
     /**
      * Void a payment.
      */
-    public function voidPayment(string $transactionId, array $payload): array
+    public function voidPayment(string $transactionId, array $payload, string $orderTransactionId, Context $context): array
     {
-        return $this->executeRequest('Post', "/pts/v2/payments/{$transactionId}/voids", $payload, 'Void Payment');
+        $response = $this->executeRequest('Post', "/pts/v2/payments/{$transactionId}/voids", $payload, 'Void Payment');
+        $responseData = $response['body'];
+        $this->transactionLogger->logTransaction('Void', $responseData, $orderTransactionId, $context);
+        return $response;
     }
 
     /**
      * Refund a payment.
      */
-    public function refundPayment(string $transactionId, array $payload): array
+    public function refundPayment(string $transactionId, array $payload, string $orderTransactionId, Context $context): array
     {
-        return $this->executeRequest('Post', "/pts/v2/payments/{$transactionId}/refunds", $payload, 'Refund Payment');
+        $response = $this->executeRequest('Post', "/pts/v2/payments/{$transactionId}/refunds", $payload, 'Refund Payment');
+        $responseData = $response['body'];
+        $this->transactionLogger->logTransaction('Refund', $responseData, $orderTransactionId, $context);
+        return $response;
     }
 
     /**
@@ -474,7 +493,7 @@ class CyberSourceApiClient
         }
         $customerId = $customer->getId();
         $billingAddress = $customer->getActiveBillingAddress();
-        $amount = (string) $cart->getPrice()->getTotalPrice();
+        $amount = (string)$cart->getPrice()->getTotalPrice();
         $currency = $context->getCurrency()->getIsoCode();
         if ($billTo) {
             $shortCode = $billTo['state'];
@@ -605,16 +624,17 @@ class CyberSourceApiClient
      */
     private function completePayment(
         SalesChannelContext $context,
-        array $authResponse,
-        bool $saveCard,
-        string $uniqid,
-        ?string $transientTokenJwt,
-        ?string $subscriptionId,
-        ?string $expirationMonth,
-        ?string $expirationYear,
-        array $orderInfo,
-        ?string $customerId
-    ): JsonResponse {
+        array               $authResponse,
+        bool                $saveCard,
+        string              $uniqid,
+        ?string             $transientTokenJwt,
+        ?string             $subscriptionId,
+        ?string             $expirationMonth,
+        ?string             $expirationYear,
+        array               $orderInfo,
+        ?string             $customerId
+    ): JsonResponse
+    {
         $capture = $this->configurationService->getTransactionType() === 'auth_capture';
         $payload = [
             'clientReferenceInformation' => [
@@ -691,7 +711,6 @@ class CyberSourceApiClient
 
             if ($saveCard && $transactionId && $status === 'AUTHORIZED') {
                 $instrumentIdentifierId = $responseData['tokenInformation']['instrumentIdentifier']['id'] ?? null;
-
                 $cardType = $responseData['paymentInformation']['card']['type'] ?? null;
                 if ($instrumentIdentifierId) {
                     $saveSuccess = $this->saveCard(
@@ -711,6 +730,34 @@ class CyberSourceApiClient
                 }
             }
 
+            $paymentData = [
+                'cybersource_transaction_id' => $transactionId,
+                'cybersource_payment_status' => $status,
+                'cybersource_payment_uniqid' => $uniqid,
+                'payment_id' => $responseData['clientReferenceInformation']['code'] ?? null,
+                'card_category' => $responseData['paymentInformation']['card']['type'] ?? null,
+                'payment_method_type' => $responseData['paymentInformation']['card']['brand'] ?? null,
+                'expiry_month' => $responseData['paymentInformation']['card']['expirationMonth'] ?? $expirationMonth,
+                'expiry_year' => $responseData['paymentInformation']['card']['expirationYear'] ?? $expirationYear,
+                'card_last_4' => isset($responseData['paymentInformation']['card']['number']) ? substr($responseData['paymentInformation']['card']['number'], -4) : null,
+                'gateway_authorization_code' => $responseData['processorInformation']['authorizationCode'] ?? null,
+                'gateway_token' => $responseData['tokenInformation']['paymentInstrument']['id'] ?? null,
+                'gateway_reference' => $responseData['processorInformation']['transactionId'] ?? null,
+            ];
+            if ($subscriptionId || $saveCard) {
+                $savedCards = $this->getSavedCards($context, $customerId);
+                $savedCard = null;
+                foreach ($savedCards['cards'] as $card) {
+                    if ($card['id'] === $subscriptionId) {
+                        $savedCard = $card;
+                        break;
+                    }
+                }
+                $paymentData['card_last_4'] = $savedCard ? substr($savedCard['cardNumber'], -4) : null;
+                $paymentData['expiry_year'] = $savedCard['expirationYear'] ?? null;
+                $paymentData['expiry_month'] = $savedCard['expirationMonth'] ?? null;
+            }
+
             switch ($status) {
                 case 'AUTHORIZED':
                     return new JsonResponse([
@@ -720,6 +767,7 @@ class CyberSourceApiClient
                         'transactionId' => $transactionId,
                         'uniqid' => $uniqid,
                         'message' => 'Payment authorized successfully.',
+                        'paymentData' => $paymentData,
                     ]);
                 case 'PARTIAL_AUTHORIZED':
                     return new JsonResponse([
@@ -729,6 +777,7 @@ class CyberSourceApiClient
                         'transactionId' => $transactionId,
                         'uniqid' => $uniqid,
                         'message' => 'Payment partially authorized. Please contact support.',
+                        'paymentData' => $paymentData,
                     ]);
                 case 'AUTHORIZED_PENDING_REVIEW':
                     return new JsonResponse([
@@ -738,12 +787,14 @@ class CyberSourceApiClient
                         'transactionId' => $transactionId,
                         'uniqid' => $uniqid,
                         'message' => 'Payment authorized but pending review.',
+                        'paymentData' => $paymentData,
                     ]);
                 case 'DECLINED':
                     return new JsonResponse([
                         'success' => false,
                         'action' => 'notify',
                         'message' => 'Payment declined. Please try a different payment method.',
+                        'paymentData' => $paymentData,
                     ]);
                 default:
                     return new JsonResponse([
@@ -751,6 +802,7 @@ class CyberSourceApiClient
                         'action' => 'notify',
                         'message' => 'Payment failed: ' . ($responseData['message'] ?? $status),
                         'details' => $responseData['details'] ?? [],
+                        'paymentData' => $paymentData,
                     ]);
             }
         } catch (\RuntimeException $e) {
@@ -828,13 +880,14 @@ class CyberSourceApiClient
      */
     public function saveCard(
         SalesChannelContext $context,
-        string $paymentToken,
-        ?string $expirationMonth,
-        ?string $expirationYear,
-        array $orderInfo = [],
-        ?string $cardType = null,
-        ?string $customerId = null
-    ): bool {
+        string              $paymentToken,
+        ?string             $expirationMonth,
+        ?string             $expirationYear,
+        array               $orderInfo = [],
+        ?string             $cardType = null,
+        ?string             $customerId = null
+    ): bool
+    {
         if ($expirationMonth === null || $expirationYear === null) {
             $this->logger->error('Expiration month or year is missing.');
             return false;

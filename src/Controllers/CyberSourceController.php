@@ -75,8 +75,9 @@ class CyberSourceController extends AbstractController
 
         $paymentStatus = $this->orderService->getPaymentStatus($orderTransaction);
         $customField = $orderTransaction->getCustomFields();
-        $cybersourceTransactionId = $customField['cybersource_payment_details']['transaction_id'] ?? null;
-        $cybersourceUniqid = $customField['cybersource_payment_details']['uniqid'] ?? null;
+        $cybersourceTransactionId = $this->orderService->getCyberSourceTransactionId($customField);
+        $cybersourceUniqid = $this->orderService->getCyberSourceTransactionUniqueId($customField);
+        $cybersourcePaymentId = $this->orderService->getCyberSourceTransactionPaymentId($customField);
         if ($cybersourceTransactionId == null) {
             return new JsonResponse(["error" => "No CyberSource transaction ID found"], 404);
         }
@@ -101,7 +102,7 @@ class CyberSourceController extends AbstractController
                     'code' => $cybersourceUniqid
                 ]
             ];
-            $csTransaction = $this->apiClient->retrieveTransaction($cybersourceTransactionId, $payload);
+            $csTransaction = $this->apiClient->retrieveTransaction($cybersourcePaymentId, $payload);
             // Extract CyberSource status and amount
             $csStatus = $csTransaction['status'] ?? null;
             $csAmount = (float) ($csTransaction['orderInformation']['amountDetails']['totalAmount'] ?? $shopwareAmount);
@@ -352,9 +353,7 @@ class CyberSourceController extends AbstractController
             } else {
                 $this->orderTransactionStateHandler->refund($shopwareOrderTransactionId, $context);
             }
-            $paymentStatus = $this->orderService->getPaymentStatus($orderTransaction);
-            $paymentStatus = is_string($paymentStatus) ? $paymentStatus : 'unknown';
-            $transactionId = $this->orderService->getCybersourcePaymentTransactionId($orderTransaction, $paymentStatus);
+            $transactionId = $this->orderService->getCyberSourceTransactionId($orderTransaction->getCustomFields());
             $this->orderService->update([
                 [
                     'id' => $shopwareOrderTransactionId,

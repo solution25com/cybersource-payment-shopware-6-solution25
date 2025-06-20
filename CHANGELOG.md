@@ -1,3 +1,26 @@
+## [1.3.4] - 2025-06-20
+
+### Added
+- Implemented detailed order logging for Cybersource backend processing.
+- Added a new data grid in the Shopware Admin to display order transaction history related to Cybersource payments.
+
+---
+
+## [1.3.3] - 2025-06-10
+
+### Fixed
+- Fixed: the issue with address form.
+- Fixed: order subscriber handles other status changes correctly.
+
+---
+
+## [1.3.2] - 2025-06-10
+
+### Fixed
+- Fixed: the issue with automatic filled form.
+
+---
+
 ## [1.3.1] - 2025-06-10
 
 ### Fixed

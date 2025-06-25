@@ -14,7 +14,6 @@
             <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
             <argument type="service" id="translator" />
         </service>
-
         <service id="CyberSource\Shopware6\Library\RequestObject\PaymentAuthFactory"
             class="CyberSource\Shopware6\Library\RequestObject\PaymentAuthFactory">
             <argument type="service" id="translator" />
@@ -74,6 +73,8 @@
             <argument type="service" id="order.repository"/>
             <argument type="service" id="CyberSource\Shopware6\Service\OrderService"/>
             <argument type="service" id="CyberSource\Shopware6\Service\TransactionLogger"/>
+            <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler" />
+            <argument type="service" id="Shopware\Core\System\StateMachine\StateMachineRegistry"/>
         </service>
         <service id="CyberSource\Shopware6\Service\TransactionLogger">
             <argument type="service" id="CyberSource\Shopware6\Service\OrderService"/>

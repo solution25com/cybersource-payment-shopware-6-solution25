@@ -7,6 +7,7 @@ use CyberSource\Shopware6\Service\OrderService;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionEntity;
 use Shopware\Core\Checkout\Order\OrderEntity;
 use Shopware\Core\Framework\Context;
+use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\System\Currency\CurrencyEntity;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
@@ -16,13 +17,9 @@ use Shopware\Core\Checkout\Payment\PaymentException;
 use CyberSource\Shopware6\Library\CyberSourceFactory;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use CyberSource\Shopware6\Service\ConfigurationService;
-use CyberSource\Shopware6\Mappers\OrderClientReferenceMapper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
-use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use CyberSource\Shopware6\Exceptions\OrderRefundPaymentStateException;
 use CyberSource\Shopware6\Exceptions\OrderTransactionNotFoundException;
-use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStates;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler;
 
@@ -122,7 +119,7 @@ class CyberSourceController extends AbstractController
 
             // Check for discrepancies
             $statusMismatch = $newStatus && $newStatus !== $paymentStatus;
-            $amountMismatch = abs($csAmount - $shopwareAmount) > 0.01; // Allow small floating-point differences
+            $amountMismatch = abs($csAmount - $shopwareAmount) > 0.01;
 
             if ($statusMismatch || $amountMismatch) {
                 // Update transaction state if status mismatch
@@ -370,6 +367,53 @@ class CyberSourceController extends AbstractController
         }
 
         return new JsonResponse($refundPaymentResponse);
+    }
+
+    #[Route(
+        path: "/api/cybersource/order/{orderId}/transition",
+        name: "api.cybersource.order_transition_payment",
+        methods: ["POST"],
+        defaults: ["_acl" => ["order.update"]]
+    )]
+    public function transitionOrderPayment(
+        string $orderId,
+        Request $request,
+        Context $context
+    ): JsonResponse {
+        $transaction = $this->orderService->getOrderTransactionByOrderId($orderId, $context);
+
+        if (!$transaction) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => 'No transaction found for this order. Please contact support.',
+            ], 400);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $state = strtolower($data['targetState'] ?? '');
+        $currentState = strtolower($data['currentState'] ?? '');
+
+        try {
+            $response = $this->apiClient->transitionOrderPayment($orderId, $state, $currentState, $context);
+
+            if ($response['success']) {
+                return new JsonResponse([
+                    'success' => true,
+                    'message' => $response['message'],
+                ]);
+            } else {
+                return new JsonResponse([
+                    'success' => false,
+                    'message' => $response['message'],
+                ], 500);
+            }
+        } catch (\Exception $e) {
+            error_log("Error in transitionOrderPayment for order $orderId: " . $e->getMessage());
+            return new JsonResponse([
+                'success' => false,
+                'message' => 'An error occurred during the transition. Please try again or contact support.',
+            ], 500);
+        }
     }
 
     public function canRefund(OrderTransactionEntity $orderTransaction): bool

@@ -13,13 +13,18 @@ use Psr\Log\LoggerInterface;
 use Shopware\Core\Checkout\Cart\SalesChannel\CartService;
 use Shopware\Core\Checkout\Customer\Aggregate\CustomerAddress\CustomerAddressEntity;
 use Shopware\Core\Checkout\Customer\CustomerEntity;
+use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler;
+use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStates;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
+use Shopware\Core\Framework\Struct\ArrayStruct;
 use Shopware\Core\System\Country\CountryEntity;
 use Shopware\Core\System\Currency\CurrencyEntity;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
+use Shopware\Core\System\StateMachine\StateMachineRegistry;
+use Shopware\Core\System\StateMachine\Transition;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -43,6 +48,8 @@ class CyberSourceApiClient
      */
     private EntityRepository $orderRepository;
     private OrderService $orderService;
+    private OrderTransactionStateHandler $orderTransactionStateHandler;
+    private StateMachineRegistry $stateMachineRegistry;
     private TransactionLogger $transactionLogger;
     /**
      * @param EntityRepository<CustomerEntityCollection> $customerRepository
@@ -55,7 +62,9 @@ class CyberSourceApiClient
         LoggerInterface $logger,
         EntityRepository $orderRepository,
         OrderService $orderService,
-        TransactionLogger $transactionLogger
+        TransactionLogger $transactionLogger,
+        OrderTransactionStateHandler $orderTransactionStateHandler,
+        StateMachineRegistry $stateMachineRegistry
     ) {
         $this->configurationService = $configurationService;
         $this->cartService = $cartService;
@@ -66,6 +75,8 @@ class CyberSourceApiClient
         $this->transactionLogger = $transactionLogger;
         $this->signer = $configurationService->getSignatureContract();
         $this->baseUrl = $configurationService->getBaseUrl()->value;
+        $this->orderTransactionStateHandler = $orderTransactionStateHandler;
+        $this->stateMachineRegistry = $stateMachineRegistry;
         $this->client = new Client([
             'base_uri' => $this->baseUrl,
             'timeout' => 10.0,
@@ -366,12 +377,12 @@ class CyberSourceApiClient
             if (!$order) {
                 return new JsonResponse(['error' => 'Order not found'], 404);
             }
-            $amount = (string)$order->getPrice()->getTotalPrice();
+            $amount = (string)round($order->getPrice()->getTotalPrice(), 2);
             $currency = $order->getCurrency();
             $currency = $currency instanceof CurrencyEntity ? $currency->getIsoCode() : $context->getCurrency()->getIsoCode();
         } else {
             $cart = $this->cartService->getCart($context->getToken(), $context);
-            $amount = (string)$cart->getPrice()->getTotalPrice();
+            $amount = (string)round($cart->getPrice()->getTotalPrice(), 2);
             $currency = $context->getCurrency()->getIsoCode();
         }
         $uniqid = uniqid();
@@ -493,7 +504,7 @@ class CyberSourceApiClient
         }
         $customerId = $customer->getId();
         $billingAddress = $customer->getActiveBillingAddress();
-        $amount = (string)$cart->getPrice()->getTotalPrice();
+        $amount = (string)round($cart->getPrice()->getTotalPrice(), 2);
         $currency = $context->getCurrency()->getIsoCode();
         if ($billTo) {
             $shortCode = $billTo['state'];
@@ -1262,6 +1273,176 @@ class CyberSourceApiClient
                 'cards' => $cards,
             ]);
             return null;
+        }
+    }
+    public function transitionOrderPayment(string $orderId, string $state, string $currentState, Context $context): array
+    {
+        $criteria = new Criteria([$orderId]);
+        $criteria->addAssociation('transactions');
+        $criteria->addAssociation('currency');
+        $order = $this->orderRepository->search($criteria, $context)->getEntities()->first();
+        if (!$order) {
+            throw new \RuntimeException('Order not found for ID: ' . $orderId);
+        }
+
+        $transaction = $order->getTransactions()->first();
+        if (!$transaction) {
+            throw new \RuntimeException('Transaction not found for order ID: ' . $orderId);
+        }
+
+        $customFields = $transaction->getCustomFields() ?? [];
+        $cybersourceTransactionId = $this->orderService->getCyberSourceTransactionId($customFields);
+        if (!$cybersourceTransactionId) {
+            throw new \RuntimeException('CyberSource transaction ID not found for order: ' . $orderId);
+        }
+
+        $validTransitions = [
+            'authorized' => ['paid', 'void'],
+            'paid' => ['refund', 'void'],
+        ];
+
+        $currentStateLower = strtolower($currentState);
+        $stateLower = strtolower($state);
+
+        if (!isset($validTransitions[$currentStateLower]) || !in_array($stateLower, $validTransitions[$currentStateLower])) {
+            throw new \RuntimeException('Invalid transition from ' . $currentStateLower . ' to ' . $stateLower);
+        }
+
+        $statusMapping = [
+            'paid' => OrderTransactionStates::STATE_PAID,
+            'void' => OrderTransactionStates::STATE_CANCELLED,
+            'refund' => OrderTransactionStates::STATE_REFUNDED,
+        ];
+
+        $newStatus = $statusMapping[$stateLower] ?? null;
+        $templateVariables = new ArrayStruct([
+            'source' => 'CyberSourceService'
+        ]);
+        $context->addExtension('customPaymentUpdate', $templateVariables);
+        switch ($newStatus) {
+            case OrderTransactionStates::STATE_PAID:
+                $this->orderTransactionStateHandler->paid($transaction->getId(), $context);
+                break;
+            case OrderTransactionStates::STATE_CANCELLED:
+                $this->orderTransactionStateHandler->cancel($transaction->getId(), $context);
+                break;
+            case OrderTransactionStates::STATE_REFUNDED:
+                $this->orderTransactionStateHandler->refund($transaction->getId(), $context);
+                break;
+            default:
+                $this->logger->error('Unsupported transition state: ' . $stateLower, ['orderId' => $orderId]);
+                return [
+                    'success' => false,
+                    'message' => 'Unsupported transition state: ' . $stateLower,
+                    'data' => []
+                ];
+        }
+
+        $currency = $order->getCurrency()->getIsoCode() ?? 'USD';
+        $totalAmount = round($order->getAmountTotal(), 2);
+        $clientReference = $this->orderService->getClientReference($order);
+
+
+        $payload = [
+            'clientReferenceInformation' => $clientReference['clientReferenceInformation'],
+            'orderInformation' => [
+                'amountDetails' => [
+                    'totalAmount' => $totalAmount,
+                    'currency' => $currency,
+                ],
+            ],
+        ];
+
+        try {
+            $response = null;
+            switch (strtoupper($state)) {
+                case 'PAID':
+                    $response = $this->executeRequest(
+                        'Post',
+                        "/pts/v2/payments/{$cybersourceTransactionId}/captures",
+                        $payload,
+                        'Capture Transition'
+                    );
+                    break;
+                case 'VOID':
+                    unset($payload['orderInformation']);
+                    $response = $this->executeRequest(
+                        'Post',
+                        "/pts/v2/payments/{$cybersourceTransactionId}/voids",
+                        $payload,
+                        'Void Transition'
+                    );
+                    break;
+                case 'REFUND':
+                    $response = $this->executeRequest(
+                        'Post',
+                        "/pts/v2/payments/{$cybersourceTransactionId}/refunds",
+                        $payload,
+                        'Refund Transition'
+                    );
+                    break;
+                default:
+                    throw new \RuntimeException('Unsupported transition state: ' . $state);
+            }
+
+            $this->transactionLogger->logTransaction(strtoupper($state), $response['body'], $transaction->getId(), $context);
+
+            if ($response['statusCode'] >= 200 && $response['statusCode'] < 300) {
+                $message = 'Order transition to ' . ucfirst($stateLower) . ' successful.';
+                return [
+                    'success' => true,
+                    'message' => $message,
+                    'data' => $response['body']
+                ];
+            } else {
+                $this->orderTransactionStateHandler->process($transaction->getId(), $context);
+                throw new \RuntimeException('Transition failed: ' . ($response['body']['message'] ?? 'Unknown error'));
+            }
+        } catch (\RuntimeException $e) {
+            $this->revertTransactionState($transaction->getId(), $currentState, $context);
+            $this->logger->error('Transition failed for order ' . $orderId, [
+                'state' => $state,
+                'currentState' => $currentState,
+                'error' => $e->getMessage(),
+            ]);
+            return [
+                'success' => false,
+                'message' => 'Failed to complete the transition to ' . ucfirst($stateLower) . '. Please try again or contact support.',
+                'data' => []
+            ];
+        }
+    }
+    private function revertTransactionState(string $transactionId, string $previousState, Context $context): bool
+    {
+        try {
+            $this->logger->warning("Attempting to revert transaction {$transactionId} to previous state: {$previousState}");
+
+            $transitions = $this->stateMachineRegistry->getAvailableTransitions('order_transaction', $transactionId, 'stateId', $context);
+            $availableTransitions = array_map(static function ($transition) {
+                return $transition->getActionName();
+            }, $transitions);
+
+            $this->logger->info("Available transitions for transaction {$transactionId}: " . implode(', ', $availableTransitions));
+
+            if (!in_array($previousState, $availableTransitions, true)) {
+                $this->logger->error("Invalid transition to {$previousState} for transaction {$transactionId}. Valid transitions: " . implode(', ', $availableTransitions));
+                return false;
+            }
+
+            $this->stateMachineRegistry->transition(
+                new Transition(
+                    'order_transaction',
+                    $transactionId,
+                    $previousState,
+                    'stateId'
+                ),
+                $context
+            );
+            $this->logger->info("Successfully reverted transaction {$transactionId} to state {$previousState}");
+            return true;
+        } catch (\Exception $e) {
+            $this->logger->error("Failed to revert transaction state for {$transactionId}: {$e->getMessage()}");
+            return false;
         }
     }
 }

@@ -5,15 +5,19 @@ declare(strict_types=1);
 namespace CyberSource\Shopware6\Subscriber;
 
 use CyberSource\Shopware6\Service\CyberSourceApiClient;
+use Shopware\Administration\Notification\Exception\NotificationThrottledException;
+use Shopware\Administration\Notification\NotificationService;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionEntity;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStates;
 use CyberSource\Shopware6\Service\OrderService;
 use Shopware\Core\Framework\Context;
+use Shopware\Core\System\StateMachine\StateMachineException;
 use Shopware\Core\System\StateMachine\StateMachineRegistry;
 use Shopware\Core\System\StateMachine\Transition;
 use Shopware\Core\System\StateMachine\Event\StateMachineTransitionEvent;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class OrderPaymentStatusSubscriber implements EventSubscriberInterface
 {
@@ -44,11 +48,15 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
 
     public function onTransactionStateTransition(StateMachineTransitionEvent $event): void
     {
+        $context = $event->getContext();
+        // we change the state of the transaction in the custom payment update
+        if ($context->hasExtension('customPaymentUpdate')) {
+            return;
+        }
         if ($event->getEntityName() !== 'order_transaction') {
             return;
         }
 
-        $context = $event->getContext();
         $transactionId = $event->getEntityId();
         $newState = $event->getToPlace()->getTechnicalName();
         $currentState = $event->getFromPlace()->getTechnicalName();
@@ -82,7 +90,7 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                 if ($response['statusCode'] !== 201) {
                     $this->revertTransactionState($transactionId, $currentState, $context);
                     $this->logger->error("Failed to capture transaction: " . json_encode($response['body']));
-                    throw new \RuntimeException('Failed to capture payment.');
+                    throw new StateMachineException(400,'Failed to capture payment.');
                 }
             } elseif ($currentState === OrderTransactionStates::STATE_AUTHORIZED && ($newState === OrderTransactionStates::STATE_CANCELLED || $newState === 'cancel')) {
                 $this->logger->info("Voiding transaction {$transactionId}.");
@@ -91,7 +99,7 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                 if ($response['statusCode'] !== 201) {
                     $this->revertTransactionState($transactionId, $currentState, $context);
                     $this->logger->error("Failed to void transaction: " . json_encode($response['body']));
-                    throw new \RuntimeException('Failed to void payment.');
+                    throw new StateMachineException(400,'Failed to void payment.');
                 }
             } elseif ($currentState === OrderTransactionStates::STATE_PAID && ($newState === OrderTransactionStates::STATE_REFUNDED || $newState === 'refund')) {
                 $this->logger->info("Refunding transaction {$transactionId} for amount {$orderTransaction->getAmount()->getTotalPrice()}.");
@@ -100,7 +108,7 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                 if ($response['statusCode'] !== 201) {
                     $this->revertTransactionState($transactionId, $currentState, $context);
                     $this->logger->error("Failed to refund transaction: " . json_encode($response['body']));
-                    throw new \RuntimeException('Failed to refund payment.');
+                    throw new StateMachineException(400,'Failed to refund payment.');
                 }
             } elseif ($currentState === OrderTransactionStates::STATE_PAID && $newState === OrderTransactionStates::STATE_CANCELLED) {
                 $this->logger->info("Voiding transaction {$transactionId}.");
@@ -109,7 +117,7 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                 if ($response['statusCode'] !== 201) {
                     $this->revertTransactionState($transactionId, $currentState, $context);
                     $this->logger->error("Failed to void transaction: " . json_encode($response['body']));
-                    throw new \RuntimeException('Failed to void payment.');
+                    throw new StateMachineException(400,'Failed to void payment.');
                 }
             } elseif ($currentState === 'pre_review' && $newState === OrderTransactionStates::STATE_AUTHORIZED) {
                 $this->logger->info("Capturing transaction {$transactionId} for amount {$orderTransaction->getAmount()->getTotalPrice()}.");
@@ -118,7 +126,7 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                 if ($response['statusCode'] !== 201) {
                     $this->revertTransactionState($transactionId, $currentState, $context);
                     $this->logger->error("Failed to capture transaction: " . json_encode($response['body']));
-                    throw new \RuntimeException('Failed to capture payment.');
+                    throw new StateMachineException(400,'Failed to capture payment.');
                 }
             } elseif ($currentState === OrderTransactionStates::STATE_CANCELLED && $newState === OrderTransactionStates::STATE_PAID) {
                 $this->logger->info("Reverting transaction {$transactionId} from cancelled to paid.");
@@ -130,7 +138,7 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                 if ($response['statusCode'] !== 201) {
                     $this->revertTransactionState($transactionId, $currentState, $context);
                     $this->logger->error("Failed to void transaction: " . json_encode($response['body']));
-                    throw new \RuntimeException('Failed to void payment.');
+                    throw new StateMachineException(400,'Failed to void payment.');
                 }
             } elseif ($currentState === 'pending_review' && $newState === 'paid') {
                 $this->logger->info("Capturing transaction {$transactionId} for amount {$orderTransaction->getAmount()->getTotalPrice()}.");
@@ -139,17 +147,17 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                 if ($response['statusCode'] !== 201) {
                     $this->revertTransactionState($transactionId, $currentState, $context);
                     $this->logger->error("Failed to capture transaction: " . json_encode($response['body']));
-                    throw new \RuntimeException('Failed to capture payment.');
+                    throw new StateMachineException(400,'Failed to capture payment.');
                 }
             } elseif (($currentState === OrderTransactionStates::STATE_REFUNDED || $currentState === 'refund') && $newState === OrderTransactionStates::STATE_PAID) {
                 $this->logger->info("Reverting transaction {$transactionId} from refunded to paid.");
                 $this->revertTransactionState($transactionId, OrderTransactionStates::STATE_REFUNDED, $context);
             } else {
-                $this->logger->info("No action required for transaction {$transactionId}.");
+
             }
         } catch (\Exception $e) {
             $this->logger->error("Error processing CyberSource request: " . $e->getMessage());
-            throw $e;
+            throw new StateMachineException(200, "205", 'Error processing CyberSource request: ' . $e->getMessage(), [], $e);
         }
     }
 
@@ -158,11 +166,11 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
         $order = $orderTransaction->getOrder();
         if (!$order) {
             $this->logger->error("Order not found for transaction: {$transactionId}");
-            throw new \RuntimeException('Order not found.');
+            throw new StateMachineException(400,'Order not found.');
         }
         $currency = $order->getCurrency();
         if (!$currency || !$currency->getIsoCode()) {
-            throw new \RuntimeException('Currency not found.');
+            throw new NotificationThrottledException(400,'Currency not found.');
         }
         $payload = [
             'clientReferenceInformation' => [
@@ -195,11 +203,11 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
         $order = $orderTransaction->getOrder();
         if (!$order) {
             $this->logger->error("Order not found for transaction: {$transactionId}");
-            throw new \RuntimeException('Order not found.');
+            throw new StateMachineException(400,'Order not found.');
         }
         $currency = $order->getCurrency();
         if (!$currency || !$currency->getIsoCode()) {
-            throw new \RuntimeException('Currency not found.');
+            throw new StateMachineException(400,'Currency not found.');
         }
         $payload = [
             'clientReferenceInformation' => [
@@ -216,21 +224,38 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
         return $this->cyberSourceApiClient->refundPayment($transactionId, $payload, $orderTransaction->getId(), $context);
     }
 
-    private function revertTransactionState(string $transactionId, string $previousState, Context $context): void
+    private function revertTransactionState(string $transactionId, string $previousState, Context $context): bool
     {
         try {
-            $this->logger->warning("Reverting transaction {$transactionId} to previous state: {$previousState}");
+            $this->logger->warning("Attempting to revert transaction {$transactionId} to previous state: {$previousState}");
+
+            $transitions = $this->stateMachineRegistry->getAvailableTransitions('order_transaction', $transactionId, 'stateId', $context);
+            $availableTransitions = array_map(static function ($transition) {
+                return $transition->getActionName();
+            }, $transitions);
+
+            $this->logger->info("Available transitions for transaction {$transactionId}: " . implode(', ', $availableTransitions));
+
+            if (!in_array($previousState, $availableTransitions, true)) {
+                $this->logger->error("Invalid transition to {$previousState} for transaction {$transactionId}. Valid transitions: " . implode(', ', $availableTransitions));
+                return false;
+            }
+
             $this->stateMachineRegistry->transition(
                 new Transition(
                     'order_transaction',
                     $transactionId,
-                    'reopen_payment',
+                    $previousState,
                     'stateId'
                 ),
                 $context
             );
+
+            $this->logger->info("Successfully reverted transaction {$transactionId} to state {$previousState}");
+            return true;
         } catch (\Exception $e) {
-            $this->logger->error("Failed to revert transaction state: " . $e->getMessage());
+            $this->logger->error("Failed to revert transaction state for {$transactionId}: {$e->getMessage()}");
+            return false;
         }
     }
 }

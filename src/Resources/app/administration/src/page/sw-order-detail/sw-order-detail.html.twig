@@ -1,22 +1,6 @@
 {% block sw_order_detail_actions_save %}
-<template v-if="isElligibleForCyberSourceRefund()">
+<template >
 
-        <sw-button-process
-            v-tooltip="{
-                message: $tc('sw-privileges.tooltip.warning'),
-                disabled: acl.can('order.editor'),
-                showOnDisabledElements: true
-            }"
-            class="sw-order-detail__smart-bar-save-button"
-            variant="primary"
-            :disabled="isLoading || !acl.can('order.editor')"
-            :is-loading="isLoading"
-            :process-success="isSaveSuccessful"
-            @update:process-success="saveEditsFinish"
-            @click.prevent="onSaveEdits"
-        >
-            {{ $tc('cybersource_shopware6.orderSave.buttonTitle') }}
-        </sw-button-process>
         <sw-order-update-page-modal
             v-if="isDisplayingSaveChangesWarning"
             @page-update-cancel="onSaveModalClose"

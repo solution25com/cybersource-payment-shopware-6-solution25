@@ -1,13 +1,13 @@
 import template from './sw-order-detail.html.twig';
 
-const { Component, Mixin } = Shopware;
+const { Component, Mixin, Data: { Criteria } } = Shopware;
 
 Component.override('sw-order-detail', {
     template,
 
     mixins: ['notification', Mixin.getByName('api-validation-errors')],
 
-    inject: ['CybersourceOrderService', 'orderService'],
+    inject: ['cybersourceOrderService', 'orderService'], // Changed to lowercase 'c'
 
     props: {
         orderId: {
@@ -15,6 +15,7 @@ Component.override('sw-order-detail', {
             type: String,
         },
     },
+
     data() {
         return {
             paymentStatus: '',
@@ -24,8 +25,12 @@ Component.override('sw-order-detail', {
             next: null,
             hasPriceIncreased: false,
             lineItems: [],
+            isLoading: false,
+            selectedState: '',
+            stateType: '',
         };
     },
+
     watch: {
         order: {
             deep: true,
@@ -35,52 +40,60 @@ Component.override('sw-order-detail', {
             },
         },
     },
+
     methods: {
         isCyberSourceCreditCardPaymentMethod() {
-            if (this.order === null) return false;
+            if (!this.order) return false;
             const transaction = this.order.transactions.first();
-            return (
-                transaction.paymentMethod.name &&
-                transaction.paymentMethod.name == 'CyberSourceCreditCard'
-            );
+            return transaction?.paymentMethod?.name === 'CyberSourceCreditCard';
         },
+
         createdComponent() {
             this.fetchOrderDetails();
             this.$super('createdComponent');
         },
+
         isElligibleForCyberSourceRefund() {
             return (
-                this.order !== null &&
+                this.order &&
                 ['paid', 'refunded_partially'].includes(this.paymentStatus) &&
-                +this.order.price.totalPrice != this.previousTotalAmount
+                +this.order.price.totalPrice !== this.previousTotalAmount
             );
         },
+
         fetchOrderDetails() {
             if (!this.isCyberSourceCreditCardPaymentMethod()) return;
             this.cybersourceTransactionId = null;
             this.paymentStatus = '';
             this.previousTotalAmount = 0;
             this.lineItems = [];
-            this.CybersourceOrderService.getOrderByOrderId(this.orderId)
-                .then((orderDetailsReponse) => {
-                    this.cybersourceTransactionId =
-                        orderDetailsReponse['cybersource_transaction_id'];
-                    this.paymentStatus = orderDetailsReponse['payment_status'];
-                    this.previousTotalAmount = +orderDetailsReponse.amount;
+
+            if (!this.cybersourceOrderService?.getOrderByOrderId) {
+                console.error('cybersourceOrderService or getOrderByOrderId is undefined');
+                this.createNotificationError({ message: 'Payment service unavailable.' });
+                return;
+            }
+
+            this.cybersourceOrderService.getOrderByOrderId(this.orderId)
+                .then((orderDetailsResponse) => {
+
                 })
                 .catch((error) => {
-                    return this.handleError(error.response['data'].errors[0]);
+                    console.error('fetchOrderDetails error:', error);
+                    this.createNotificationError({ message: 'Failed to fetch order details.' });
+                    return this.handleError(error.response?.data?.errors[0] || error);
                 });
         },
+
         onSaveEdits() {
             if (this.isOrderEditing && this.isElligibleForCyberSourceRefund()) {
-                this.hasPriceIncreased =
-                    +this.order.price.totalPrice > this.previousTotalAmount;
+                this.hasPriceIncreased = +this.order.price.totalPrice > this.previousTotalAmount;
                 this.isDisplayingSaveChangesWarning = true;
             } else {
                 this.$super('onSaveEdits');
             }
         },
+
         onSaveModalClose() {
             this.isDisplayingSaveChangesWarning = false;
             this.isOrderEditing = true;
@@ -88,9 +101,11 @@ Component.override('sw-order-detail', {
                 this.$super('onSaveEdits');
             }
         },
+
         onSaveModalCancel() {
             this.isDisplayingSaveChangesWarning = false;
         },
+
         onSaveModalConfirm() {
             this.isDisplayingSaveChangesWarning = false;
             if (this.hasPriceIncreased) {
@@ -109,7 +124,14 @@ Component.override('sw-order-detail', {
                 ),
                 productSku: lineItem.payload.productNumber,
             }));
-            this.CybersourceOrderService.refundPayment(
+
+            if (!this.cybersourceOrderService?.refundPayment) {
+                console.error('cybersourceOrderService or refundPayment is undefined');
+                this.createNotificationError({ message: 'Payment service unavailable.' });
+                return;
+            }
+
+            this.cybersourceOrderService.refundPayment(
                 this.orderId,
                 this.cybersourceTransactionId,
                 this.order.price.totalPrice,
@@ -117,16 +139,9 @@ Component.override('sw-order-detail', {
             )
                 .then((responseFromCapture) => {
                     this.createNotificationSuccess({
-                        message: this.$tc(
-                            'cybersource_shopware6.refund.successMessage'
-                        ),
+                        message: this.$tc('cybersource_shopware6.refund.successMessage'),
                     });
-                    if (
-                        Object.prototype.hasOwnProperty.call(
-                            responseFromCapture,
-                            'id'
-                        )
-                    ) {
+                    if (Object.prototype.hasOwnProperty.call(responseFromCapture, 'id')) {
                         this.paymentStatus = 'refunded';
                     }
                     this.buttonLoading = false;
@@ -134,8 +149,24 @@ Component.override('sw-order-detail', {
                 })
                 .catch((error) => {
                     this.buttonLoading = false;
-                    return this.handleError(error.response['data'].errors[0]);
+                    console.error('refundPayment error:', error);
+                    return this.handleError(error.response?.data?.errors[0] || error);
                 });
+        },
+
+        openStateChangeModal(stateType = 'order_transaction') {
+            const transaction = this.order?.transactions[0];
+            const delivery = this.order?.deliveries[0];
+            this.stateType = stateType;
+            if (stateType === 'order_transaction') {
+                this.selectedState = transaction?.stateMachineState?.technicalName || '';
+            } else if (stateType === 'order_delivery') {
+                this.selectedState = delivery?.stateMachineState?.technicalName || '';
+            } else {
+                this.selectedState = this.order?.stateMachineState?.technicalName || '';
+            }
+            console.log(`Opening state change modal for ${stateType} with initial selectedState:`, this.selectedState);
+            this.$refs.orderStateModal?.openModal();
         },
     },
 });

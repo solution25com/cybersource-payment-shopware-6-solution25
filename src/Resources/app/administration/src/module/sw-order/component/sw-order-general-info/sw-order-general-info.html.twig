@@ -1,0 +1,11 @@
+    {% block sw_order_state_change_card_modal %}
+        <sw-order-state-change-modal
+            v-if="showModal"
+            :order="order"
+            :is-loading="isLoading"
+            :technical-name="currentStateType"
+            :action-name="currentActionName"
+            @page-leave="onLeaveModalClose"
+            @page-leave-confirm="onLeaveModalConfirm"
+        />
+    {% endblock %}

@@ -1,0 +1,42 @@
+{% block sw_order_state_change_modal %}
+    <div class="sw-order-state-change-modal">
+        <sw-modal
+                :title="$t('sw-order.stateChangeModal.title')"
+                @modal-open="openModal"
+                @modal-close="closeModal"
+        >
+            <template #modal-body>
+                <sw-entity-single-select
+                        v-model="selectedState"
+                        @change="console.log('Selected state:', $event)"
+                        entity="state_machine_state"
+                        :criteria="stateCriteria"
+                        :label="$t('sw-order.stateCard.labelStateSelect')"
+                        value-property="technicalName"
+                        display-property="name"
+                />
+                <sw-order-state-change-modal-attach-documents
+                        ref="attachDocuments"
+                        :order="order"
+                        :is-loading="isLoading"
+                        :selected-state="selectedState"
+                        :initial-selected-state="initialSelectedState"
+                        :state-type="stateType"
+                />
+            </template>
+            <template #modal-footer>
+                <sw-button size="small" @click="closeModal">
+                    {{ $t('sw-order.stateCancel') }}
+                </sw-button>
+                <sw-button
+                        variant="primary"
+                        size="small"
+                        :is-loading="isLoading"
+                        @click="onChangeState"
+                >
+                    {{ $t('sw-order.stateCard.labelSelectState') }}
+                </sw-button>
+            </template>
+        </sw-modal>
+    </div>
+{% endblock %}

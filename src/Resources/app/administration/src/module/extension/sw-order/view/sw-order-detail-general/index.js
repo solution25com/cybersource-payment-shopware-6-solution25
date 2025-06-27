@@ -19,7 +19,7 @@ Component.override('sw-order-detail-general', {
                 { property: 'expiryMonth', label: 'Expiry Month' },
                 { property: 'expiryYear', label: 'Expiry Year' },
                 { property: 'cardLast4', label: 'Card Last 4' },
-                { property: 'gatewayAuthCode', label: 'Gateway Auth Code' },
+                { property: 'gatewayAuthCode', label: 'Response Code' },
                 { property: 'gatewayToken', label: 'Gateway Token' },
                 { property: 'gatewayReference', label: 'Gateway Reference #' },
                 { property: 'lastUpdate', label: 'Last Update' }

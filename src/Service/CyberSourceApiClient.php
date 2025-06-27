@@ -51,21 +51,23 @@ class CyberSourceApiClient
     private OrderTransactionStateHandler $orderTransactionStateHandler;
     private StateMachineRegistry $stateMachineRegistry;
     private TransactionLogger $transactionLogger;
+
     /**
      * @param EntityRepository<CustomerEntityCollection> $customerRepository
      * @param EntityRepository<OrderEntityCollection> $orderRepository
      */
     public function __construct(
-        ConfigurationService $configurationService,
-        CartService $cartService,
-        EntityRepository $customerRepository,
-        LoggerInterface $logger,
-        EntityRepository $orderRepository,
-        OrderService $orderService,
-        TransactionLogger $transactionLogger,
+        ConfigurationService         $configurationService,
+        CartService                  $cartService,
+        EntityRepository             $customerRepository,
+        LoggerInterface              $logger,
+        EntityRepository             $orderRepository,
+        OrderService                 $orderService,
+        TransactionLogger            $transactionLogger,
         OrderTransactionStateHandler $orderTransactionStateHandler,
-        StateMachineRegistry $stateMachineRegistry
-    ) {
+        StateMachineRegistry         $stateMachineRegistry
+    )
+    {
         $this->configurationService = $configurationService;
         $this->cartService = $cartService;
         $this->customerRepository = $customerRepository;
@@ -287,7 +289,7 @@ class CyberSourceApiClient
     {
         $response = $this->executeRequest('Post', "/pts/v2/payments/{$transactionId}/captures", $payload, 'Capture Payment');
         $responseData = $response['body'];
-        $this->transactionLogger->logTransaction('Capture', $responseData, $orderTransactionId, $context);
+        $this->transactionLogger->logTransaction('Payment', $responseData, $orderTransactionId, $context);
         return $response;
     }
 
@@ -747,11 +749,11 @@ class CyberSourceApiClient
                 'cybersource_payment_uniqid' => $uniqid,
                 'payment_id' => $responseData['clientReferenceInformation']['code'] ?? null,
                 'card_category' => $responseData['paymentInformation']['card']['type'] ?? null,
-                'payment_method_type' => $responseData['paymentInformation']['card']['brand'] ?? null,
+                'payment_method_type' => $responseData['paymentInformation']['scheme'] ?? null,
                 'expiry_month' => $responseData['paymentInformation']['card']['expirationMonth'] ?? $expirationMonth,
                 'expiry_year' => $responseData['paymentInformation']['card']['expirationYear'] ?? $expirationYear,
                 'card_last_4' => isset($responseData['paymentInformation']['card']['number']) ? substr($responseData['paymentInformation']['card']['number'], -4) : null,
-                'gateway_authorization_code' => $responseData['processorInformation']['authorizationCode'] ?? null,
+                'gateway_authorization_code' => $responseData['processorInformation']['responseCode'] ?? null,
                 'gateway_token' => $responseData['tokenInformation']['paymentInstrument']['id'] ?? null,
                 'gateway_reference' => $responseData['processorInformation']['transactionId'] ?? null,
             ];
@@ -1275,6 +1277,7 @@ class CyberSourceApiClient
             return null;
         }
     }
+
     public function transitionOrderPayment(string $orderId, string $state, string $currentState, Context $context): array
     {
         $criteria = new Criteria([$orderId]);
@@ -1297,8 +1300,8 @@ class CyberSourceApiClient
         }
 
         $validTransitions = [
-            'authorized' => ['paid', 'void'],
-            'paid' => ['refund', 'void'],
+            'authorized' => ['paid', 'cancel'],
+            'paid' => ['refund', 'cancel'],
         ];
 
         $currentStateLower = strtolower($currentState);
@@ -1310,7 +1313,7 @@ class CyberSourceApiClient
 
         $statusMapping = [
             'paid' => OrderTransactionStates::STATE_PAID,
-            'void' => OrderTransactionStates::STATE_CANCELLED,
+            'cancel' => OrderTransactionStates::STATE_CANCELLED,
             'refund' => OrderTransactionStates::STATE_REFUNDED,
         ];
 
@@ -1340,11 +1343,12 @@ class CyberSourceApiClient
 
         $currency = $order->getCurrency()->getIsoCode() ?? 'USD';
         $totalAmount = round($order->getAmountTotal(), 2);
-        $clientReference = $this->orderService->getClientReference($order);
 
-
+        $uniqId = $this->orderService->getCyberSourceTransactionUniqueId($customFields);
         $payload = [
-            'clientReferenceInformation' => $clientReference['clientReferenceInformation'],
+            'clientReferenceInformation' => [
+                'code' => 'Order-' . ($uniqId ?? ($cybersourceTransactionId ?? $transaction->getId())),
+            ],
             'orderInformation' => [
                 'amountDetails' => [
                     'totalAmount' => $totalAmount,
@@ -1355,6 +1359,7 @@ class CyberSourceApiClient
 
         try {
             $response = null;
+            $logType = "";
             switch (strtoupper($state)) {
                 case 'PAID':
                     $response = $this->executeRequest(
@@ -1363,8 +1368,9 @@ class CyberSourceApiClient
                         $payload,
                         'Capture Transition'
                     );
+                    $logType = 'Payment';
                     break;
-                case 'VOID':
+                case 'CANCEL':
                     unset($payload['orderInformation']);
                     $response = $this->executeRequest(
                         'Post',
@@ -1372,6 +1378,7 @@ class CyberSourceApiClient
                         $payload,
                         'Void Transition'
                     );
+                    $logType = 'Canceled';
                     break;
                 case 'REFUND':
                     $response = $this->executeRequest(
@@ -1380,12 +1387,13 @@ class CyberSourceApiClient
                         $payload,
                         'Refund Transition'
                     );
+                    $logType = 'Refunded';
                     break;
                 default:
                     throw new \RuntimeException('Unsupported transition state: ' . $state);
             }
 
-            $this->transactionLogger->logTransaction(strtoupper($state), $response['body'], $transaction->getId(), $context);
+            $this->transactionLogger->logTransaction($logType, $response['body'], $transaction->getId(), $context);
 
             if ($response['statusCode'] >= 200 && $response['statusCode'] < 300) {
                 $message = 'Order transition to ' . ucfirst($stateLower) . ' successful.';
@@ -1412,6 +1420,7 @@ class CyberSourceApiClient
             ];
         }
     }
+
     private function revertTransactionState(string $transactionId, string $previousState, Context $context): bool
     {
         try {

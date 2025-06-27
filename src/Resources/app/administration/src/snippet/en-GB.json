@@ -1,0 +1,20 @@
+{
+  "cybersource": {
+    "success": {
+      "transition": "Payment status updated successfully."
+    },
+    "error": {
+      "transactionNotFound": "Transaction not found.",
+      "transitionFailed": "Failed to update payment status.",
+      "buttonNotFound": "Update Status button not found.",
+      "noStateSelected": "No new status selected."
+    }
+  },
+  "sw-order": {
+    "stateCard": {
+      "errorNoStateSelected": "Please select a new state.",
+      "errorNoTransaction": "No transaction available.",
+      "errorTransitionFailed": "Failed to update the payment status. Please try again or contact support."
+    }
+  }
+}

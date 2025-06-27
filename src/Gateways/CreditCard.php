@@ -50,7 +50,7 @@ final class CreditCard implements SynchronousPaymentHandlerInterface
         }
         $cybersource_payment_data = $dataBag->get('cybersource_payment_data');
         $this->transactionLogger->logTransactionFromDataBag(
-            'Payment',
+            'Authorized',
             $cybersource_payment_data,
             $orderTransactionId,
             $context,

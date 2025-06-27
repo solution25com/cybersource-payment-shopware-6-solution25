@@ -1,3 +1,11 @@
+## [1.3.6] - 2025-06-27
+
+### Fixed
+- **Error Handling Improvements**  
+  Additional fixes and refinements to the handling of failed payment status transitions, ensuring more reliable order processing and improved visibility of errors in the Shopware Admin.
+
+---
+
 ## [1.3.4] - 2025-06-20
 
 ### Added

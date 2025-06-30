@@ -23,21 +23,25 @@ Component.override('sw-order-detail-general', {
                 { property: 'gatewayToken', label: 'Gateway Token' },
                 { property: 'gatewayReference', label: 'Gateway Reference #' },
                 { property: 'lastUpdate', label: 'Last Update' }
-            ]
+            ],
+            isCyberSourcePayment: false
         };
     },
 
     computed: {
+        showTable() {
+            return this.isCyberSourcePayment;
+        },
         cybersourceTransactions() {
             const transaction = this.orderTransactions?.first();
             const details = transaction?.customFields?.cybersource_payment_details;
-    
+
             if (!details || !Array.isArray(details.transactions)) {
                 return [];
             }
-    
+
             return details.transactions
-                .slice() 
+                .slice()
                 .sort((a, b) => new Date(b.last_update) - new Date(a.last_update))
                 .map((entry) => ({
                     paymentId: entry.payment_id || '-',
@@ -53,11 +57,11 @@ Component.override('sw-order-detail-general', {
                     lastUpdate: this.formatDate(entry.last_update)
                 }));
         }
-    },    
-    
+    },
 
-    created() {
-        this.fetchOrderTransactions();
+    async created() {
+        await this.fetchOrderTransactions();
+        await this.checkPaymentMethod();
     },
 
     methods: {
@@ -74,18 +78,26 @@ Component.override('sw-order-detail-general', {
             const orderTransactionRepository = this.repositoryFactory.create('order_transaction');
 
             try {
-                const result = await orderTransactionRepository.search(criteria, Shopware.Context.api);
-                this.orderTransactions = result;
-
+                this.orderTransactions = await orderTransactionRepository.search(criteria, Shopware.Context.api);
             } catch (error) {
                 console.error('Error fetching order transactions:', error);
             }
         },
+        async checkPaymentMethod() {
+            const transaction = this.orderTransactions?.first();
+            if (!transaction) {
+                this.isCyberSourcePayment = false;
+                return;
+            }
+
+            const paymentMethod = await this.getPaymentMethod(transaction.paymentMethodId);
+            this.isCyberSourcePayment = !(!paymentMethod || paymentMethod.handlerIdentifier !== 'CyberSource\\Shopware6\\Gateways\\CreditCard');
+        },
         formatDate(dateString) {
             if (!dateString) return '-';
-    
+
             const date = new Date(dateString);
-    
+
             return new Intl.DateTimeFormat('en-GB', {
                 year: 'numeric',
                 month: '2-digit',
@@ -101,6 +113,13 @@ Component.override('sw-order-detail-general', {
                 '002': 'Debit Card'
             };
             return categories[code] || code || '-';
-        }
+        },
+        async getPaymentMethod(paymentMethodId) {
+            const repository = this.repositoryFactory.create('payment_method');
+            const criteria = new Criteria();
+            criteria.addFilter(Criteria.equals('id', paymentMethodId));
+            const result = await repository.search(criteria, Shopware.Context.api);
+            return result.first();
+        },
     }
 });

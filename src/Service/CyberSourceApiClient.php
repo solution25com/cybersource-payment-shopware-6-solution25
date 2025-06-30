@@ -1394,7 +1394,34 @@ class CyberSourceApiClient
                     throw new \RuntimeException('Unsupported transition state: ' . $state);
             }
 
-            $this->transactionLogger->logTransaction($logType, $response['body'], $transaction->getId(), $context);
+            // Merge existing custom fields with response data to fill in missing values
+            $responseData = $response['body'];
+            $customPaymentDetails = $customFields['cybersource_payment_details']['transactions'][0] ?? [];
+            $mergedData = array_merge($responseData, [
+                'id' => $cybersourceTransactionId,
+                'clientReferenceInformation' => $responseData['clientReferenceInformation'] ?? ['code' => $payload['clientReferenceInformation']['code']],
+                'paymentInformation' => [
+                    'card' => [
+                        'type' => $responseData['paymentInformation']['card']['type'] ?? $customPaymentDetails['card_category'] ?? null,
+                        'brand' => $responseData['paymentInformation']['card']['brand'] ?? $customPaymentDetails['payment_method_type'] ?? null,
+                        'expirationMonth' => $responseData['paymentInformation']['card']['expirationMonth'] ?? $customPaymentDetails['expiry_month'] ?? null,
+                        'expirationYear' => $responseData['paymentInformation']['card']['expirationYear'] ?? $customPaymentDetails['expiry_year'] ?? null,
+                        'number' => $customPaymentDetails['card_last_4'] ? '****' . $customPaymentDetails['card_last_4'] : ($responseData['paymentInformation']['card']['number'] ?? null),
+                    ],
+                ],
+                'processorInformation' => [
+                    'authorizationCode' => $responseData['processorInformation']['authorizationCode'] ?? $customPaymentDetails['gateway_authorization_code'] ?? null,
+                    'transactionId' => $responseData['processorInformation']['transactionId'] ?? $customPaymentDetails['gateway_reference'] ?? null,
+                ],
+                'tokenInformation' => [
+                    'paymentInstrument' => [
+                        'id' => $responseData['tokenInformation']['paymentInstrument']['id'] ?? $customPaymentDetails['gateway_token'] ?? null,
+                    ],
+                ],
+            ]);
+
+            // Log the transaction with merged data
+            $this->transactionLogger->logTransaction($logType, $mergedData, $transaction->getId(), $context, $uniqId);
 
             if ($response['statusCode'] >= 200 && $response['statusCode'] < 300) {
                 $message = 'Order transition to ' . ucfirst($stateLower) . ' successful.';

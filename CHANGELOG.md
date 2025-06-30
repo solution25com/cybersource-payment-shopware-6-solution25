@@ -1,3 +1,16 @@
+## [1.3.7] - 2025-06-30
+
+### Added
+- **Saved Card Payment Instrument ID Support**  
+  The plugin now stores the Cybersource `paymentInstrumentId` when customers choose to save their card, improving vaulted payment handling and future transactions.
+
+### Changed
+- **Transaction UI Design Improvements**  
+  Visual and structural changes to the Cybersource payment transaction components for a cleaner, more consistent user experience in the storefront and administration.
+
+
+---
+
 ## [1.3.6] - 2025-06-27
 
 ### Fixed

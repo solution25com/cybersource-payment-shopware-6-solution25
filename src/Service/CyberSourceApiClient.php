@@ -721,12 +721,12 @@ class CyberSourceApiClient
             $responseData = $response['body'];
             $status = $responseData['status'] ?? 'UNKNOWN';
             $transactionId = $responseData['id'] ?? null;
-
+            $paymentInstrumentId = null;
             if ($saveCard && $transactionId && $status === 'AUTHORIZED') {
                 $instrumentIdentifierId = $responseData['tokenInformation']['instrumentIdentifier']['id'] ?? null;
                 $cardType = $responseData['paymentInformation']['card']['type'] ?? null;
                 if ($instrumentIdentifierId) {
-                    $saveSuccess = $this->saveCard(
+                    $paymentInstrumentId = $this->saveCard(
                         $context,
                         $instrumentIdentifierId,
                         $expirationMonth,
@@ -735,7 +735,7 @@ class CyberSourceApiClient
                         $cardType,
                         $customerId
                     );
-                    if (!$saveSuccess) {
+                    if (!$paymentInstrumentId) {
                         $this->logger->warning('Failed to save card', [
                             'instrumentIdentifierId' => $instrumentIdentifierId,
                         ]);
@@ -761,14 +761,14 @@ class CyberSourceApiClient
                 $savedCards = $this->getSavedCards($context, $customerId);
                 $savedCard = null;
                 foreach ($savedCards['cards'] as $card) {
-                    if ($card['id'] === $subscriptionId) {
+                    if ($card['id'] === $subscriptionId || $card['id'] === $paymentInstrumentId) {
                         $savedCard = $card;
                         break;
                     }
                 }
-                $paymentData['card_last_4'] = $savedCard ? substr($savedCard['cardNumber'], -4) : null;
-                $paymentData['expiry_year'] = $savedCard['expirationYear'] ?? null;
-                $paymentData['expiry_month'] = $savedCard['expirationMonth'] ?? null;
+                $paymentData['card_last_4'] = $savedCard ? substr($savedCard['cardNumber'], -4) : $paymentData['card_last_4'];
+                $paymentData['expiry_year'] = $savedCard['expirationYear'] ?? $paymentData['expiry_year'];
+                $paymentData['expiry_month'] = $savedCard['expirationMonth'] ?? $paymentData['expiry_month'];
             }
 
             switch ($status) {
@@ -899,11 +899,11 @@ class CyberSourceApiClient
         array               $orderInfo = [],
         ?string             $cardType = null,
         ?string             $customerId = null
-    ): bool
+    ): ?string
     {
         if ($expirationMonth === null || $expirationYear === null) {
             $this->logger->error('Expiration month or year is missing.');
-            return false;
+            return null;
         }
         $criteria = new Criteria();
         $criteria->addFilter(new EqualsFilter('id', $customerId));
@@ -916,7 +916,7 @@ class CyberSourceApiClient
             $this->logger->warning('No customer found to save card', [
                 'salesChannelId' => $context->getSalesChannelId(),
             ]);
-            return false;
+            return null;
         }
 
         $customerTokenId = $customer->getCustomFields()['cybersource_customer_token'] ?? null;
@@ -945,7 +945,7 @@ class CyberSourceApiClient
                 ], $context->getContext());
             } catch (\RuntimeException $e) {
                 $this->logger->error('Failed to create customer token', ['error' => $e->getMessage()]);
-                return false;
+                return null;
             }
         }
 
@@ -962,12 +962,13 @@ class CyberSourceApiClient
         ];
 
         try {
-            $this->executeRequest(
+            $res = $this->executeRequest(
                 'Post',
                 "/tms/v2/customers/{$customerTokenId}/payment-instruments",
                 $payload,
                 'Associate Instrument Identifier'
             );
+            $paymentInstrumentId = $res['body']['id'] ?? null;
             $this->customerRepository->update([
                 [
                     'id' => $customer->getId(),
@@ -977,10 +978,10 @@ class CyberSourceApiClient
                     ),
                 ],
             ], $context->getContext());
-            return true;
+            return $paymentInstrumentId;
         } catch (\RuntimeException $e) {
             $this->logger->error('Failed to associate instrument identifier', ['error' => $e->getMessage()]);
-            return false;
+            return null;
         }
     }
 
@@ -1232,7 +1233,7 @@ class CyberSourceApiClient
                 return new JsonResponse(['message' => 'Failed to retrieve instrument identifier'], 500);
             }
 
-            $saveSuccess = $this->saveCard(
+            $paymentInstrumentId = $this->saveCard(
                 $context,
                 $instrumentIdentifierId,
                 $expirationMonth,
@@ -1242,7 +1243,7 @@ class CyberSourceApiClient
                 $customerId
             );
 
-            if (!$saveSuccess) {
+            if (!$paymentInstrumentId) {
                 $this->logger->error('Failed to save card to TMS', [
                     'instrumentIdentifierId' => $instrumentIdentifierId,
                     'customerId' => $customerId,

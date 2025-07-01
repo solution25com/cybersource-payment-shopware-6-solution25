@@ -126,6 +126,12 @@ bin/console cybersource:update-status-webhook --active=true
 ```
 bin/console cybersource:delete-webhook
 ```
+---
+
+# API Documentation
+- [API Info](https://github.com/solution25com/cybersource-payment-shopware-6-solution25/wiki/api-documentation)
+
+---
 
 # Troubleshooting
 - If you encounter any issues during installation or configuration, please check the following:

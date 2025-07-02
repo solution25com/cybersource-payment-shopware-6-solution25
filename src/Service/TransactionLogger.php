@@ -38,7 +38,9 @@ class TransactionLogger
             gatewayToken: $responseData['tokenInformation']['paymentInstrument']['id'] ?? null,
             gatewayReference: $responseData['processorInformation']['transactionId'] ?? null,
             lastUpdate: date('c'),
-            uniqid: $uniqid
+            uniqid: $uniqid,
+            amount: (string)$responseData['orderInformation']['amountDetails']['totalAmount'] ?? null,
+            currency: $responseData['orderInformation']['amountDetails']['currency'] ?? null
         );
 
         $this->orderService->updateOrderTransactionCustomFields($transactionData->toArray(), $orderTransactionId, $context);
@@ -67,7 +69,9 @@ class TransactionLogger
                 gatewayToken: $paymentData['gateway_token'],
                 gatewayReference: $paymentData['gateway_reference'],
                 lastUpdate: date('c'),
-                uniqid: $uniqid
+                uniqid: $uniqid,
+                amount: $paymentData['amount'] ?? null,
+                currency: $paymentData['currency'],
             );
 
             $this->orderService->updateOrderTransactionCustomFields($transactionData->toArray(), $orderTransactionId, $context);

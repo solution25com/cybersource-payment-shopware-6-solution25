@@ -19,6 +19,8 @@ class TransactionData
     private ?string $gatewayReference;
     private string $lastUpdate;
     private ?string $uniqid;
+    private ?string $amount;
+    private ?string $currency;
 
     public function __construct(
         string $type,
@@ -33,7 +35,9 @@ class TransactionData
         ?string $gatewayToken,
         ?string $gatewayReference,
         string $lastUpdate,
-        ?string $uniqid = null
+        ?string $uniqid = null,
+        ?string $amount = null,
+        ?string $currency = null
     ) {
         $this->type = $type;
         $this->transactionId = $transactionId;
@@ -48,6 +52,8 @@ class TransactionData
         $this->gatewayReference = $gatewayReference;
         $this->lastUpdate = $lastUpdate;
         $this->uniqid = $uniqid;
+        $this->amount = $amount;
+        $this->currency = $currency;
     }
 
     public function toArray(): array
@@ -66,6 +72,8 @@ class TransactionData
             'gateway_reference' => $this->gatewayReference,
             'last_update' => $this->lastUpdate,
             'uniqid' => $this->uniqid,
+            'amount' => $this->amount,
+            'currency' => $this->currency
         ];
     }
 }

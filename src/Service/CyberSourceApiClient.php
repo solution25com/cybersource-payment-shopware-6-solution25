@@ -756,6 +756,9 @@ class CyberSourceApiClient
                 'gateway_authorization_code' => $responseData['processorInformation']['responseCode'] ?? null,
                 'gateway_token' => $responseData['tokenInformation']['paymentInstrument']['id'] ?? null,
                 'gateway_reference' => $responseData['processorInformation']['transactionId'] ?? null,
+                'uniqid' => $uniqid,
+                'amount' => $orderInfo['amountDetails']['totalAmount'] ?? null,
+                'currency' => $orderInfo['amountDetails']['currency'] ?? null,
             ];
             if ($subscriptionId || $saveCard) {
                 $savedCards = $this->getSavedCards($context, $customerId);
@@ -1359,6 +1362,7 @@ class CyberSourceApiClient
         ];
 
         try {
+            $orderInformation = $payload['orderInformation'];
             $response = null;
             $logType = "";
             switch (strtoupper($state)) {
@@ -1372,10 +1376,11 @@ class CyberSourceApiClient
                     $logType = 'Payment';
                     break;
                 case 'CANCEL':
+                    $payload['reversalInformation'] = $orderInformation;
                     unset($payload['orderInformation']);
                     $response = $this->executeRequest(
                         'Post',
-                        "/pts/v2/payments/{$cybersourceTransactionId}/voids",
+                        "/pts/v2/payments/{$cybersourceTransactionId}/reversals",
                         $payload,
                         'Void Transition'
                     );
@@ -1418,6 +1423,7 @@ class CyberSourceApiClient
                         'id' => $responseData['tokenInformation']['paymentInstrument']['id'] ?? $customPaymentDetails['gateway_token'] ?? null,
                     ],
                 ],
+                'orderInformation' => $orderInformation
             ]);
 
             // Log the transaction with merged data

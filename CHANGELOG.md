@@ -1,3 +1,19 @@
+## [1.3.9] - 2025-07-02
+
+- **Enhanced Transaction Data & Logging**  
+  The transaction data and internal logs now include detailed information about the **amount** and **currency**, providing better transparency for troubleshooting, reporting, and payment audits.
+
+
+---
+
+## [1.3.8] - 2025-06-30
+
+- **Custom Fields with Cybersource Response Data**  
+  Additional Cybersource response data is now stored in custom fields on the order, ensuring better traceability and filling in previously missing values.
+
+
+---
+
 ## [1.3.7] - 2025-06-30
 
 ### Added

@@ -6,7 +6,6 @@ namespace CyberSource\Shopware6\Subscriber;
 
 use CyberSource\Shopware6\Service\CyberSourceApiClient;
 use Shopware\Administration\Notification\Exception\NotificationThrottledException;
-use Shopware\Administration\Notification\NotificationService;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionEntity;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStates;
 use CyberSource\Shopware6\Service\OrderService;
@@ -17,7 +16,6 @@ use Shopware\Core\System\StateMachine\Transition;
 use Shopware\Core\System\StateMachine\Event\StateMachineTransitionEvent;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class OrderPaymentStatusSubscriber implements EventSubscriberInterface
 {

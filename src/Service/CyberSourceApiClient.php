@@ -298,7 +298,7 @@ class CyberSourceApiClient
      */
     public function voidPayment(string $transactionId, array $payload, string $orderTransactionId, Context $context): array
     {
-        $response = $this->executeRequest('Post', "/pts/v2/payments/{$transactionId}/voids", $payload, 'Void Payment');
+        $response = $this->executeRequest('Post', "/pts/v2/payments/{$transactionId}/reversals", $payload, 'Void Payment');
         $responseData = $response['body'];
         $this->transactionLogger->logTransaction('Void', $responseData, $orderTransactionId, $context);
         return $response;
@@ -313,6 +313,178 @@ class CyberSourceApiClient
         $responseData = $response['body'];
         $this->transactionLogger->logTransaction('Refund', $responseData, $orderTransactionId, $context);
         return $response;
+    }
+
+    /**
+     * Process a payment action (capture, void, refund, re-authorize).
+     */
+    public function processPaymentAction(
+        string $action,
+        string $transactionId,
+        array $payload,
+        string $orderId,
+        Context $context
+    ): array {
+        $criteria = new Criteria([$orderId]);
+        $criteria->addAssociation('transactions');
+        $criteria->addAssociation('currency');
+        $order = $this->orderRepository->search($criteria, $context)->getEntities()->first();
+
+        if (!$order) {
+            $this->logger->error('Order not found for ID', [
+                'orderId' => $orderId,
+                'action' => $action,
+                'transactionId' => $transactionId,
+            ]);
+            return [
+                'status' => 'error',
+                'message' => 'Order not found. Please verify the order ID and try again.',
+                'data' => []
+            ];
+        }
+
+        $transaction = $order->getTransactions()->first();
+        if (!$transaction) {
+            $this->logger->error('Transaction not found for order', [
+                'orderId' => $orderId,
+                'action' => $action,
+                'transactionId' => $transactionId,
+            ]);
+            return [
+                'status' => 'error',
+                'message' => 'No transaction found for this order. Please contact support.',
+                'data' => []
+            ];
+        }
+
+        $orderTransactionId = $transaction->getId();
+        $customFields = $transaction->getCustomFields() ?? [];
+        $cybersourceTransactionId = $this->orderService->getCyberSourceTransactionId($customFields);
+        if (!$cybersourceTransactionId) {
+            $this->logger->error('CyberSource transaction ID not found', [
+                'orderId' => $orderId,
+                'orderTransactionId' => $orderTransactionId,
+                'action' => $action,
+                'customFields' => $customFields,
+            ]);
+            return [
+                'status' => 'error',
+                'message' => 'Unable to process the request due to missing payment details. Please contact support.',
+                'data' => []
+            ];
+        }
+
+        $uniqId = $this->orderService->getCyberSourceTransactionUniqueId($customFields);
+        $payload['clientReferenceInformation'] = [
+            'code' => 'Order-' . ($uniqId ?? $cybersourceTransactionId),
+        ];
+
+        $action = strtoupper($action);
+        $method = 'Post';
+        $endpoint = '';
+        $logType = '';
+        $actionFriendlyName = '';
+        switch ($action) {
+            case 'CAPTURE':
+                $endpoint = "/pts/v2/payments/{$transactionId}/captures";
+                $logType = 'Payment';
+                $actionFriendlyName = 'payment capture';
+                break;
+            case 'VOID':
+                $endpoint = "/pts/v2/payments/{$transactionId}/reversals";
+                $logType = 'Void';
+                $actionFriendlyName = 'payment cancellation';
+                break;
+            case 'REFUND':
+                $endpoint = "/pts/v2/payments/{$transactionId}/refunds";
+                $logType = 'Refund';
+                $actionFriendlyName = 'refund';
+                break;
+            case 'REAUTHORIZE':
+                $endpoint = "/pts/v2/payments/{$transactionId}";
+                $logType = 'Re-Authorization';
+                $actionFriendlyName = 're-authorization';
+                $method = 'Patch';
+                break;
+            default:
+                $this->logger->error('Unsupported payment action', [
+                    'action' => $action,
+                    'orderId' => $orderId,
+                    'orderTransactionId' => $orderTransactionId,
+                ]);
+                return [
+                    'status' => 'error',
+                    'message' => 'Invalid payment action requested. Please contact support.',
+                    'data' => []
+                ];
+        }
+
+        try {
+            $response = $this->executeRequest($method, $endpoint, $payload, $logType);
+            $responseData = $response['body'];
+
+
+            $customPaymentDetails = $customFields['cybersource_payment_details']['transactions'][0] ?? [];
+            $mergedData = array_merge($responseData, [
+                'id' => $cybersourceTransactionId,
+                'clientReferenceInformation' => $responseData['clientReferenceInformation'] ?? ['code' => $payload['clientReferenceInformation']['code']],
+                'paymentInformation' => [
+                    'card' => [
+                        'type' => $responseData['paymentInformation']['card']['type'] ?? $customPaymentDetails['card_category'] ?? null,
+                        'brand' => $responseData['paymentInformation']['card']['brand'] ?? $customPaymentDetails['payment_method_type'] ?? null,
+                        'expirationMonth' => $responseData['paymentInformation']['card']['expirationMonth'] ?? $customPaymentDetails['expiry_month'] ?? null,
+                        'expirationYear' => $responseData['paymentInformation']['card']['expirationYear'] ?? $customPaymentDetails['expiry_year'] ?? null,
+                        'number' => $customPaymentDetails['card_last_4'] ? '****' . $customPaymentDetails['card_last_4'] : ($responseData['paymentInformation']['card']['number'] ?? null),
+                    ],
+                ],
+                'processorInformation' => [
+                    'authorizationCode' => $responseData['processorInformation']['authorizationCode'] ?? $customPaymentDetails['gateway_authorization_code'] ?? null,
+                    'transactionId' => $responseData['processorInformation']['transactionId'] ?? $customPaymentDetails['gateway_reference'] ?? null,
+                ],
+                'tokenInformation' => [
+                    'paymentInstrument' => [
+                        'id' => $responseData['tokenInformation']['paymentInstrument']['id'] ?? $customPaymentDetails['gateway_token'] ?? null,
+                    ],
+                ],
+                'orderInformation' => $payload['orderInformation'] ?? ($payload['reversalInformation'] ?? [])
+            ]);
+            if($action === 'REAUTHORIZE') {
+                $mergedData['orderInformation']['amountDetails']['totalAmount'] = $mergedData['orderInformation']['amountDetails']['additionalAmount'] ?? [];
+            }
+
+            $this->transactionLogger->logTransaction($logType, $mergedData, $orderTransactionId, $context, $uniqId);
+
+            if ($response['statusCode'] >= 200 && $response['statusCode'] < 300) {
+                return [
+                    'status' => 'success',
+                    'message' => 'The ' . $actionFriendlyName . ' was completed successfully.',
+                    'data' => $response['body']
+                ];
+            } else {
+                $this->logger->error(ucfirst(strtolower($action)) . ' failed', [
+                    'orderId' => $orderId,
+                    'orderTransactionId' => $orderTransactionId,
+                    'response' => $response['body'],
+                ]);
+                return [
+                    'status' => 'error',
+                    'message' => 'Failed to process the ' . $actionFriendlyName . '. Error: ' . ($response['body']['message'] ?? 'Unknown error occurred.'),
+                    'data' => $response['body']
+                ];
+            }
+        } catch (\RuntimeException $e) {
+            $this->logger->error(ucfirst(strtolower($action)) . ' failed for order', [
+                'action' => $action,
+                'orderId' => $orderId,
+                'orderTransactionId' => $orderTransactionId,
+                'error' => $e->getMessage(),
+            ]);
+            return [
+                'status' => 'error',
+                'message' => 'Unable to process the ' . $actionFriendlyName . '. Please try again or contact support.',
+                'data' => []
+            ];
+        }
     }
 
     /**

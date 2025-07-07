@@ -99,7 +99,7 @@ class CyberSourceController extends AbstractController
                     'code' => $cybersourceUniqid
                 ]
             ];
-            $csTransaction = $this->apiClient->retrieveTransaction($cybersourcePaymentId, $payload);
+            $csTransaction = $this->apiClient->retrieveTransaction($cybersourceTransactionId, $payload);
             // Extract CyberSource status and amount
             $csStatus = $csTransaction['status'] ?? null;
             $csAmount = (float) ($csTransaction['orderInformation']['amountDetails']['totalAmount'] ?? $shopwareAmount);

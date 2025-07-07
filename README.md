@@ -108,30 +108,104 @@ git clone https://github.com/solution25com/cybersource-payment-shopware-6-soluti
 - Click Save in the top-right corner to store your settings.
 
 
-## Webhook Usages
-- Webhooks will install automatically when you active the plugin.
-- Also you can manage webhooks using the command line interface (CLI) commands provided by the plugin. These commands allow you to create, read, update, and delete webhooks as needed. 
-```
-bin/console cybersource:create-webhook
-```
 
-```
-bin/console cybersource:read-webhook
-```
-
-```
-bin/console cybersource:update-status-webhook --active=true
-```
-
-```
-bin/console cybersource:delete-webhook
-```
 ---
 
 # API Documentation
 - [API Info](https://github.com/solution25com/cybersource-payment-shopware-6-solution25/wiki/api-documentation)
 
 ---
+
+## Programmatic Payment Action Endpoints
+
+The plugin provides API endpoints for programmatic payment actions, ideal for custom integrations with external systems (e.g., ERP). These endpoints allow you to capture, void, refund, and re-authorize payments for specific orders using the parent order ID and an amount.
+
+### Endpoints
+- **Capture Payment**
+    - **Path**: `POST /api/cybersource/order/{orderId}/capture`
+    - **Body**: `{ "amount": <decimal> }`
+    - **Description**: Captures the specified amount for the given order. The `orderId` must reference the parent order with a valid CyberSource transaction ID.
+    - **Example**:
+      ```json
+      {
+          "amount": 100.00
+      }
+      ```
+
+- **Void Payment**
+    - **Path**: `POST /api/cybersource/order/{orderId}/void`
+    - **Body**: `{ "amount": <decimal> }`
+    - **Description**: Voids the specified amount for the given order. The `orderId` must reference the parent order with a valid CyberSource transaction ID.
+    - **Example**:
+      ```json
+      {
+          "amount": 100.00
+      }
+      ```
+
+- **Refund Payment**
+    - **Path**: `POST /api/cybersource/order/{orderId}/refund`
+    - **Body**: `{ "amount": <decimal> }`
+    - **Description**: Refunds the specified amount for the given order. The order must be in a `PAID` state. The `orderId` must reference the parent order with a valid CyberSource transaction ID.
+    - **Example**:
+      ```json
+      {
+          "amount": 50.00
+      }
+      ```
+
+- **Re-Authorize Payment**
+    - **Path**: `POST /api/cybersource/order/{orderId}/reauthorize`
+    - **Body**: `{ "amount": <decimal> }`
+    - **Description**: Increments the authorization amount for the given order by the specified amount. The `orderId` must reference the parent order with a valid CyberSource transaction ID. Note that this feature may require activation on the CyberSource side to be fully supported.
+    - **Example**:
+      ```json
+      {
+          "amount": 50.00
+      }
+      ```
+
+### Usage Notes
+- **Authentication**: Use Shopware's standard API token authentication for all endpoints.
+- **Permissions**: All endpoints require the `order.update` ACL permission.
+- **Amount Validation**: The `amount` must be a positive decimal value (e.g., `100.00`). For refunds, it must not exceed the order's total amount.
+- **Disabling Admin UI Transitions**: To prevent conflicts with Admin UI payment status changes, disable the `OrderPaymentStatusSubscriber` by commenting out or removing its definition in `Resources/config/services.xml`.
+- **Usage Example**:
+  ```bash
+  curl -X POST \
+    https://your-shopware-url/api/cybersource/order/12345/capture \
+    -H 'Authorization: Bearer <your-token>' \
+    -H 'Content-Type: application/json' \
+    -d '{"amount": 100.00}'
+  ```
+
+## Webhook Management
+
+Webhooks are automatically installed when the plugin is activated. You can also manage webhooks using the following CLI commands:
+
+- **Create Webhook**:
+  ```bash
+  bin/console cybersource:create-webhook
+  ```
+
+- **Read Webhook**:
+  ```bash
+  bin/console cybersource:read-webhook
+  ```
+
+- **Update Webhook Status**:
+  ```bash
+  bin/console cybersource:update-status-webhook --active=true
+  ```
+
+- **Delete Webhook**:
+  ```bash
+  bin/console cybersource:delete-webhook
+  ```
+
+---
+
+
 
 # Troubleshooting
 - If you encounter any issues during installation or configuration, please check the following:

@@ -207,12 +207,15 @@ Webhooks are automatically installed when the plugin is activated. You can also 
 
 
 
-# Troubleshooting
-- If you encounter any issues during installation or configuration, please check the following:
-  - Ensure that your Shopware version is compatible with the plugin.
-  - Verify that all required fields in the plugin settings are filled out correctly.
-  - Check your server logs for any error messages related to the plugin.
-  - Make sure to use HTTPS 
+## Troubleshooting
+
+If you encounter issues during installation, configuration, or usage:
+- **Compatibility**: Ensure your Shopware version is compatible with the plugin.
+- **Configuration**: Verify that all required fields in the plugin settings (e.g., Organization ID, Access Key, Shared Secret Key) are correctly filled.
+- **Logs**: Check server logs for error messages related to the plugin.
+- **HTTPS**: Ensure your Shopware instance uses HTTPS for secure communication with CyberSource.
+- **API Errors**: For programmatic endpoint issues, verify the `orderId` exists and has a valid CyberSource transaction ID, and ensure the `amount` is valid.
+
 
 # FAQ
 

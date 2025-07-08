@@ -1,16 +1,14 @@
 {% sw_extends '@Storefront/storefront/component/payment/payment-method.html.twig' %}
 
-{% block component_payment_method_field %}
-    {% set paymentMethod = payment.formattedHandlerIdentifier %}
-    <div class="payment-form-group form-group  {% if paymentMethod == 'handler_cybersource_creditcard' %}cybersource-payment{% endif %}">
-        {% block component_payment_method_control %}
-            {{ parent() }}
-        {% endblock %}
-    </div>
-    {% if paymentMethod == 'handler_cybersource_creditcard' %}
-        {% if page.extensions.cybersource_shopware6 %}
-            <script src="{{ asset('bundles/cybersourceshopware6/js/cleave-zen.umd.js') }}"></script>
-            {% sw_include page.extensions.cybersource_shopware6.template %}
-        {% endif %}
+{% block component_payment_method_label %}
+    {{ parent() }}
+
+    {% if payment.formattedHandlerIdentifier == 'handler_cybersource_creditcard'
+        and context.paymentMethod.formattedHandlerIdentifier == payment.formattedHandlerIdentifier
+        and page.extensions.cybersource_shopware6 is defined
+        and page.extensions.cybersource_shopware6.template %}
+
+        <script src="{{ asset('bundles/cybersourceshopware6/js/cleave-zen.umd.js') }}"></script>
+        {% sw_include page.extensions.cybersource_shopware6.template %}
     {% endif %}
 {% endblock %}

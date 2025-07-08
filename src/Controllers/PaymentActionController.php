@@ -309,7 +309,6 @@ class PaymentActionController extends AbstractController
             'orderInformation' => [
                 'amountDetails' => [
                     'additionalAmount' => $amount,
-                    "totalAmount" => 22,
                     'currency' => $currency
                 ]
             ],

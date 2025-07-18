@@ -21,9 +21,10 @@ Component.override('sw-order-detail-general', {
                 { property: 'expiryMonth', label: 'Expiry Month' },
                 { property: 'expiryYear', label: 'Expiry Year' },
                 { property: 'cardLast4', label: 'Card Last 4' },
-                { property: 'gatewayAuthCode', label: 'Response Code' },
+                { property: 'gatewayAuthCode', label: 'Gateway Authorization Code' },
+                { property: 'statusCode', label: 'Response Code' },
                 { property: 'gatewayToken', label: 'Gateway Token' },
-                { property: 'gatewayReference', label: 'Gateway Reference #' },
+                { property: 'gatewayReference', label: 'Gateway Reference' },
                 { property: 'lastUpdate', label: 'Last Update' }
             ],
             isCyberSourcePayment: false
@@ -48,16 +49,17 @@ Component.override('sw-order-detail-general', {
                 .map((entry) => ({
                     paymentId: entry.payment_id || '-',
                     type: entry.type || '-',
-                    cardCategory: this.getCardCategoryName(entry.card_category),
+                    cardCategory: entry.card_category,
                     paymentMethodType: entry.payment_method_type || '-',
-                    amount: entry.amount ? `${entry.amount}` : '-',
+                    amount: entry.amount ? Number(entry.amount).toFixed(2) : '-',
                     currency: entry.currency ? `${entry.currency}` : '-',
                     expiryMonth: entry.expiry_month ? String(parseInt(entry.expiry_month, 10)) : '-',
                     expiryYear: entry.expiry_year || '-',
                     cardLast4: entry.card_last_4 || '-',
                     gatewayAuthCode: entry.gateway_authorization_code || '-',
+                    statusCode: entry.status_code || '-',
                     gatewayToken: entry.gateway_token || '-',
-                    gatewayReference: entry.gateway_reference || '-',
+                    gatewayReference: entry.transaction_id || '-',
                     lastUpdate: this.formatDate(entry.last_update)
                 }));
         }
@@ -110,13 +112,6 @@ Component.override('sw-order-detail-general', {
                 minute: '2-digit',
                 hour12: false,
             }).format(date);
-        },
-        getCardCategoryName(code) {
-            const categories = {
-                '001': 'Credit Card',
-                '002': 'Debit Card'
-            };
-            return categories[code] || code || '-';
         },
         async getPaymentMethod(paymentMethodId) {
             const repository = this.repositoryFactory.create('payment_method');

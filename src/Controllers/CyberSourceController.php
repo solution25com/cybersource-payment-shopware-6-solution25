@@ -69,12 +69,9 @@ class CyberSourceController extends AbstractController
                 'ORDER_TRANSACTION_NOT_FOUND'
             );
         }
-
         $paymentStatus = $this->orderService->getPaymentStatus($orderTransaction);
         $customField = $orderTransaction->getCustomFields();
         $cybersourceTransactionId = $this->orderService->getCyberSourceTransactionId($customField);
-        $cybersourceUniqid = $this->orderService->getCyberSourceTransactionUniqueId($customField);
-        $cybersourcePaymentId = $this->orderService->getCyberSourceTransactionPaymentId($customField);
         if ($cybersourceTransactionId == null) {
             return new JsonResponse(["error" => "No CyberSource transaction ID found"], 404);
         }
@@ -83,8 +80,6 @@ class CyberSourceController extends AbstractController
             return new JsonResponse(['error' => 'Order not found'], 404);
         }
         $shopwareAmount = $orderData->getAmountTotal();
-        $shopwareOrderTransactionId = $orderTransaction->getId();
-        // Initialize response
         $response = [
             'cybersource_transaction_id' => $cybersourceTransactionId,
             'payment_status' => $paymentStatus,
@@ -92,89 +87,6 @@ class CyberSourceController extends AbstractController
             'updated' => false,
             'cybersource_status' => null
         ];
-
-        try {
-            $payload = [
-                'clientReferenceInformation' => [
-                    'code' => $cybersourceUniqid
-                ]
-            ];
-            $csTransaction = $this->apiClient->retrieveTransaction($cybersourceTransactionId, $payload);
-            // Extract CyberSource status and amount
-            $csStatus = $csTransaction['status'] ?? null;
-            $csAmount = (float) ($csTransaction['orderInformation']['amountDetails']['totalAmount'] ?? $shopwareAmount);
-            $response['cybersource_status'] = $csStatus;
-
-            // Map CyberSource status to Shopware OrderTransactionStates
-            $statusMapping = [
-                'AUTHORIZED' => OrderTransactionStates::STATE_AUTHORIZED,
-                'SETTLED' => OrderTransactionStates::STATE_PAID,
-                'REFUNDED' => OrderTransactionStates::STATE_REFUNDED,
-                'PARTIALLY_REFUNDED' => OrderTransactionStates::STATE_PARTIALLY_REFUNDED,
-                'DECLINED' => OrderTransactionStates::STATE_FAILED,
-                'CANCELLED' => OrderTransactionStates::STATE_CANCELLED
-            ];
-
-            $newStatus = $statusMapping[$csStatus] ?? null;
-
-            // Check for discrepancies
-            $statusMismatch = $newStatus && $newStatus !== $paymentStatus;
-            $amountMismatch = abs($csAmount - $shopwareAmount) > 0.01;
-
-            if ($statusMismatch || $amountMismatch) {
-                // Update transaction state if status mismatch
-                if ($statusMismatch) {
-                    switch ($newStatus) {
-                        case OrderTransactionStates::STATE_AUTHORIZED:
-                            $this->orderTransactionStateHandler->authorize($shopwareOrderTransactionId, $context);
-                            break;
-                        case OrderTransactionStates::STATE_PAID:
-                            $this->orderTransactionStateHandler->paid($shopwareOrderTransactionId, $context);
-                            break;
-                        case OrderTransactionStates::STATE_REFUNDED:
-                            $this->orderTransactionStateHandler->refund($shopwareOrderTransactionId, $context);
-                            break;
-                        case OrderTransactionStates::STATE_PARTIALLY_REFUNDED:
-                            $this->orderTransactionStateHandler->refundPartially($shopwareOrderTransactionId, $context);
-                            break;
-                        case OrderTransactionStates::STATE_FAILED:
-                            $this->orderTransactionStateHandler->fail($shopwareOrderTransactionId, $context);
-                            break;
-                        case OrderTransactionStates::STATE_CANCELLED:
-                            $this->orderTransactionStateHandler->cancel($shopwareOrderTransactionId, $context);
-                            break;
-                    }
-                }
-
-                // Update custom fields if amount or status changed
-                $customFields = $orderTransaction->getCustomFields() ?? [];
-                $customFields['cybersource_payment_details'] = array_merge(
-                    $customFields['cybersource_payment_details'] ?? [],
-                    [
-                        'transaction_id' => $cybersourceTransactionId,
-                        'updated_total' => $csAmount,
-                        'cybersource_status' => $csStatus,
-                        'last_updated' => (new \DateTime())->format('Y-m-d H:i:s')
-                    ]
-                );
-
-                $this->orderService->update([
-                    [
-                        'id' => $shopwareOrderTransactionId,
-                        'customFields' => $customFields
-                    ]
-                ], $context);
-
-                // Update response with new status and amount
-                $response['payment_status'] = $newStatus ?? $paymentStatus;
-                $response['amount'] = $csAmount;
-                $response['updated'] = true;
-            }
-        } catch (\Exception $e) {
-            // Log the error but continue with Shopware data
-            error_log("CyberSource API error for transaction $cybersourceTransactionId: " . $e->getMessage());
-        }
-
         return new JsonResponse($response);
     }
 

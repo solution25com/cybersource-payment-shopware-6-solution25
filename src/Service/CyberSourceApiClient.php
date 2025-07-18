@@ -273,7 +273,7 @@ class CyberSourceApiClient
     public function retrieveTransaction(string $cybersourcePaymentId, array $payload): array
     {
         try {
-            return $this->executeRequest('POST', "/pts/v2/refresh-payment-status/{$cybersourcePaymentId}", [], 'Retrieve Transaction');
+            return $this->executeRequest('GET', "/tss/v2/transactions/{$cybersourcePaymentId}", [], 'Retrieve Transaction');
         } catch (\RuntimeException $e) {
             return [
                 'statusCode' => 401,
@@ -289,6 +289,7 @@ class CyberSourceApiClient
     {
         $response = $this->executeRequest('Post', "/pts/v2/payments/{$transactionId}/captures", $payload, 'Capture Payment');
         $responseData = $response['body'];
+        $responseData['statusCode'] = $response['statusCode'];
         $this->transactionLogger->logTransaction('Payment', $responseData, $orderTransactionId, $context);
         return $response;
     }
@@ -300,6 +301,7 @@ class CyberSourceApiClient
     {
         $response = $this->executeRequest('Post', "/pts/v2/payments/{$transactionId}/reversals", $payload, 'Void Payment');
         $responseData = $response['body'];
+        $responseData['statusCode'] = $response['statusCode'];
         $this->transactionLogger->logTransaction('Void', $responseData, $orderTransactionId, $context);
         return $response;
     }
@@ -311,6 +313,7 @@ class CyberSourceApiClient
     {
         $response = $this->executeRequest('Post', "/pts/v2/payments/{$transactionId}/refunds", $payload, 'Refund Payment');
         $responseData = $response['body'];
+        $responseData['statusCode'] = $response['statusCode'];
         $this->transactionLogger->logTransaction('Refund', $responseData, $orderTransactionId, $context);
         return $response;
     }
@@ -438,7 +441,7 @@ class CyberSourceApiClient
                     ],
                 ],
                 'processorInformation' => [
-                    'authorizationCode' => $responseData['processorInformation']['authorizationCode'] ?? $customPaymentDetails['gateway_authorization_code'] ?? null,
+                    'approvalCode' => $responseData['processorInformation']['approvalCode'] ?? $customPaymentDetails['gateway_authorization_code'] ?? null,
                     'transactionId' => $responseData['processorInformation']['transactionId'] ?? $customPaymentDetails['gateway_reference'] ?? null,
                 ],
                 'tokenInformation' => [
@@ -451,6 +454,7 @@ class CyberSourceApiClient
             if($action === 'REAUTHORIZE') {
                 $mergedData['orderInformation']['amountDetails']['totalAmount'] = $mergedData['orderInformation']['amountDetails']['additionalAmount'] ?? [];
             }
+            $mergedData['statusCode'] = $response['statusCode'];
 
             $this->transactionLogger->logTransaction($logType, $mergedData, $orderTransactionId, $context, $uniqId);
 
@@ -920,17 +924,18 @@ class CyberSourceApiClient
                 'cybersource_payment_status' => $status,
                 'cybersource_payment_uniqid' => $uniqid,
                 'payment_id' => $responseData['clientReferenceInformation']['code'] ?? null,
-                'card_category' => $responseData['paymentInformation']['card']['type'] ?? null,
-                'payment_method_type' => $responseData['paymentInformation']['scheme'] ?? null,
+                'card_category' => $responseData['paymentInformation']['scheme'] ?? null,
+                'payment_method_type' => $responseData['paymentInformation']['tokenizedCard']['type'] ?? null,
                 'expiry_month' => $responseData['paymentInformation']['card']['expirationMonth'] ?? $expirationMonth,
                 'expiry_year' => $responseData['paymentInformation']['card']['expirationYear'] ?? $expirationYear,
                 'card_last_4' => isset($responseData['paymentInformation']['card']['number']) ? substr($responseData['paymentInformation']['card']['number'], -4) : null,
-                'gateway_authorization_code' => $responseData['processorInformation']['responseCode'] ?? null,
+                'gateway_authorization_code' => $responseData['processorInformation']['approvalCode'],
                 'gateway_token' => $responseData['tokenInformation']['paymentInstrument']['id'] ?? null,
                 'gateway_reference' => $responseData['processorInformation']['transactionId'] ?? null,
                 'uniqid' => $uniqid,
                 'amount' => $orderInfo['amountDetails']['totalAmount'] ?? null,
                 'currency' => $orderInfo['amountDetails']['currency'] ?? null,
+                'statusCode' => $response['statusCode'],
             ];
             if ($subscriptionId || $saveCard) {
                 $savedCards = $this->getSavedCards($context, $customerId);
@@ -944,6 +949,18 @@ class CyberSourceApiClient
                 $paymentData['card_last_4'] = $savedCard ? substr($savedCard['cardNumber'], -4) : $paymentData['card_last_4'];
                 $paymentData['expiry_year'] = $savedCard['expirationYear'] ?? $paymentData['expiry_year'];
                 $paymentData['expiry_month'] = $savedCard['expirationMonth'] ?? $paymentData['expiry_month'];
+            }
+            if(!$paymentData['card_last_4']){
+                for ($i = 0; $i < 3; $i++) {
+                    if ($i > 0) {
+                        sleep(2); // wait for 2 second before retrying
+                    }
+                    $transactionDetails = $this->retrieveTransaction($transactionId, []);
+                    if ($transactionDetails['statusCode'] === 200 && isset($transactionDetails['body']['paymentInformation']['card']['suffix'])) {
+                        $paymentData['card_last_4'] = substr($transactionDetails['body']['paymentInformation']['card']['suffix'], -4);
+                        break;
+                    }
+                }
             }
 
             switch ($status) {
@@ -1587,7 +1604,7 @@ class CyberSourceApiClient
                     ],
                 ],
                 'processorInformation' => [
-                    'authorizationCode' => $responseData['processorInformation']['authorizationCode'] ?? $customPaymentDetails['gateway_authorization_code'] ?? null,
+                    'approvalCode' => $responseData['processorInformation']['approvalCode'] ?? $customPaymentDetails['gateway_authorization_code'] ?? null,
                     'transactionId' => $responseData['processorInformation']['transactionId'] ?? $customPaymentDetails['gateway_reference'] ?? null,
                 ],
                 'tokenInformation' => [
@@ -1598,6 +1615,7 @@ class CyberSourceApiClient
                 'orderInformation' => $orderInformation
             ]);
 
+            $mergedData['statusCode'] = $response['statusCode'];
             // Log the transaction with merged data
             $this->transactionLogger->logTransaction($logType, $mergedData, $transaction->getId(), $context, $uniqId);
 

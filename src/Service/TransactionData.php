@@ -21,6 +21,7 @@ class TransactionData
     private ?string $uniqid;
     private ?string $amount;
     private ?string $currency;
+    private ?int $statusCode;
 
     public function __construct(
         string $type,
@@ -37,7 +38,8 @@ class TransactionData
         string $lastUpdate,
         ?string $uniqid = null,
         ?string $amount = null,
-        ?string $currency = null
+        ?string $currency = null,
+        ?int $statusCode = null
     ) {
         $this->type = $type;
         $this->transactionId = $transactionId;
@@ -54,6 +56,7 @@ class TransactionData
         $this->uniqid = $uniqid;
         $this->amount = $amount;
         $this->currency = $currency;
+        $this->statusCode = $statusCode;
     }
 
     public function toArray(): array
@@ -73,7 +76,8 @@ class TransactionData
             'last_update' => $this->lastUpdate,
             'uniqid' => $this->uniqid,
             'amount' => $this->amount,
-            'currency' => $this->currency
+            'currency' => $this->currency,
+            'status_code' => $this->statusCode,
         ];
     }
 }

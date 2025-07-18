@@ -1,4 +1,4 @@
-## [1.4.0] - 2025-07-18
+## [1.4.1] - 2025-07-18
 
 - **Cybersource Transaction Log Enhancements
   Updated logging for the following fields: PaymentId, Card Category, Payment Method Type, Card Last 4, Response Code, Gateway Authorization Code, Gateway Token, Gateway Reference.

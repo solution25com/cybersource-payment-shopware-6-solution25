@@ -952,6 +952,11 @@ class CyberSourceApiClient
                         break;
                     }
                 }
+
+                if(!$paymentData['gateway_token'])
+                {
+                    $paymentData['gateway_token'] = $savedCard['id'] ?? null;
+                }
                 $paymentData['card_last_4'] = $savedCard ? substr($savedCard['cardNumber'], -4) : $paymentData['card_last_4'];
                 $paymentData['expiry_year'] = $savedCard['expirationYear'] ?? $paymentData['expiry_year'];
                 $paymentData['expiry_month'] = $savedCard['expirationMonth'] ?? $paymentData['expiry_month'];

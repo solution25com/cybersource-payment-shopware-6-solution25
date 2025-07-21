@@ -51,7 +51,7 @@ class CyberSourceApiClient
     private OrderTransactionStateHandler $orderTransactionStateHandler;
     private StateMachineRegistry $stateMachineRegistry;
     private TransactionLogger $transactionLogger;
-
+    private AmountService $amountService;
     /**
      * @param EntityRepository<CustomerEntityCollection> $customerRepository
      * @param EntityRepository<OrderEntityCollection> $orderRepository
@@ -65,7 +65,8 @@ class CyberSourceApiClient
         OrderService                 $orderService,
         TransactionLogger            $transactionLogger,
         OrderTransactionStateHandler $orderTransactionStateHandler,
-        StateMachineRegistry         $stateMachineRegistry
+        StateMachineRegistry         $stateMachineRegistry,
+        AmountService                $amountService
     )
     {
         $this->configurationService = $configurationService;
@@ -79,6 +80,7 @@ class CyberSourceApiClient
         $this->baseUrl = $configurationService->getBaseUrl()->value;
         $this->orderTransactionStateHandler = $orderTransactionStateHandler;
         $this->stateMachineRegistry = $stateMachineRegistry;
+        $this->amountService = $amountService;
         $this->client = new Client([
             'base_uri' => $this->baseUrl,
             'timeout' => 10.0,
@@ -290,6 +292,7 @@ class CyberSourceApiClient
         $response = $this->executeRequest('Post', "/pts/v2/payments/{$transactionId}/captures", $payload, 'Capture Payment');
         $responseData = $response['body'];
         $responseData['statusCode'] = $response['statusCode'];
+        $responseData['id'] = $response['body']['id'] ?? $transactionId;
         $this->transactionLogger->logTransaction('Payment', $responseData, $orderTransactionId, $context);
         return $response;
     }
@@ -302,6 +305,7 @@ class CyberSourceApiClient
         $response = $this->executeRequest('Post', "/pts/v2/payments/{$transactionId}/reversals", $payload, 'Void Payment');
         $responseData = $response['body'];
         $responseData['statusCode'] = $response['statusCode'];
+        $responseData['id'] = $response['body']['id'] ?? $transactionId;
         $this->transactionLogger->logTransaction('Void', $responseData, $orderTransactionId, $context);
         return $response;
     }
@@ -314,6 +318,7 @@ class CyberSourceApiClient
         $response = $this->executeRequest('Post', "/pts/v2/payments/{$transactionId}/refunds", $payload, 'Refund Payment');
         $responseData = $response['body'];
         $responseData['statusCode'] = $response['statusCode'];
+        $responseData['id'] = $response['body']['id'] ?? $transactionId;
         $this->transactionLogger->logTransaction('Refund', $responseData, $orderTransactionId, $context);
         return $response;
     }
@@ -455,6 +460,7 @@ class CyberSourceApiClient
                 $mergedData['orderInformation']['amountDetails']['totalAmount'] = $mergedData['orderInformation']['amountDetails']['additionalAmount'] ?? [];
             }
             $mergedData['statusCode'] = $response['statusCode'];
+            $mergedData['id'] = $response['body']['id'] ?? $transactionId;
 
             $this->transactionLogger->logTransaction($logType, $mergedData, $orderTransactionId, $context, $uniqId);
 
@@ -555,12 +561,12 @@ class CyberSourceApiClient
             if (!$order) {
                 return new JsonResponse(['error' => 'Order not found'], 404);
             }
-            $amount = (string)round($order->getPrice()->getTotalPrice(), 2);
+            $amount = (string)$this->amountService->getAmount($order);
             $currency = $order->getCurrency();
             $currency = $currency instanceof CurrencyEntity ? $currency->getIsoCode() : $context->getCurrency()->getIsoCode();
         } else {
             $cart = $this->cartService->getCart($context->getToken(), $context);
-            $amount = (string)round($cart->getPrice()->getTotalPrice(), 2);
+            $amount = (string)$this->amountService->getAmount($cart);
             $currency = $context->getCurrency()->getIsoCode();
         }
         $uniqid = uniqid();
@@ -682,7 +688,7 @@ class CyberSourceApiClient
         }
         $customerId = $customer->getId();
         $billingAddress = $customer->getActiveBillingAddress();
-        $amount = (string)round($cart->getPrice()->getTotalPrice(), 2);
+        $amount = (string)$this->amountService->getAmount($cart);
         $currency = $context->getCurrency()->getIsoCode();
         if ($billTo) {
             $shortCode = $billTo['state'];
@@ -1616,6 +1622,7 @@ class CyberSourceApiClient
             ]);
 
             $mergedData['statusCode'] = $response['statusCode'];
+            $mergedData['id'] = $response['body']['id'] ?? $cybersourceTransactionId;
             // Log the transaction with merged data
             $this->transactionLogger->logTransaction($logType, $mergedData, $transaction->getId(), $context, $uniqId);
 

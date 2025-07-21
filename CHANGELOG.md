@@ -1,4 +1,9 @@
-- ## [1.4.3] - 2025-07-18
+## [1.4.4] - 2025-07-21
+
+- Introduced a dedicated service class for getAmount, making it easily extendable via decoration where needed.
+- Capturing of Request ID from the Cybersource response is now supported.
+
+## [1.4.3] - 2025-07-18
 
 - **Cybersource Transaction Log Enhancements
   Updated logging for the following fields: PaymentId, Card Category, Payment Method Type, Card Last 4, Response Code, Gateway Authorization Code, Gateway Token, Gateway Reference.

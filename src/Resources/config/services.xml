@@ -85,7 +85,9 @@
             <argument type="service" id="CyberSource\Shopware6\Service\TransactionLogger"/>
             <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler" />
             <argument type="service" id="Shopware\Core\System\StateMachine\StateMachineRegistry"/>
+            <argument type="service" id="CyberSource\Shopware6\Service\AmountService"/>
         </service>
+        <service id="CyberSource\Shopware6\Service\AmountService" />
         <service id="CyberSource\Shopware6\Service\TransactionLogger">
             <argument type="service" id="CyberSource\Shopware6\Service\OrderService"/>
         </service>

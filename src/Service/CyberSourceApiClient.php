@@ -285,6 +285,21 @@ class CyberSourceApiClient
     }
 
     /**
+     * Retrieve transaction details by transaction ID.
+     */
+    public function retrieveTransientToken(string $transientToken, array $payload): array
+    {
+        try {
+            return $this->executeRequest('GET', "/up/v1/payment-details/{$transientToken}", [], 'Retrieve Transaction');
+        } catch (\RuntimeException $e) {
+            return [
+                'statusCode' => 401,
+                'body' => []
+            ];
+        }
+    }
+
+    /**
      * Capture a payment.
      */
     public function capturePayment(string $transactionId, array $payload, string $orderTransactionId, Context $context): array
@@ -961,7 +976,13 @@ class CyberSourceApiClient
                 $paymentData['expiry_year'] = $savedCard['expirationYear'] ?? $paymentData['expiry_year'];
                 $paymentData['expiry_month'] = $savedCard['expirationMonth'] ?? $paymentData['expiry_month'];
             }
-            if(!$paymentData['card_last_4']){
+            if (!$paymentData['card_last_4'] && $transientTokenJwt) {
+                $transactionDetails = $this->retrieveTransientToken($transientTokenJwt, []);
+                if ($transactionDetails['statusCode'] === 200 && isset($transactionDetails['body']['paymentInformation']['card']['number'])) {
+                    $paymentData['card_last_4'] = substr($transactionDetails['body']['paymentInformation']['card']['number'], -4);
+                }
+            }
+            if (!$paymentData['card_last_4']) {
                 for ($i = 0; $i < 3; $i++) {
                     if ($i > 0) {
                         sleep(2); // wait for 2 second before retrying

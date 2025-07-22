@@ -1,3 +1,7 @@
+## [1.4.5] - 2025-07-22
+
+- Add method to retrieve transaction details and update card_last_4 logic for improved payment processing
+
 ## [1.4.4] - 2025-07-21
 
 - Introduced a dedicated service class for getAmount, making it easily extendable via decoration where needed.
@@ -81,7 +85,7 @@
 - CSS style fix .
 
 ---
-  
+
 ## [1.2.8] - 2025-06-01
 
 ### Fixed

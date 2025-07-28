@@ -1,3 +1,7 @@
+## [1.4.6] - 2025-07-28
+
+- Handling of payment method changes during checkout has been improved to ensure a smoother user experience.
+
 ## [1.4.5] - 2025-07-22
 
 - Add method to retrieve transaction details and update card_last_4 logic for improved payment processing

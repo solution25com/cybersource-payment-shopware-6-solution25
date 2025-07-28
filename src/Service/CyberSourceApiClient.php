@@ -950,7 +950,7 @@ class CyberSourceApiClient
                 'expiry_month' => $responseData['paymentInformation']['card']['expirationMonth'] ?? $expirationMonth,
                 'expiry_year' => $responseData['paymentInformation']['card']['expirationYear'] ?? $expirationYear,
                 'card_last_4' => isset($responseData['paymentInformation']['card']['number']) ? substr($responseData['paymentInformation']['card']['number'], -4) : null,
-                'gateway_authorization_code' => $responseData['processorInformation']['approvalCode'],
+                'gateway_authorization_code' => $responseData['processorInformation']['approvalCode'] ?? null,
                 'gateway_token' => $responseData['tokenInformation']['paymentInstrument']['id'] ?? null,
                 'gateway_reference' => $responseData['processorInformation']['transactionId'] ?? null,
                 'uniqid' => $uniqid,

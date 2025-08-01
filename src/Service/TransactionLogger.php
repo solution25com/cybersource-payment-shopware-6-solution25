@@ -33,36 +33,42 @@ class TransactionLogger
             paymentMethodType: $responseData['paymentInformation']['card']['brand'] ?? null,
             expiryMonth: $responseData['paymentInformation']['card']['expirationMonth'] ?? null,
             expiryYear: $responseData['paymentInformation']['card']['expirationYear'] ?? null,
-            cardLast4: isset($responseData['paymentInformation']['card']['number']) ? substr($responseData['paymentInformation']['card']['number'], -4) : null,
+            cardLast4: isset($responseData['paymentInformation']['card']['number']) ?
+                substr($responseData['paymentInformation']['card']['number'], -4) : null,
             gatewayAuthorizationCode: $responseData['processorInformation']['approvalCode'] ?? null,
             gatewayToken: $responseData['tokenInformation']['paymentInstrument']['id'] ?? null,
             gatewayReference: $responseData['processorInformation']['transactionId'] ?? null,
             lastUpdate: date('c'),
             uniqid: $uniqid,
-            amount: (string)$responseData['orderInformation']['amountDetails']['totalAmount'] ?? null,
+            amount: isset($responseData['orderInformation']['amountDetails']['totalAmount'])
+                ? (string)$responseData['orderInformation']['amountDetails']['totalAmount']
+                : null,
             currency: $responseData['orderInformation']['amountDetails']['currency'] ?? null,
             statusCode: $responseData['statusCode'] ?? null
         );
 
-        $this->orderService->updateOrderTransactionCustomFields($transactionData->toArray(), $orderTransactionId, $context);
+        $this->orderService->updateOrderTransactionCustomFields(
+            $transactionData->toArray(),
+            $orderTransactionId,
+            $context
+        );
     }
 
     public function logTransactionFromDataBag(
-        string  $type,
-        string  $paymentDataJson,
-        string  $orderTransactionId,
+        string $type,
+        string $paymentDataJson,
+        string $orderTransactionId,
         Context $context,
         ?string $uniqid = null
     ): void {
         $paymentData = json_decode($paymentDataJson, true);
         if (json_last_error() === JSON_ERROR_NONE) {
-
             $transactionData = new TransactionData(
                 type: $type,
                 transactionId: $paymentData['cybersource_transaction_id'],
                 paymentId: $this->generatePaymentId(),
                 cardCategory: $this->getCardCategory($paymentData['payment_method_type']),
-                paymentMethodType: $this->getPaymentMethodTypeText( $paymentData['payment_method_type']),
+                paymentMethodType: $this->getPaymentMethodTypeText($paymentData['payment_method_type']),
                 expiryMonth: $paymentData['expiry_month'],
                 expiryYear: $paymentData['expiry_year'],
                 cardLast4: $paymentData['card_last_4'],
@@ -76,7 +82,11 @@ class TransactionLogger
                 statusCode: $paymentData['statusCode'] ?? null
             );
 
-            $this->orderService->updateOrderTransactionCustomFields($transactionData->toArray(), $orderTransactionId, $context);
+            $this->orderService->updateOrderTransactionCustomFields(
+                $transactionData->toArray(),
+                $orderTransactionId,
+                $context
+            );
         }
     }
     private function generatePaymentId(): string
@@ -91,7 +101,7 @@ class TransactionLogger
         return str_contains($scheme, 'debit') ? 'DebitCard' : 'CreditCard';
     }
 
-    private function getPaymentMethodTypeText(mixed $payment_method_type)
+    private function getPaymentMethodTypeText(mixed $payment_method_type): string
     {
         return match ($payment_method_type) {
             '001' => 'Visa',
@@ -119,5 +129,4 @@ class TransactionLogger
             default => $payment_method_type,
         };
     }
-
 }

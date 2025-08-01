@@ -64,7 +64,8 @@ class OrderService
     public function getPaymentStatus(OrderTransactionEntity $orderTransaction): ?string
     {
         $stateMachineStateEntity = $orderTransaction->getStateMachineState();
-        return $stateMachineStateEntity instanceof StateMachineStateEntity ? $stateMachineStateEntity->getTechnicalName() : null;
+        return $stateMachineStateEntity instanceof StateMachineStateEntity ?
+            $stateMachineStateEntity->getTechnicalName() : null;
     }
 
     public function transformLineItems(OrderLineItemCollection $orderLineItems): array
@@ -80,8 +81,10 @@ class OrderService
         )->toArray();
     }
 
-    public function getTransactionFromCustomFieldsDetails(string $transactionId, Context $context): ?OrderTransactionEntity
-    {
+    public function getTransactionFromCustomFieldsDetails(
+        string $transactionId,
+        Context $context
+    ): ?OrderTransactionEntity {
         $criteria = new Criteria();
         $criteria->addFilter(new EqualsFilter(
             'customFields.cybersource_payment_details.transaction_id',
@@ -89,8 +92,11 @@ class OrderService
         ));
         return $this->orderTransactionRepository->search($criteria, $context)->first();
     }
-    public function updateOrderTransactionCustomFields(array $newTransaction, string $orderTransactionId, Context $context): void
-    {
+    public function updateOrderTransactionCustomFields(
+        array $newTransaction,
+        string $orderTransactionId,
+        Context $context
+    ): void {
         $orderTransaction = $this->getOrderTransaction($orderTransactionId, $context);
         if (!$orderTransaction instanceof OrderTransactionEntity) {
             throw new OrderTransactionNotFoundException(

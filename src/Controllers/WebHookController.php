@@ -44,7 +44,10 @@ class WebHookController extends AbstractController
         $payload = $dataBag->all();
         if (!$payload) {
             $this->logger->error('Invalid webhook payload received');
-            return new JsonResponse(['status' => 'error', 'message' => 'Invalid payload'], 400);
+            return new JsonResponse(
+                ['status' => 'error', 'message' => 'Invalid payload'],
+                400
+            );
         }
 
         $this->logger->info('Webhook received', ['payload' => $payload]);
@@ -53,7 +56,10 @@ class WebHookController extends AbstractController
         $rawContent = $request->getContent();
         if (!$this->verifySignature($rawContent, $signature)) {
             $this->logger->error('Invalid webhook signature');
-            return new JsonResponse(['status' => 'error', 'message' => 'Invalid signature'], 401);
+            return new JsonResponse(
+                ['status' => 'error', 'message' => 'Invalid signature'],
+                401
+            );
         }
 
         $eventType = $payload['eventType'] ?? null;
@@ -71,8 +77,14 @@ class WebHookController extends AbstractController
         $orderTransaction = $this->orderService->getTransactionFromCustomFieldsDetails($transactionId, $context);
 
         if (!$orderTransaction) {
-            $this->logger->error('Order transaction not found for transaction ID', ['transactionId' => $transactionId]);
-            return new JsonResponse(['status' => 'error', 'message' => 'Order transaction not found'], 404);
+            $this->logger->error(
+                'Order transaction not found for transaction ID',
+                ['transactionId' => $transactionId]
+            );
+            return new JsonResponse(
+                ['status' => 'error', 'message' => 'Order transaction not found'],
+                404
+            );
         }
 
         $orderTransactionId = $orderTransaction->getId();
@@ -90,11 +102,13 @@ class WebHookController extends AbstractController
             'payments.captures.reject' => ['state' => 'failed', 'transition' => 'decline'],
             'payments.refunds.accept' => ['state' => 'refunded', 'transition' => 'refund'],
             'payments.refunds.reject' => ['state' => 'failed', 'transition' => 'decline'],
-            'payments.refunds.partial.approval' => ['state' => 'partially_refunded', 'transition' => 'partial_refunded'],
+            'payments.refunds.partial.approval' =>
+                ['state' => 'partially_refunded', 'transition' => 'partial_refunded'],
             'payments.credits.accept' => ['state' => 'refunded', 'transition' => 'refund'],
             'payments.credits.review' => ['state' => 'pending_review', 'transition' => 'pending_review'],
             'payments.credits.reject' => ['state' => 'failed', 'transition' => 'decline'],
-            'payments.credits.partial.approval' => ['state' => 'partially_refunded', 'transition' => 'partial_refunded'],
+            'payments.credits.partial.approval' =>
+                ['state' => 'partially_refunded', 'transition' => 'partial_refunded'],
             'payments.voids.accept' => ['state' => 'cancelled', 'transition' => 'cancel'],
             'payments.voids.reject' => ['state' => 'failed', 'transition' => 'decline'],
             'risk.profile.decision.review' => ['state' => 'pending_review', 'transition' => 'pending_review'],
@@ -118,8 +132,12 @@ class WebHookController extends AbstractController
         return new JsonResponse(['status' => 'success']);
     }
 
-    private function updatePaymentStatus(string $orderTransactionId, string $newState, string $transitionName, Context $context): void
-    {
+    private function updatePaymentStatus(
+        string $orderTransactionId,
+        string $newState,
+        string $transitionName,
+        Context $context
+    ): void {
         try {
             $transition = new Transition(
                 'order_transaction',

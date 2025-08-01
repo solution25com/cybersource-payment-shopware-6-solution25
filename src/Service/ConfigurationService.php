@@ -124,7 +124,7 @@ class ConfigurationService
      *
      * @return HTTP|JWT|Oauth
      */
-    public function getSignatureContract() : HTTP|JWT|Oauth
+    public function getSignatureContract(): HTTP|JWT|Oauth
     {
         // TODO: Currently, we are supporting the HTTP connection method only.
         // Later on, retrieve it from the configuration.

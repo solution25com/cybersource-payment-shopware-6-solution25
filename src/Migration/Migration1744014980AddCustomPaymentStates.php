@@ -82,8 +82,11 @@ class Migration1744014980AddCustomPaymentStates extends MigrationStep
     private function addStateTransitions(Connection $connection, string $stateMachineId): void
     {
         $existingTransitions = $connection->fetchAllAssociative(
-            'SELECT action_name, from_state_id, to_state_id FROM state_machine_transition WHERE state_machine_id = :stateMachineId',
-            ['stateMachineId' => $stateMachineId]
+            'SELECT action_name, from_state_id, to_state_id ' .
+            'FROM state_machine_transition WHERE state_machine_id = :stateMachineId',
+            [
+                'stateMachineId' => $stateMachineId,
+            ]
         );
 
         $existingTransitionKeys = array_map(function ($transition) {
@@ -91,28 +94,48 @@ class Migration1744014980AddCustomPaymentStates extends MigrationStep
         }, $existingTransitions);
 
         $pendingReviewStateId = $connection->fetchOne(
-            'SELECT id FROM state_machine_state WHERE technical_name = :technicalName AND state_machine_id = :stateMachineId',
-            ['technicalName' => 'pending_review', 'stateMachineId' => $stateMachineId]
+            'SELECT id FROM state_machine_state ' .
+            'WHERE technical_name = :technicalName AND state_machine_id = :stateMachineId',
+            [
+                'technicalName' => 'pending_review',
+                'stateMachineId' => $stateMachineId,
+            ]
         );
 
         $preReviewStateId = $connection->fetchOne(
-            'SELECT id FROM state_machine_state WHERE technical_name = :technicalName AND state_machine_id = :stateMachineId',
-            ['technicalName' => 'pre_review', 'stateMachineId' => $stateMachineId]
+            'SELECT id FROM state_machine_state ' .
+            'WHERE technical_name = :technicalName AND state_machine_id = :stateMachineId',
+            [
+                'technicalName' => 'pre_review',
+                'stateMachineId' => $stateMachineId,
+            ]
         );
 
         $openStateId = $connection->fetchOne(
-            'SELECT id FROM state_machine_state WHERE technical_name = :technicalName AND state_machine_id = :stateMachineId',
-            ['technicalName' => 'open', 'stateMachineId' => $stateMachineId]
+            'SELECT id FROM state_machine_state ' .
+            'WHERE technical_name = :technicalName AND state_machine_id = :stateMachineId',
+            [
+                'technicalName' => 'open',
+                'stateMachineId' => $stateMachineId,
+            ]
         );
 
         $paidStateId = $connection->fetchOne(
-            'SELECT id FROM state_machine_state WHERE technical_name = :technicalName AND state_machine_id = :stateMachineId',
-            ['technicalName' => 'paid', 'stateMachineId' => $stateMachineId]
+            'SELECT id FROM state_machine_state ' .
+            'WHERE technical_name = :technicalName AND state_machine_id = :stateMachineId',
+            [
+                'technicalName' => 'paid',
+                'stateMachineId' => $stateMachineId,
+            ]
         );
 
         $failedStateId = $connection->fetchOne(
-            'SELECT id FROM state_machine_state WHERE technical_name = :technicalName AND state_machine_id = :stateMachineId',
-            ['technicalName' => 'failed', 'stateMachineId' => $stateMachineId]
+            'SELECT id FROM state_machine_state ' .
+            'WHERE technical_name = :technicalName AND state_machine_id = :stateMachineId',
+            [
+                'technicalName' => 'failed',
+                'stateMachineId' => $stateMachineId,
+            ]
         );
 
         $transitions = [
@@ -155,13 +178,15 @@ class Migration1744014980AddCustomPaymentStates extends MigrationStep
         ];
 
         foreach ($transitions as $transition) {
-            $transitionKey = $transition['action_name'] . '-' . $transition['from_state_id'] . '-' . $transition['to_state_id'];
+            $transitionKey =
+                $transition['action_name'] . '-' . $transition['from_state_id'] . '-' . $transition['to_state_id'];
             if (in_array($transitionKey, $existingTransitionKeys)) {
                 continue;
             }
 
             $connection->executeStatement(
-                'INSERT INTO state_machine_transition (id, state_machine_id, action_name, from_state_id, to_state_id, created_at)
+                'INSERT INTO state_machine_transition ' .
+                '(id, state_machine_id, action_name, from_state_id, to_state_id, created_at)
                  VALUES (:id, :stateMachineId, :actionName, :fromStateId, :toStateId, NOW())',
                 [
                     'id' => $this->generateUuid(),

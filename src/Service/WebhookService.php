@@ -40,7 +40,11 @@ class WebhookService
 
         try {
             $response = $this->apiClient->createKey($payload);
-            if ($response['statusCode'] === 201 && isset($response['body']['status']) && $response['body']['status'] === 'SUCCESS') {
+            if (
+                $response['statusCode'] === 201 &&
+                isset($response['body']['status']) &&
+                $response['body']['status'] === 'SUCCESS'
+            ) {
                 $keyId = $response['body']['keyInformation']['keyId'];
                 $key = $response['body']['keyInformation']['key'];
                 $this->systemConfigService->set('CyberSourceShopware6.config.sharedSecretKeyId', $keyId);

@@ -22,7 +22,6 @@ final class CreditCard implements SynchronousPaymentHandlerInterface
     public function __construct(
         private readonly ConfigurationService $configurationService,
         private readonly OrderTransactionStateHandler $orderTransactionStateHandler,
-        private readonly OrderService $orderService,
         private readonly StateMachineRegistry $stateMachineRegistry,
         private readonly TransactionLogger $transactionLogger,
     ) {
@@ -40,13 +39,21 @@ final class CreditCard implements SynchronousPaymentHandlerInterface
         $uniqid = $dataBag->get('cybersource_payment_uniqid');
         if (!$transactionId) {
             $this->setPaymentStatus($orderTransactionId, 'fail', $context);
-            throw new APIException($orderTransactionId, 'MISSING_TRANSACTION_ID', 'Missing CyberSource transaction ID.');
+            throw new APIException(
+                $orderTransactionId,
+                'MISSING_TRANSACTION_ID',
+                'Missing CyberSource transaction ID.'
+            );
         }
 
         $status = $dataBag->get('cybersource_payment_status');
         if (!$status) {
             $this->setPaymentStatus($orderTransactionId, 'fail', $context);
-            throw new APIException($orderTransactionId, 'MISSING_PAYMENT_STATUS', 'Missing CyberSource payment status.');
+            throw new APIException(
+                $orderTransactionId,
+                'MISSING_PAYMENT_STATUS',
+                'Missing CyberSource payment status.'
+            );
         }
         $cybersource_payment_data = $dataBag->get('cybersource_payment_data');
         $this->transactionLogger->logTransactionFromDataBag(

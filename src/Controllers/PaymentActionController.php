@@ -30,12 +30,11 @@ class PaymentActionController extends AbstractController
     private TranslatorInterface $translator;
 
     public function __construct(
-        OrderService                 $orderService,
-        CyberSourceApiClient         $apiClient,
+        OrderService $orderService,
+        CyberSourceApiClient $apiClient,
         OrderTransactionStateHandler $orderTransactionStateHandler,
-        TranslatorInterface          $translator
-    )
-    {
+        TranslatorInterface $translator
+    ) {
         $this->orderService = $orderService;
         $this->apiClient = $apiClient;
         $this->orderTransactionStateHandler = $orderTransactionStateHandler;
@@ -56,7 +55,9 @@ class PaymentActionController extends AbstractController
         if ($amount <= 0) {
             throw PaymentException::capturePreparedException(
                 $orderId,
-                $this->translator->trans('cybersource_shopware6.exception.CYBERSOURCE_INVALID_AMOUNT: Invalid amount specified for capture.')
+                $this->translator->trans(
+                    'cybersource_shopware6.exception.CYBERSOURCE_INVALID_AMOUNT: Invalid amount specified for capture.'
+                )
             );
         }
 
@@ -78,7 +79,8 @@ class PaymentActionController extends AbstractController
             throw new \RuntimeException('Currency not found for order.');
         }
 
-        $cybersourceTransactionId = $this->orderService->getCyberSourceTransactionId($orderTransaction->getCustomFields());
+        $cybersourceTransactionId =
+            $this->orderService->getCyberSourceTransactionId($orderTransaction->getCustomFields());
         if (!$cybersourceTransactionId) {
             return new JsonResponse(['error' => 'No CyberSource transaction ID found'], 404);
         }
@@ -100,7 +102,13 @@ class PaymentActionController extends AbstractController
         ];
 
         try {
-            $response = $this->apiClient->processPaymentAction('CAPTURE', $cybersourceTransactionId, $payload, $orderId, $context);
+            $response = $this->apiClient->processPaymentAction(
+                'CAPTURE',
+                $cybersourceTransactionId,
+                $payload,
+                $orderId,
+                $context
+            );
             if ($response['status'] === 'success') {
                 $templateVariables = new ArrayStruct([
                     'source' => 'CyberSourceService'
@@ -110,7 +118,11 @@ class PaymentActionController extends AbstractController
             }
             return new JsonResponse($response);
         } catch (\Exception $exception) {
-            throw new APIException($cybersourceTransactionId, 'API_ERROR', $exception->getMessage());
+            throw new APIException(
+                $cybersourceTransactionId,
+                'API_ERROR',
+                $exception->getMessage()
+            );
         }
     }
 
@@ -150,7 +162,8 @@ class PaymentActionController extends AbstractController
             throw new \RuntimeException('Currency not found for order.');
         }
 
-        $cybersourceTransactionId = $this->orderService->getCyberSourceTransactionId($orderTransaction->getCustomFields());
+        $cybersourceTransactionId =
+            $this->orderService->getCyberSourceTransactionId($orderTransaction->getCustomFields());
         if (!$cybersourceTransactionId) {
             return new JsonResponse(['error' => 'No CyberSource transaction ID found'], 404);
         }
@@ -172,7 +185,13 @@ class PaymentActionController extends AbstractController
         ];
 
         try {
-            $response = $this->apiClient->processPaymentAction('VOID', $cybersourceTransactionId, $payload, $orderId, $context);
+            $response = $this->apiClient->processPaymentAction(
+                'VOID',
+                $cybersourceTransactionId,
+                $payload,
+                $orderId,
+                $context
+            );
             if ($response['status'] === 'success') {
                 $templateVariables = new ArrayStruct([
                     'source' => 'CyberSourceService'
@@ -182,7 +201,11 @@ class PaymentActionController extends AbstractController
             }
             return new JsonResponse($response);
         } catch (\Exception $exception) {
-            throw new APIException($cybersourceTransactionId, 'API_ERROR', $exception->getMessage());
+            throw new APIException(
+                $cybersourceTransactionId,
+                'API_ERROR',
+                $exception->getMessage()
+            );
         }
     }
 
@@ -222,7 +245,8 @@ class PaymentActionController extends AbstractController
             throw new \RuntimeException('Currency not found for order.');
         }
 
-        $cybersourceTransactionId = $this->orderService->getCyberSourceTransactionId($orderTransaction->getCustomFields());
+        $cybersourceTransactionId =
+            $this->orderService->getCyberSourceTransactionId($orderTransaction->getCustomFields());
         if (!$cybersourceTransactionId) {
             return new JsonResponse(['error' => 'No CyberSource transaction ID found'], 404);
         }
@@ -244,7 +268,13 @@ class PaymentActionController extends AbstractController
         ];
 
         try {
-            $response = $this->apiClient->processPaymentAction('REFUND', $cybersourceTransactionId, $payload, $orderId, $context);
+            $response = $this->apiClient->processPaymentAction(
+                'REFUND',
+                $cybersourceTransactionId,
+                $payload,
+                $orderId,
+                $context
+            );
             if ($response['status'] === 'success') {
                 $templateVariables = new ArrayStruct([
                     'source' => 'CyberSourceService'
@@ -254,7 +284,11 @@ class PaymentActionController extends AbstractController
             }
             return new JsonResponse($response);
         } catch (\Exception $exception) {
-            throw new APIException($cybersourceTransactionId, 'API_ERROR', $exception->getMessage());
+            throw new APIException(
+                $cybersourceTransactionId,
+                'API_ERROR',
+                $exception->getMessage()
+            );
         }
     }
 
@@ -294,7 +328,8 @@ class PaymentActionController extends AbstractController
             throw new \RuntimeException('Currency not found for order.');
         }
 
-        $cybersourceTransactionId = $this->orderService->getCyberSourceTransactionId($orderTransaction->getCustomFields());
+        $cybersourceTransactionId =
+            $this->orderService->getCyberSourceTransactionId($orderTransaction->getCustomFields());
         if (!$cybersourceTransactionId) {
             return new JsonResponse(['error' => 'No CyberSource transaction ID found'], 404);
         }
@@ -325,7 +360,13 @@ class PaymentActionController extends AbstractController
         ];
 
         try {
-            $response = $this->apiClient->processPaymentAction('REAUTHORIZE', $cybersourceTransactionId, $payload, $orderId, $context);
+            $response = $this->apiClient->processPaymentAction(
+                'REAUTHORIZE',
+                $cybersourceTransactionId,
+                $payload,
+                $orderId,
+                $context
+            );
             if ($response['status'] === 'success') {
                 $templateVariables = new ArrayStruct([
                     'source' => 'CyberSourceService'
@@ -334,7 +375,11 @@ class PaymentActionController extends AbstractController
             }
             return new JsonResponse($response);
         } catch (\Exception $exception) {
-            throw new APIException($cybersourceTransactionId, 'API_ERROR', $exception->getMessage());
+            throw new APIException(
+                $cybersourceTransactionId,
+                'API_ERROR',
+                $exception->getMessage()
+            );
         }
     }
 }

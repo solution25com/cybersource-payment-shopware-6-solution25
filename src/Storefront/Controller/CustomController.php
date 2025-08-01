@@ -25,25 +25,45 @@ class CustomController extends StorefrontController
         $this->genericPageLoader = $genericPageLoader;
         $this->apiClient = $cybersourceApiClient;
     }
-    #[Route(path: '/cybersource/capture-context', name: 'custom.capture_context', methods: ['GET'], defaults: ['_routeScope' => ['storefront']])]
+    #[Route(
+        path: '/cybersource/capture-context',
+        name: 'custom.capture_context',
+        methods: ['GET'],
+        defaults: ['_routeScope' => ['storefront']]
+    )]
     public function getCaptureContext(): JsonResponse
     {
         return $this->apiClient->getCaptureContext();
     }
 
-    #[Route(path: '/cybersource/authorize-payment', name: 'custom.authorize_payment', methods: ['POST'], defaults: ['_routeScope' => ['storefront']])]
+    #[Route(
+        path: '/cybersource/authorize-payment',
+        name: 'custom.authorize_payment',
+        methods: ['POST'],
+        defaults: ['_routeScope' => ['storefront']]
+    )]
     public function authorizePayment(Request $request, SalesChannelContext $context): JsonResponse
     {
         return $this->apiClient->authorizePayment($request, $context);
     }
 
-    #[Route(path: '/cybersource/proceed-authentication', name: 'custom.proceed_authentication', methods: ['POST'], defaults: ['_routeScope' => ['storefront']])]
+    #[Route(
+        path: '/cybersource/proceed-authentication',
+        name: 'custom.proceed_authentication',
+        methods: ['POST'],
+        defaults: ['_routeScope' => ['storefront']]
+    )]
     public function proceedAuthentication(Request $request, SalesChannelContext $context): JsonResponse
     {
         return $this->apiClient->proceedAuthentication($request, $context);
     }
 
-    #[Route(path: '/cybersource/3ds-callback', name: 'custom.3ds_callback', methods: ['POST'], defaults: ['_routeScope' => ['storefront']])]
+    #[Route(
+        path: '/cybersource/3ds-callback',
+        name: 'custom.3ds_callback',
+        methods: ['POST'],
+        defaults: ['_routeScope' => ['storefront']]
+    )]
     public function handle3dsCallback(Request $request, SalesChannelContext $context): Response
     {
         return $this->apiClient->handle3dsCallback($request, $context);
@@ -59,7 +79,11 @@ class CustomController extends StorefrontController
         return new JsonResponse($this->apiClient->getSavedCards($context));
     }
 
-    #[Route(path: '/account/cybersource/saved-cards', name: 'frontend.cybersource.saved_cards', methods: ['GET'])]
+    #[Route(
+        path: '/account/cybersource/saved-cards',
+        name: 'frontend.cybersource.saved_cards',
+        methods: ['GET']
+    )]
     public function savedCards(Request $request, SalesChannelContext $context): Response
     {
         $customer = $context->getCustomer();
@@ -78,13 +102,21 @@ class CustomController extends StorefrontController
         return $response;
     }
 
-    #[Route(path: '/account/cybersource/add-card', name: 'frontend.cybersource.add_card', methods: ['POST'])]
+    #[Route(
+        path: '/account/cybersource/add-card',
+        name: 'frontend.cybersource.add_card',
+        methods: ['POST']
+    )]
     public function addCard(Request $request, SalesChannelContext $context): JsonResponse
     {
         return $this->apiClient->addCard($request, $context);
     }
 
-    #[Route(path: '/account/cybersource/delete-card', name: 'frontend.cybersource.delete_card', methods: ['POST'])]
+    #[Route(
+        path: '/account/cybersource/delete-card',
+        name: 'frontend.cybersource.delete_card',
+        methods: ['POST']
+    )]
     public function deleteCard(Request $request, SalesChannelContext $context): Response
     {
         $this->apiClient->deleteCard($request, $context);

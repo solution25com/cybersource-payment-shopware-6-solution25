@@ -68,7 +68,7 @@
         <div class="cards-container">
             {% for card in cards %}
                 {% set cardType = cardTypeMap[card.type] ?? card.type %}
-                <div class="credit-card {{ cardType|lower }}" data-payment-profile-id="{{ card.id }}">
+                <div class="cybersource-credit-card {{ cardType|lower }}" data-payment-profile-id="{{ card.id }}">
                     <div class="card-header">
                         <span class="card-type">
                             {% if cardImages[cardType] is defined %}
@@ -82,6 +82,13 @@
                     </div>
                     <div class="card-details">
                         <span>{{ 'cybersource_shopware6.savedCards.expDate' | trans }} {{ card.expirationMonth }}/{{ card.expirationYear }}</span>
+                    </div>
+                    <div class="billing-state">
+                        <span>
+                            {% if card.billingAddress.administrativeArea is not empty %}
+                                {{ 'cybersource_shopware6.savedCards.billingState' | trans }} {{ card.billingAddress.administrativeArea }}
+                            {% endif %}
+                        </span>
                     </div>
                     <div class="card-actions">
                         <form method="post" action="{{ path('frontend.cybersource.delete_card') }}" style="display:inline;">

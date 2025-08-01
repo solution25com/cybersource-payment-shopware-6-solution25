@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css?family=Open+Sans&display=swap");
 #error-message {
   font-size: 12px;
   font-style: normal;
@@ -5,28 +6,34 @@
   line-height: 14px;
   border-radius: 4px;
 }
+
 #error-message .error-alert {
   display: flex;
   flex-direction: row;
   align-items: center;
 }
+
 #error-message .error-alert p {
   width: 90%;
   margin: 0;
   padding: 4px 8px;
 }
+
 #error-message .error-alert .svg-icon {
   padding: 0 10px;
   border-radius: 4px;
 }
+
 #error-message .error-alert .svg-icon .icon-alert {
   color: transparent;
   margin-right: 0;
   margin-left: 0;
 }
+
 #error-message .error-alert .svg-icon .icon-alert svg {
   height: 49px;
 }
+
 .form-container {
   background-color: #fff;
   border-radius: 8px;
@@ -34,9 +41,11 @@
   margin: 0 auto;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
+
 .form-container .form-details-card-name {
   padding-bottom: 12px;
 }
+
 .form-container .form-details-card-name p {
   font-size: 14px;
   font-style: normal;
@@ -44,6 +53,7 @@
   line-height: normal;
   margin-bottom: 4px;
 }
+
 .authnetLoader {
   width: 48px;
   height: 48px;
@@ -54,9 +64,14 @@
   box-sizing: border-box;
   animation: rotation 1s linear infinite;
 }
+
 @keyframes rotation {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 .cards-container {
   display: flex;
@@ -64,14 +79,17 @@
   gap: 20px;
   margin: 20px 0;
 }
+
 .pageTitle {
   text-align: center;
   margin-top: 20px;
   font-size: 40px;
 }
+
 .form-group {
   margin-bottom: 15px;
 }
+
 .formInner {
   width: 500px;
   max-width: 100%;
@@ -80,6 +98,7 @@
   justify-content: space-between;
   margin: 20px auto 20px 0;
 }
+
 @media (max-width: 767.98px) {
   .formInner {
     flex-direction: column;
@@ -104,13 +123,16 @@
   justify-content: center;
   min-width: 200px;
 }
+
 #payButton:hover {
   background-color: #D72828;
   border-color: #D72828;
 }
+
 #payButton:active {
   opacity: 0.7;
 }
+
 .payment-field {
   border-radius: 2px;
   width: 48%;
@@ -120,9 +142,11 @@
   transition: 200ms;
   height: 38px;
 }
+
 .payment-field:hover {
   box-shadow: 0 2px 4px #dddddd;
 }
+
 .payment-field input {
   border: 3px solid #ffffff;
   width: 100%;
@@ -130,23 +154,28 @@
   padding: 4px 8px;
   font-size: 16px !important;
 }
+
 .payment-field input:focus {
   border: 3px solid #3e79db;
   outline: none !important;
 }
+
 #payment-fields {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
 }
+
 #ccnumber {
   width: 100%;
   font-size: 24px;
 }
+
 #ccexp,
 #cvv {
   font-size: 20px;
 }
+
 .cybersource-credit-card {
   width: 320px;
   height: 190px;
@@ -155,16 +184,18 @@
   border-radius: 12px;
   padding: 20px;
   position: relative;
-  font-family: 'Arial', sans-serif;
+  font-family: "Arial", sans-serif;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s ease;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
+
 .cybersource-credit-card:hover {
   transform: translateY(-5px);
 }
+
 .cybersource-credit-card::before {
   content: "";
   width: 50px;
@@ -176,21 +207,27 @@
   right: 20px;
   box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
 }
+
 .cybersource-credit-card.visa {
   background: linear-gradient(135deg, #1427a5 0%, #001f67 100%);
 }
+
 .cybersource-credit-card.mastercard {
   background: linear-gradient(135deg, #ff6a00 0%, #ee0979 100%);
 }
+
 .cybersource-credit-card.amex {
   background: linear-gradient(135deg, #016fd0 0%, #00a4e4 100%);
 }
+
 .cybersource-credit-card.discover {
   background: linear-gradient(135deg, #ff6600 0%, #ff9900 100%);
 }
+
 .cybersource-credit-card.unknown {
   background: linear-gradient(135deg, #444 0%, #222 100%);
 }
+
 .cybersource-credit-card .card-header {
   display: flex;
   justify-content: space-between;
@@ -198,12 +235,14 @@
   font-size: 18px;
   font-weight: bold;
 }
+
 .cybersource-credit-card .card-number {
   font-size: 20px;
   letter-spacing: 2px;
   margin: 5px 0;
   font-weight: bold;
 }
+
 .cybersource-credit-card .card-details {
   display: flex;
   justify-content: space-between;
@@ -218,15 +257,18 @@
   font-weight: bold;
   margin-bottom: 10px;
 }
+
 .cybersource-credit-card .card-actions {
   position: absolute;
   bottom: 10px;
   right: 10px;
 }
+
 .cybersource-credit-card .card-actions .delete-card-btn {
   color: #fff;
   border: 1px solid #fff;
 }
+
 .delete-card-btn {
   display: inline-flex;
   width: fit-content;
@@ -240,6 +282,7 @@
   height: 32px;
   background: transparent;
 }
+
 #addCardButton,
 #saveCardButton {
   display: inline-flex;
@@ -254,12 +297,14 @@
   height: 32px;
   background: #D72828;
 }
+
 .card-icon {
   width: fit-content;
   max-width: 35px;
   object-fit: contain;
   margin-right: 8px;
 }
+
 #addCardIframe {
   border: none;
   width: 100%;
@@ -268,17 +313,17 @@
   margin: 0 auto;
   display: block;
 }
-.payment-form {
-  &.cybersource-payment{
-    max-width: 400px;
-    margin: 20px auto;
-    padding: 20px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    font-family: Arial, sans-serif;
-  }
+
+.payment-form.cybersource-payment {
+  max-width: 400px;
+  margin: 20px auto;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  font-family: Arial, sans-serif;
 }
+
 .cybersource-payment input,
 .cybersource-payment .microform-field,
 .cybersource-payment select {
@@ -290,6 +335,7 @@
   box-sizing: border-box;
   height: 40px;
 }
+
 #paymentForm input, .microform-field, select {
   width: 100%;
   padding: 8px;
@@ -299,23 +345,27 @@
   box-sizing: border-box;
   height: 40px;
 }
+
 #step_up_iframe {
   margin-top: 20px;
   border: 1px solid #ddd;
 }
+
 .error-message {
   color: #dc3545;
   font-size: 12px;
   margin-top: 5px;
   display: none;
 }
+
 /* Wrapper */
 .form-group.save-card {
   display: flex;
   align-items: center;
   margin-bottom: 15px;
 }
-.form-group.save-card input[type="checkbox"] {
+
+.form-group.save-card input[type=checkbox] {
   -webkit-appearance: none;
   appearance: none;
   width: 18px;
@@ -326,10 +376,12 @@
   position: relative;
   transition: border-color 0.2s ease, background-color 0.2s ease;
 }
-.form-group.save-card input[type="checkbox"]:hover {
+
+.form-group.save-card input[type=checkbox]:hover {
   border-color: #007bff;
 }
-.form-group.save-card input[type="checkbox"]::after {
+
+.form-group.save-card input[type=checkbox]::after {
   content: "";
   position: absolute;
   top: 1px;
@@ -342,14 +394,17 @@
   opacity: 0;
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
-.form-group.save-card input[type="checkbox"]:checked {
+
+.form-group.save-card input[type=checkbox]:checked {
   background-color: #007bff;
   border-color: #007bff;
 }
-.form-group.save-card input[type="checkbox"]:checked::after {
+
+.form-group.save-card input[type=checkbox]:checked::after {
   transform: rotate(45deg) scale(1);
   opacity: 1;
 }
+
 .form-group.save-card label {
   margin-left: 8px;
   font-size: 14px;
@@ -357,71 +412,74 @@
   cursor: pointer;
   user-select: none;
 }
+
 #newCardForm {
   max-width: 400px;
 }
-#billingAddressSection h3{
+
+#billingAddressSection h3 {
   margin-bottom: 15px;
   margin-top: 15px;
 }
-.cybersource-payment,#paymentForm{
-  .form-check-input[type="radio"]{
-    max-width:16px;
-    max-height:16px;
-  }
-  label {
-    display: block;
-    font-size: 14px;
-    margin-bottom: 5px;
-    color: #333;
-  }
-  .expiry-group {
-    display: flex;
-    gap: 10px;
-  }
-  .expiry-group input {
-    width: 50%;
-  }
-  .pay-btn {
-    display: block;
-    width: 100%;
-    padding: 12px;
-    font-size: 16px;
-    color: #fff;
-    background-color: #007bff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-  }
-  .cybersource-payment .pay-btn:hover {
-    background-color: #0056b3;
-  }
-  .saved-cards-section {
-    margin-bottom: 20px;
-  }
-  .error {
-    border-color: #dc3545;
-  }
-  .form-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
-    margin-bottom: 20px;
-  }
-  .error-message {
-    color: red;
-    font-size: 0.9em;
-    margin-top: 5px;
-  }
-  @media (max-width: 768px) {
-    .form-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-  @media (max-width: 500px) {
-    .form-grid {
-      grid-template-columns: 1fr;
-    }
+
+.cybersource-payment .form-check-input[type=radio], #paymentForm .form-check-input[type=radio] {
+  max-width: 16px;
+  max-height: 16px;
+}
+.cybersource-payment label, #paymentForm label {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 5px;
+  color: #333;
+}
+.cybersource-payment .expiry-group, #paymentForm .expiry-group {
+  display: flex;
+  gap: 10px;
+}
+.cybersource-payment .expiry-group input, #paymentForm .expiry-group input {
+  width: 50%;
+}
+.cybersource-payment .pay-btn, #paymentForm .pay-btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  color: #fff;
+  background-color: #007bff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+.cybersource-payment .cybersource-payment .pay-btn:hover, #paymentForm .cybersource-payment .pay-btn:hover {
+  background-color: #0056b3;
+}
+.cybersource-payment .saved-cards-section, #paymentForm .saved-cards-section {
+  margin-bottom: 20px;
+}
+.cybersource-payment .error, #paymentForm .error {
+  border-color: #dc3545;
+}
+.cybersource-payment .form-grid, #paymentForm .form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.cybersource-payment .error-message, #paymentForm .error-message {
+  color: red;
+  font-size: 0.9em;
+  margin-top: 5px;
+}
+@media (max-width: 768px) {
+  .cybersource-payment .form-grid, #paymentForm .form-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
+@media (max-width: 500px) {
+  .cybersource-payment .form-grid, #paymentForm .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/*# sourceMappingURL=base.css.map */

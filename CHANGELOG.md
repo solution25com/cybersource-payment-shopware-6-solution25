@@ -1,3 +1,7 @@
+## [1.4.7] - 2025-08-01
+
+- Refactor CyberSource credit card styles and update billing state display; enhance localization for card details.
+
 ## [1.4.6] - 2025-07-28
 
 - Handling of payment method changes during checkout has been improved to ensure a smoother user experience.

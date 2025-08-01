@@ -27,6 +27,7 @@
             "addCard": "+ Add Card",
             "cvv": "CVV",
             "expDate": "Exp:",
+            "billingState": "State:",
             "billingAddress": "Billing Address",
             "firstName": "First Name",
             "lastName": "Last Name",

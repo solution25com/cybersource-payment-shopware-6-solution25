@@ -27,6 +27,7 @@
             "addCard": "+ Karte hinzufügen",
             "cvv": "CVV",
             "expDate": "Ablaufdatum:",
+            "billingState": "Bundesland:",
             "billingAddress": "Rechnungsadresse",
             "firstName": "Vorname",
             "lastName": "Nachname",

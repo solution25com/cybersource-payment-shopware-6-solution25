@@ -1,3 +1,8 @@
+## [1.4.8] - 2025-08-14
+
+- Handle orders without Cybersource transaction ID in Cybersource payment method
+- Saved card design improvements for better user experience
+
 ## [1.4.7] - 2025-08-01
 
 - Refactor CyberSource credit card styles and update billing state display; enhance localization for card details.

@@ -7,7 +7,7 @@ Component.override('sw-order-detail', {
 
     mixins: ['notification', Mixin.getByName('api-validation-errors')],
 
-    inject: ['cybersourceOrderService', 'orderService'], // Changed to lowercase 'c'
+    inject: ['cybersourceOrderService', 'orderService'],
 
     props: {
         orderId: {
@@ -76,11 +76,13 @@ Component.override('sw-order-detail', {
 
             this.cybersourceOrderService.getOrderByOrderId(this.orderId)
                 .then((orderDetailsResponse) => {
-
+                    if(orderDetailsResponse) {
+                        this.cybersourceTransactionId = orderDetailsResponse['cybersource_transaction_id'];
+                        this.paymentStatus = orderDetailsResponse['payment_status'];
+                        this.previousTotalAmount = +orderDetailsResponse.amount;
+                    }
                 })
                 .catch((error) => {
-                    console.error('fetchOrderDetails error:', error);
-                    this.createNotificationError({ message: 'Failed to fetch order details.' });
                     return this.handleError(error.response?.data?.errors[0] || error);
                 });
         },

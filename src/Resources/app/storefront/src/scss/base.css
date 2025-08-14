@@ -178,8 +178,6 @@
 
 .cybersource-credit-card {
   width: 320px;
-  height: 190px;
-  background: linear-gradient(135deg, #1e5799 0%, #2989d8 50%, #207cca 100%);
   color: #fff !important;
   border-radius: 12px;
   padding: 20px;
@@ -196,38 +194,6 @@
   transform: translateY(-5px);
 }
 
-.cybersource-credit-card::before {
-  content: "";
-  width: 50px;
-  height: 35px;
-  background: linear-gradient(90deg, #b5b5b5, #e0e0e0, #b5b5b5);
-  border-radius: 5px;
-  position: absolute;
-  top: 15px;
-  right: 20px;
-  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
-}
-
-.cybersource-credit-card.visa {
-  background: linear-gradient(135deg, #1427a5 0%, #001f67 100%);
-}
-
-.cybersource-credit-card.mastercard {
-  background: linear-gradient(135deg, #ff6a00 0%, #ee0979 100%);
-}
-
-.cybersource-credit-card.amex {
-  background: linear-gradient(135deg, #016fd0 0%, #00a4e4 100%);
-}
-
-.cybersource-credit-card.discover {
-  background: linear-gradient(135deg, #ff6600 0%, #ff9900 100%);
-}
-
-.cybersource-credit-card.unknown {
-  background: linear-gradient(135deg, #444 0%, #222 100%);
-}
-
 .cybersource-credit-card .card-header {
   display: flex;
   justify-content: space-between;
@@ -236,11 +202,35 @@
   font-weight: bold;
 }
 
+.card-first-name {
+  margin-top: 10px;
+  font-size: 16px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: black;
+}
+
+.card-number-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-number-type {
+  font-size: 14px;
+  margin-bottom: 5px;
+  color: #555;
+}
+
 .cybersource-credit-card .card-number {
+  color: #333;
   font-size: 20px;
   letter-spacing: 2px;
   margin: 5px 0;
-  font-weight: bold;
+  border: 1px solid lightgray;
+  border-radius: 4px;
+  font-size: 14px;
+  padding: 2px 6px;
 }
 
 .cybersource-credit-card .card-details {
@@ -256,17 +246,15 @@
   font-size: 14px;
   font-weight: bold;
   margin-bottom: 10px;
-}
-
-.cybersource-credit-card .card-actions {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
+  color: #333;
 }
 
 .cybersource-credit-card .card-actions .delete-card-btn {
-  color: #fff;
+  background-color: rgba(0, 123, 255, 0.8);
+  color: white;
   border: 1px solid #fff;
+  width: 100%;
+  justify-content: center;
 }
 
 .delete-card-btn {
@@ -274,8 +262,7 @@
   width: fit-content;
   align-items: center;
   padding: 0.5rem;
-  border: 1px solid #D72828;
-  color: #D72828;
+  border: 1px solid rgba(0, 123, 255, 0.8);
   margin: 0 10px 0 0;
   font-size: 14px;
   border-radius: 4px;
@@ -289,13 +276,13 @@
   width: fit-content;
   align-items: center;
   padding: 0.3rem 0.7rem;
-  border: 1px solid #D72828;
+  border: 1px solid rgba(0, 123, 255, 0.8);
   color: #fff;
   margin: 0 10px 0 0;
   font-size: 14px;
   border-radius: 4px;
   height: 32px;
-  background: #D72828;
+  background: rgba(0, 123, 255, 0.8);
 }
 
 .card-icon {

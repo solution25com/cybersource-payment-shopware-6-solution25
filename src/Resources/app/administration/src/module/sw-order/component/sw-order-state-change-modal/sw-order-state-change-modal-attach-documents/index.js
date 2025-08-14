@@ -56,7 +56,8 @@ Component.override('sw-order-state-change-modal-attach-documents', {
 
                 console.log("currentState:", stateType, "targetState:", selectedState);
                 const paymentMethod = this.getPaymentMethod(transaction.paymentMethodId);
-                if (paymentMethod?.handlerIdentifier === 'CyberSource\\Shopware6\\Gateways\\CreditCard') {
+                const cybersourceTransactionId = await this.getCybersourceTransactionId(this.order.id);
+                if (cybersourceTransactionId != null && paymentMethod?.handlerIdentifier === 'CyberSource\\Shopware6\\Gateways\\CreditCard') {
                     await this.handleCyberSourceTransition(transaction, docIds, this.sendMail, selectedState);
                 } else {
                     this.$emit('on-confirm', docIds, this.sendMail);
@@ -84,7 +85,24 @@ Component.override('sw-order-state-change-modal-attach-documents', {
                 return null;
             }
         },
-
+        async getCybersourceTransactionId(orderId) {
+            const headers = {
+                Accept: 'application/json',
+                Authorization: `Bearer ${Shopware.Service('loginService').getToken()}`,
+            };
+            try {
+                const response = await fetch(`api/cybersource/getCybersourceTransactionId/${orderId}`, { headers });
+                if (!response.ok) {
+                    console.error(response);
+                    return null;
+                }
+                const data = await response.json();
+                return data?.cyberSourceTransactionId ?? null;
+            } catch (error) {
+                console.error(error);
+                return null;
+            }
+        },
         async handleCyberSourceTransition(transaction, docIds, sendMail, selectedState) {
             this.$emit('update:is-loading', true);
 

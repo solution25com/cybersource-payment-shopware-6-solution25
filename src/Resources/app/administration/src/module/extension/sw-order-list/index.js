@@ -8,7 +8,7 @@ Component.override('sw-order-detail-details', {
 
     mixins: ['notification', Mixin.getByName('api-validation-errors')],
 
-    inject: ['CybersourceOrderService'],
+    inject: ['cybersourceOrderService'],
 
     props: {
         orderId: {
@@ -32,15 +32,11 @@ Component.override('sw-order-detail-details', {
     methods: {
         isCyberSourceCreditCardPaymentMethod() {
             const transaction = this.order.transactions.first();
-
-            return (
-                transaction.paymentMethod.name &&
-                transaction.paymentMethod.name == 'CyberSourceCreditCard'
-            );
+            return  transaction.paymentMethod?.name === 'CyberSourceCreditCard';
         },
         onCaptureAction(cybersourceTransactionId) {
             this.buttonLoading = true;
-            this.CybersourceOrderService.capturePayment(
+            this.cybersourceOrderService.capturePayment(
                 this.orderId,
                 cybersourceTransactionId
             )
@@ -68,7 +64,7 @@ Component.override('sw-order-detail-details', {
         },
         onRefundAction(cybersourceTransactionId) {
             this.buttonLoading = true;
-            this.CybersourceOrderService.refundPayment(
+            this.cybersourceOrderService.refundPayment(
                 this.orderId,
                 cybersourceTransactionId,
                 this.totalAmount
@@ -103,17 +99,20 @@ Component.override('sw-order-detail-details', {
                 return false;
             }
 
-            this.orderId = this.order.id;
-            this.CybersourceOrderService.getOrderByOrderId(this.orderId)
-                .then((orderDetailsReponse) => {
-                    this.cybersourceTransactionId =
-                        orderDetailsReponse['cybersource_transaction_id'];
-                    this.paymentStatus = orderDetailsReponse['payment_status'];
-                    this.totalAmount = orderDetailsReponse['amount'];
-                })
-                .catch((error) => {
-                    return this.handleError(error.response['data'].errors[0]);
-                });
+            if(this.cybersourceOrderService.getOrderByOrderId) {
+                this.cybersourceOrderService.getOrderByOrderId(this.orderId)
+                    .then((orderDetailsReponse) => {
+                        if (orderDetailsReponse) {
+                            this.cybersourceTransactionId =
+                                orderDetailsReponse['cybersource_transaction_id'];
+                            this.paymentStatus = orderDetailsReponse['payment_status'];
+                            this.totalAmount = orderDetailsReponse['amount'];
+                        }
+                    })
+                    .catch((error) => {
+                        return this.handleError(error.response['data'].errors[0]);
+                    });
+            }
         },
     },
 });

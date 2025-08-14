@@ -77,19 +77,26 @@
                             {{ cardType }}
                         </span>
                     </div>
-                    <div class="card-number">
-                        {{ 'cybersource_shopware6.credit_card.cardNumber' | trans }} {{ card.cardNumber }}
+                     <div class="card-first-name">
+                      {{ card.billingAddress.firstName }}
                     </div>
-                    <div class="card-details">
-                        <span>{{ 'cybersource_shopware6.savedCards.expDate' | trans }} {{ card.expirationMonth }}/{{ card.expirationYear }}</span>
+                    <div class="card-number-wrapper">
+                        <span class="card-number-type">
+                        {{ cardType }}
+                        </span>
+                        <div class="card-number">
+                       **** **** **** {{ card.cardNumber|slice(-4) }} 
                     </div>
-                    <div class="billing-state">
+                     <div class="billing-state">
                         <span>
+
                             {% if card.billingAddress.administrativeArea is not empty %}
                                 {{ 'cybersource_shopware6.savedCards.billingState' | trans }} {{ card.billingAddress.administrativeArea }}
                             {% endif %}
                         </span>
                     </div>
+                    </div>
+
                     <div class="card-actions">
                         <form method="post" action="{{ path('frontend.cybersource.delete_card') }}" style="display:inline;">
                             <input type="hidden" name="instrumentId" value="{{ card.id }}">

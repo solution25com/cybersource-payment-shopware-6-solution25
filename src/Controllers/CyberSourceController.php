@@ -89,7 +89,24 @@ class CyberSourceController extends AbstractController
         ];
         return new JsonResponse($response);
     }
-
+    #[Route(
+        path: "/api/cybersource/getCybersourceTransactionId/{orderId}",
+        name: "api.cybersource.getCybersourceTransactionId",
+        methods: ["GET"],
+        defaults: ["_acl" => ["order.viewer"]]
+    )]
+    public function getCybersourceTransactionId(
+        string $orderId,
+        Context $context
+    ): JsonResponse {
+        $orderTransaction = $this->orderService->getOrderTransactionByOrderId($orderId, $context);
+        if (empty($orderTransaction)) {
+            return new JsonResponse(["cyberSourceTransactionId" => null]);
+        }
+        $customField = $orderTransaction->getCustomFields();
+        $cybersourceTransactionId = $this->orderService->getCyberSourceTransactionId($customField);
+        return new JsonResponse(["cyberSourceTransactionId" => $cybersourceTransactionId]);
+    }
     #[Route(
         path: "/api/cybersource/order/{orderId}/capture/{cybersourceTransactionId}",
         name: "api.cybersource.order_capture_details",

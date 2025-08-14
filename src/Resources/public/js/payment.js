@@ -221,6 +221,97 @@ const PaymentModule = (function () {
         });
     }
 
+    function togglePageOverlay(show, allow3ds = false) {
+        let overlay = document.getElementById('cybersource-page-overlay');
+
+        if (show) {
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'cybersource-page-overlay';
+                overlay.style.position = 'fixed';
+                overlay.style.top = '0';
+                overlay.style.left = '0';
+                overlay.style.width = '100%';
+                overlay.style.height = '100%';
+                overlay.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
+                overlay.style.zIndex = '9999';
+                overlay.style.display = 'flex';
+                overlay.style.alignItems = 'center';
+                overlay.style.justifyContent = 'center';
+
+                const spinner = document.createElement('div');
+                spinner.id = 'cybersource-processing-loader';
+                spinner.style.width = '48px';
+                spinner.style.height = '48px';
+                spinner.style.border = '5px solid #ccc';
+                spinner.style.borderTop = '5px solid #333';
+                spinner.style.borderRadius = '50%';
+                spinner.style.animation = 'cybersource-spin 1s linear infinite';
+                overlay.appendChild(spinner);
+
+                if (!document.getElementById('cybersource-spinner-style')) {
+                    const style = document.createElement('style');
+                    style.id = 'cybersource-spinner-style';
+                    style.innerHTML = `
+                    @keyframes cybersource-spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                `;
+                    document.head.appendChild(style);
+                }
+
+                document.body.appendChild(overlay);
+            } else {
+                overlay.style.display = 'flex';
+            }
+
+            overlay.style.pointerEvents = allow3ds ? 'none' : 'auto';
+
+            const loader = document.getElementById('cybersource-processing-loader');
+            if (loader) {
+                loader.style.display = allow3ds ? 'none' : 'block';
+            }
+
+            const stepUp = document.getElementById('step_up');
+            if (stepUp) {
+                stepUp.style.display = allow3ds ? 'block' : 'none';
+                stepUp.style.pointerEvents = allow3ds ? 'auto' : 'none';
+                stepUp.style.zIndex = allow3ds ? '10000' : '';
+                stepUp.style.position = allow3ds ? 'fixed' : '';
+                stepUp.style.top = allow3ds ? '50%' : '';
+                stepUp.style.left = allow3ds ? '50%' : '';
+                stepUp.style.transform = allow3ds ? 'translate(-50%, -50%)' : '';
+                stepUp.style.backgroundColor = allow3ds ? '#fff' : '';
+                stepUp.style.padding = allow3ds ? '1rem' : '';
+                stepUp.style.boxShadow = allow3ds ? '0 0 10px rgba(0,0,0,0.3)' : '';
+                stepUp.style.borderRadius = allow3ds ? '8px' : '';
+            }
+
+        } else {
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+
+            const stepUp = document.getElementById('step_up');
+            if (stepUp) {
+                stepUp.style.display = 'none';
+                stepUp.style.pointerEvents = '';
+                stepUp.style.zIndex = '';
+                stepUp.style.position = '';
+                stepUp.style.top = '';
+                stepUp.style.left = '';
+                stepUp.style.transform = '';
+                stepUp.style.backgroundColor = '';
+                stepUp.style.padding = '';
+                stepUp.style.boxShadow = '';
+                stepUp.style.borderRadius = '';
+            }
+        }
+    }
+
+
+
     // Manage loading button state
     function showLoadingButton(show, buttonId) {
         let button = document.getElementById(buttonId);
@@ -234,6 +325,9 @@ const PaymentModule = (function () {
         if (button == null) {
             button = document.getElementById(config.saveCardButtonId);
         }
+
+        togglePageOverlay(show);
+
         if (show) {
             button.disabled = true;
             window.originalBtnText = button.textContent;
@@ -454,6 +548,7 @@ const PaymentModule = (function () {
                 }
 
                 if (data.action === '3ds') {
+                    togglePageOverlay(true, true);
                     const stepUp = document.getElementById('step_up');
                     stepUp.innerHTML = '';
                     const iframe = document.createElement('iframe');
@@ -505,6 +600,7 @@ const PaymentModule = (function () {
                     updateHiddenFields(data, token, subscriptionId, month, year);
                     if (data.action === 'complete') {
                         document.getElementById('cybersource_transaction_id').value = data.transactionId;
+                        togglePageOverlay(true);
                         document.getElementById('confirmOrderForm').submit();
                     } else if (data.action === 'notify') {
                         alert(data.message);
@@ -622,6 +718,7 @@ const PaymentModule = (function () {
                 paymentDataInput.value = data.paymentData ? JSON.stringify(data.paymentData) : '';
 
                 if (data.success) {
+                    togglePageOverlay(true);
                     document.getElementById('cybersource_transaction_id').value = data.transactionId;
                     document.getElementById('confirmOrderForm').submit();
                 } else if (data.action === 'notify') {

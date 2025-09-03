@@ -1,3 +1,7 @@
+## [1.4.9] - 2025-09-03
+
+- Refactor isProductionActive method to return a boolean and simplify condition checks for configuration keys
+
 ## [1.4.8] - 2025-08-14
 
 - Handle orders without Cybersource transaction ID in Cybersource payment method

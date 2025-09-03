@@ -31,9 +31,9 @@ class ConfigurationService
         return is_string($value) ? $value : null;
     }
 
-    public function isProductionActive(?string $salesChannelId = null): string
+    public function isProductionActive(?string $salesChannelId = null): bool
     {
-        return (string) $this->get('isProductionActive', $salesChannelId);
+        return $this->systemConfig->get(self::CONFIGURATION_KEY . '.config.isProductionActive', $salesChannelId);
     }
 
     /**
@@ -45,7 +45,7 @@ class ConfigurationService
     {
         $configKey = 'sandboxAccessKey';
 
-        if ($this->isProductionActive($salesChannelId) == 1) {
+        if ($this->isProductionActive($salesChannelId)) {
             $configKey = 'liveAccessKey';
         }
 
@@ -61,7 +61,7 @@ class ConfigurationService
     {
         $configKey = 'sandboxSharedSecretKey';
 
-        if ($this->isProductionActive($salesChannelId) == 1) {
+        if ($this->isProductionActive($salesChannelId)) {
             $configKey = 'liveSharedSecretKey';
         }
 
@@ -77,7 +77,7 @@ class ConfigurationService
     {
         $configKey = 'sandboxOrganizationID';
 
-        if ($this->isProductionActive($salesChannelId) == 1) {
+        if ($this->isProductionActive($salesChannelId)) {
             $configKey = 'liveOrganizationID';
         }
 
@@ -112,7 +112,7 @@ class ConfigurationService
     public function getBaseUrl(?string $salesChannelId = null)
     {
         $baseUrl = EnvironmentUrl::TEST;
-        if ($this->isProductionActive($salesChannelId) == 1) {
+        if ($this->isProductionActive($salesChannelId)) {
             $baseUrl = EnvironmentUrl::PRODUCTION;
         }
 

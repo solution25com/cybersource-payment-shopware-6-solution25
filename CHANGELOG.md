@@ -1,3 +1,7 @@
+## [1.5.0] - 2025-09-03
+
+- Refactor isProductionActive method to use getBool for improved type safety
+
 ## [1.4.9] - 2025-09-03
 
 - Refactor isProductionActive method to return a boolean and simplify condition checks for configuration keys

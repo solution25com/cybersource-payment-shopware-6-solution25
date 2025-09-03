@@ -33,7 +33,7 @@ class ConfigurationService
 
     public function isProductionActive(?string $salesChannelId = null): bool
     {
-        return $this->systemConfig->get(self::CONFIGURATION_KEY . '.config.isProductionActive', $salesChannelId);
+        return $this->systemConfig->getBool(self::CONFIGURATION_KEY . '.config.isProductionActive', $salesChannelId);
     }
 
     /**

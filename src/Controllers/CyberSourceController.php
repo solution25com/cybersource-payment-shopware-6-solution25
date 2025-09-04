@@ -135,10 +135,11 @@ class CyberSourceController extends AbstractController
         if (!$currencyEntity instanceof CurrencyEntity) {
             throw new \RuntimeException('Currency not found for order.');
         }
+        $salesChannelId = $orderEntity->getSalesChannelId();
         $currency = $currencyEntity->getIsoCode();
         $totalOrderAmount = $orderEntity->getAmountTotal();
-        $environmentUrl = $this->configurationService->getBaseUrl();
-        $requestSignature = $this->configurationService->getSignatureContract();
+        $environmentUrl = $this->configurationService->getBaseUrl($salesChannelId);
+        $requestSignature = $this->configurationService->getSignatureContract($salesChannelId);
         $shopwareOrderTransactionId = $orderTransaction->getId();
 
         $cyberSource = $this->cyberSourceFactory->createCyberSource(
@@ -232,9 +233,9 @@ class CyberSourceController extends AbstractController
         }
         $currencyEntity = $orderEntity->getCurrency();
         $currency = $currencyEntity instanceof CurrencyEntity ? $currencyEntity->getShortName() : 'USD';
-
-        $environmentUrl = $this->configurationService->getBaseUrl();
-        $requestSignature = $this->configurationService->getSignatureContract();
+        $salesChannelId =  $orderEntity->getSalesChannelId();
+        $environmentUrl = $this->configurationService->getBaseUrl($salesChannelId);
+        $requestSignature = $this->configurationService->getSignatureContract($salesChannelId);
         $shopwareOrderTransactionId = $orderTransaction->getId();
 
         $cyberSource = $this->cyberSourceFactory->createCyberSource(

@@ -1,3 +1,7 @@
+## [1.5.1] - 2025-09-04
+
+- Refactor CyberSource integration to support sales channel-specific configurations and improve error handling for payment methods
+
 ## [1.5.0] - 2025-09-03
 
 - Refactor isProductionActive method to use getBool for improved type safety

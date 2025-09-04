@@ -4,6 +4,7 @@
             "title": "Cybersource Account information",
             "cardNumber": "Card Number: ",
             "cardNumberPlaceholderText": "1234 1234 1234 1234",
+            "paymentMethodNotAvailable": "Payment method is not available. Please contact support.",
             "cardNumberRequiredMessage": "Card Number is required",
             "cardNumberErrorMessage": "Your card number is not valid",
             "expiryDate": "EXP DATE: ",

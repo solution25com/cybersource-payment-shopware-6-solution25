@@ -6,6 +6,7 @@
             "cardNumberPlaceholderText": "1234 1234 1234 1234",
             "cardNumberRequiredMessage": "Kartennummer ist erforderlich",
             "cardNumberErrorMessage": "Ihre Kartennummer ist ungültig",
+            "paymentMethodNotAvailable": "Die Zahlungsmethode ist nicht verfügbar. Bitte kontaktieren Sie den Support.",
             "expiryDate": "Ablaufdatum: ",
             "expiryDatePlaceholderText": "MM/YYYY",
             "expiryDateRequiredMessage": "Ablaufdatum ist erforderlich",

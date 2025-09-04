@@ -91,6 +91,22 @@ const PaymentModule = (function () {
         fetch(config.apiEndpoints.captureContext)
             .then(res => res.json())
             .then(data => {
+                if (!data || !data.captureContext) {
+                    alert(translations.paymentMethodNotAvailable || 'Payment method is not available. Please contact support.');
+                    const expMonth = document.getElementById('expMonth');
+                    if (expMonth) expMonth.disabled = true;
+                    const expYear = document.getElementById('expYear');
+                    if (expYear) expYear.disabled = true;
+                    const numberContainer = document.getElementById('number-container');
+                    if (numberContainer) numberContainer.style.backgroundColor = '#fafafa';
+                    const securityCodeContainer = document.getElementById('securityCode-container');
+                    if (securityCodeContainer) securityCodeContainer.style.backgroundColor = '#fafafa';
+                    const payButton = document.getElementById(config.payButtonId);
+                    if (payButton) payButton.disabled = true;
+                    const saveCardButton = document.getElementById(config.saveCardButtonId);
+                    if (saveCardButton) saveCardButton.disabled = true;
+                    return;
+                }
                 const captureContext = data.captureContext;
                 const parts = captureContext.split('.');
                 const payload = JSON.parse(atob(parts[1]));

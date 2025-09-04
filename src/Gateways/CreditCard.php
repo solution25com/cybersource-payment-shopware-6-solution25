@@ -66,7 +66,8 @@ final class CreditCard implements SynchronousPaymentHandlerInterface
 
         switch ($status) {
             case 'AUTHORIZED':
-                $transactionType = $this->configurationService->getTransactionType();
+                $salesChannelId = $salesChannelContext->getSalesChannel()->getId();
+                $transactionType = $this->configurationService->getTransactionType($salesChannelId);
                 if ($transactionType === 'auth') {
                     $this->orderTransactionStateHandler->authorize($orderTransactionId, $context);
                 } else {

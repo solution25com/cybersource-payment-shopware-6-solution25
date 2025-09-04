@@ -62,7 +62,7 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
             $this->logger->error("Transaction not found: {$transactionId}");
             return;
         }
-
+        $salesChannelId = $orderTransaction->getOrder()->getSalesChannelId();
         $paymentMethod = $orderTransaction->getPaymentMethod();
         if (!$paymentMethod || $paymentMethod->getHandlerIdentifier() !== 'CyberSource\Shopware6\Gateways\CreditCard') {
             $this->logger->info("Skipping transaction {$transactionId} - not CyberSource.");
@@ -93,7 +93,8 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                     $cyberSourceTransactionId,
                     $cyberSourceUniqId,
                     $orderTransaction,
-                    $context
+                    $context,
+                    $salesChannelId
                 );
 
                 if ($response['statusCode'] !== 201) {
@@ -112,7 +113,8 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                     $cyberSourceTransactionId,
                     $cyberSourceUniqId,
                     $orderTransaction,
-                    $context
+                    $context,
+                    $salesChannelId
                 );
 
                 if ($response['statusCode'] !== 201) {
@@ -132,7 +134,8 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                     $cyberSourceTransactionId,
                     $cyberSourceUniqId,
                     $orderTransaction,
-                    $context
+                    $context,
+                    $salesChannelId
                 );
 
                 if ($response['statusCode'] !== 201) {
@@ -151,7 +154,8 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                     $cyberSourceTransactionId,
                     $cyberSourceUniqId,
                     $orderTransaction,
-                    $context
+                    $context,
+                    $salesChannelId
                 );
 
                 if ($response['statusCode'] !== 201) {
@@ -171,7 +175,8 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                     $cyberSourceTransactionId,
                     $cyberSourceUniqId,
                     $orderTransaction,
-                    $context
+                    $context,
+                    $salesChannelId
                 );
 
                 if ($response['statusCode'] !== 201) {
@@ -191,7 +196,8 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                     $cyberSourceTransactionId,
                     $cyberSourceUniqId,
                     $orderTransaction,
-                    $context
+                    $context,
+                    $salesChannelId
                 );
 
                 if ($response['statusCode'] !== 201) {
@@ -208,7 +214,8 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
                     $cyberSourceTransactionId,
                     $cyberSourceUniqId,
                     $orderTransaction,
-                    $context
+                    $context,
+                    $salesChannelId
                 );
 
                 if ($response['statusCode'] !== 201) {
@@ -239,7 +246,8 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
         string $transactionId,
         ?string $cyberSourceUniqId,
         OrderTransactionEntity $orderTransaction,
-        Context $context
+        Context $context,
+        ?string $salesChannelId = null
     ): array {
         $order = $orderTransaction->getOrder();
         if (!$order) {
@@ -266,7 +274,8 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
             $transactionId,
             $payload,
             $orderTransaction->getId(),
-            $context
+            $context,
+            $salesChannelId
         );
     }
 
@@ -274,7 +283,8 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
         string $transactionId,
         ?string $cyberSourceUniqId,
         OrderTransactionEntity $orderTransaction,
-        Context $context
+        Context $context,
+        ?string $salesChannelId = null
     ): array {
         $payload = [
             'clientReferenceInformation' => [
@@ -282,14 +292,15 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
             ],
         ];
 
-        return $this->cyberSourceApiClient->voidPayment($transactionId, $payload, $orderTransaction->getId(), $context);
+        return $this->cyberSourceApiClient->voidPayment($transactionId, $payload, $orderTransaction->getId(), $context, $salesChannelId);
     }
 
     private function refundPayment(
         string $transactionId,
         ?string $cyberSourceUniqId,
         OrderTransactionEntity $orderTransaction,
-        Context $context
+        Context $context,
+        ?string $salesChannelId = null
     ): array {
         $order = $orderTransaction->getOrder();
         if (!$order) {
@@ -315,7 +326,8 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
             $transactionId,
             $payload,
             $orderTransaction->getId(),
-            $context
+            $context,
+            $salesChannelId
         );
     }
 

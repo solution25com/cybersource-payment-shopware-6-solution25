@@ -128,11 +128,11 @@
   width: 100%;
   border-radius: 2px;
   padding: 4px 8px;
-  font-size: 16px !important;
+  font-size: 16px;
 }
 .payment-field input:focus {
   border: 3px solid #3e79db;
-  outline: none !important;
+  outline: none;
 }
 #payment-fields {
   display: flex;
@@ -149,7 +149,7 @@
 }
 .cybersource-credit-card {
   width: 320px;
-  color: #fff !important;
+  color: #fff;
   border-radius: 12px;
   padding: 20px;
   position: relative;

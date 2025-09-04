@@ -31,9 +31,10 @@ class CustomController extends StorefrontController
         methods: ['GET'],
         defaults: ['_routeScope' => ['storefront']]
     )]
-    public function getCaptureContext(): JsonResponse
+    public function getCaptureContext(SalesChannelContext $context): JsonResponse
     {
-        return $this->apiClient->getCaptureContext();
+        $salesChannelId = $context->getSalesChannel()->getId();
+        return $this->apiClient->getCaptureContext($salesChannelId);
     }
 
     #[Route(
@@ -76,7 +77,8 @@ class CustomController extends StorefrontController
     )]
     public function getSavedCards(SalesChannelContext $context): JsonResponse
     {
-        return new JsonResponse($this->apiClient->getSavedCards($context));
+        $salesChannelId = $context->getSalesChannel()->getId();
+        return new JsonResponse($this->apiClient->getSavedCards($context, null, $salesChannelId));
     }
 
     #[Route(
@@ -90,8 +92,9 @@ class CustomController extends StorefrontController
         if (!$customer) {
             return $this->redirectToRoute('frontend.account.login');
         }
+        $salesChannelId = $context->getSalesChannel()->getId();
         $page = $this->genericPageLoader->load($request, $context);
-        $cards = $this->apiClient->getSavedCards($context)['cards'] ?? ['cards' => []];
+        $cards = $this->apiClient->getSavedCards($context)['cards'] ?? ['cards' => [], null, $salesChannelId];
 
         $response = $this->renderStorefront('@Storefront/storefront/page/account/saved_cards.html.twig', [
             'page' => $page,

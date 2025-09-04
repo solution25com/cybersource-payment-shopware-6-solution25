@@ -54,13 +54,6 @@ class WebHookController extends AbstractController
 
         $signature = $request->headers->get('v-c-signature');
         $rawContent = $request->getContent();
-        if (!$this->verifySignature($rawContent, $signature)) {
-            $this->logger->error('Invalid webhook signature');
-            return new JsonResponse(
-                ['status' => 'error', 'message' => 'Invalid signature'],
-                401
-            );
-        }
 
         $eventType = $payload['eventType'] ?? null;
         if (!$eventType) {
@@ -87,6 +80,14 @@ class WebHookController extends AbstractController
             );
         }
 
+        $salesChannelId = $orderTransaction->getOrder()->getSalesChannelId();
+        if (!$this->verifySignature($rawContent, $signature, $salesChannelId)) {
+            $this->logger->error('Invalid webhook signature');
+            return new JsonResponse(
+                ['status' => 'error', 'message' => 'Invalid signature'],
+                401
+            );
+        }
         $orderTransactionId = $orderTransaction->getId();
 
         // Map CyberSource event types to Shopware payment states
@@ -160,9 +161,9 @@ class WebHookController extends AbstractController
         }
     }
 
-    private function verifySignature(string $payload, ?string $signature): bool
+    private function verifySignature(string $payload, ?string $signature, ?string $salesChannelId): bool
     {
-        $secretKey = $this->configurationService->getSharedSecretKey();
+        $secretKey = $this->configurationService->getSharedSecretKey($salesChannelId);
         if (!$secretKey) {
             $this->logger->error('Shared secret key not configured');
             return false;

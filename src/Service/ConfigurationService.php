@@ -33,7 +33,7 @@ class ConfigurationService
 
     public function isProductionActive(?string $salesChannelId = null): bool
     {
-        return $this->systemConfig->getBool(self::CONFIGURATION_KEY . '.config.isProductionActive', $salesChannelId);
+        return $this->systemConfig->getBool(self::CONFIGURATION_KEY . '.config.isProductionActive' , $salesChannelId);
     }
 
     /**
@@ -44,7 +44,6 @@ class ConfigurationService
     public function getAccessKey(?string $salesChannelId = null)
     {
         $configKey = 'sandboxAccessKey';
-
         if ($this->isProductionActive($salesChannelId)) {
             $configKey = 'liveAccessKey';
         }
@@ -124,18 +123,18 @@ class ConfigurationService
      *
      * @return HTTP|JWT|Oauth
      */
-    public function getSignatureContract(): HTTP|JWT|Oauth
+    public function getSignatureContract(?string $salesChannelId = null): HTTP|JWT|Oauth
     {
         // TODO: Currently, we are supporting the HTTP connection method only.
         // Later on, retrieve it from the configuration.
         $connectionMethod = 'HTTP';
         switch ($connectionMethod) {
             case 'HTTP':
-                return $this->getHTTPRequestSignature();
+                return $this->getHTTPRequestSignature($salesChannelId);
             case 'JWT':
-                return $this->getJWTRequestSignature();
+                return $this->getJWTRequestSignature($salesChannelId);
             case 'Oauth':
-                return $this->getOauthRequestSignature();
+                return $this->getOauthRequestSignature($salesChannelId);
         }
     }
 
@@ -144,12 +143,12 @@ class ConfigurationService
      *
      * @return HTTP
      */
-    public function getHTTPRequestSignature()
+    public function getHTTPRequestSignature(?string $salesChannelId = null)
     {
-        $accessKey = $this->getAccessKey();
-        $secretKey = $this->getSecretKey();
-        $orgId = $this->getOrganizationID();
-        $environmentUrl = $this->getBaseUrl();
+        $accessKey = $this->getAccessKey($salesChannelId);
+        $secretKey = $this->getSecretKey($salesChannelId);
+        $orgId = $this->getOrganizationID($salesChannelId);
+        $environmentUrl = $this->getBaseUrl($salesChannelId);
 
         return new HTTP($environmentUrl, $orgId, $accessKey, $secretKey);
     }
@@ -159,7 +158,7 @@ class ConfigurationService
      *
      * @return JWT
      */
-    private function getJWTRequestSignature()
+    private function getJWTRequestSignature(?string $salesChannelId = null)
     {
         throw new \RuntimeException(
             $this->translator->trans(
@@ -179,7 +178,7 @@ class ConfigurationService
      *
      * @return Oauth
      */
-    private function getOauthRequestSignature()
+    private function getOauthRequestSignature(?string $salesChannelId = null)
     {
         throw new \RuntimeException(
             $this->translator->trans(
@@ -199,19 +198,19 @@ class ConfigurationService
         return $this->get('transactionType', $salesChannelId);
     }
 
-    public function isThreeDSEnabled(): bool
+    public function isThreeDSEnabled(?string $salesChannelId = null): bool
     {
-        return $this->systemConfig->getBool('CyberSourceShopware6.config.threeDS');
+        return $this->systemConfig->getBool('CyberSourceShopware6.config.threeDS', $salesChannelId);
     }
 
 
-    public function getSharedSecretKey(): ?string
+    public function getSharedSecretKey(?string $salesChannelId = null): ?string
     {
-        return $this->systemConfig->getString('CyberSourceShopware6.config.sharedSecretKey');
+        return $this->systemConfig->getString('CyberSourceShopware6.config.sharedSecretKey', $salesChannelId);
     }
 
-    public function getSharedSecretKeyId(): ?string
+    public function getSharedSecretKeyId(?string $salesChannelId = null): ?string
     {
-        return $this->systemConfig->getString('CyberSourceShopware6.config.sharedSecretKeyId');
+        return $this->systemConfig->getString('CyberSourceShopware6.config.sharedSecretKeyId', $salesChannelId);
     }
 }

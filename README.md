@@ -22,6 +22,10 @@ The Cybersource plugin enables secure credit card payments in Shopware stores. I
    - Process full or partial refunds with ease.
 7. **Multi-Store Compatibility**
    - Works across multiple Shopware instances.
+  
+## Compatibility
+- ✅ Shopware 6.6.5.0 – 6.6.x
+
 
 ## Get Started
 

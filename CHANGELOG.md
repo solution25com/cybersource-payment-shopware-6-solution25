@@ -1,3 +1,7 @@
+## [1.5.2] - 2025-09-11
+
+- Enhance CyberSource payment handling with improved state transitions and error logging, add support for additional transaction states, and refactor payment processing logic
+
 ## [1.5.1] - 2025-09-04
 
 - Refactor CyberSource integration to support sales channel-specific configurations and improve error handling for payment methods

@@ -62,7 +62,7 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
             $this->logger->error("Transaction not found: {$transactionId}");
             return;
         }
-        $salesChannelId = $orderTransaction->getOrder()->getSalesChannelId();
+        $orderId = $orderTransaction->getOrderId();
         $paymentMethod = $orderTransaction->getPaymentMethod();
         if (!$paymentMethod || $paymentMethod->getHandlerIdentifier() !== 'CyberSource\Shopware6\Gateways\CreditCard') {
             $this->logger->info("Skipping transaction {$transactionId} - not CyberSource.");
@@ -71,264 +71,32 @@ class OrderPaymentStatusSubscriber implements EventSubscriberInterface
 
         $customFields = $orderTransaction->getCustomFields() ?? [];
         $cyberSourceTransactionId = $this->orderService->getCyberSourceTransactionId($customFields);
-        $cyberSourceUniqId = $this->orderService->getCyberSourceTransactionUniqueId($customFields);
         if (!$cyberSourceTransactionId) {
             $this->logger->error("No CyberSource Transaction ID found for transaction: {$transactionId}");
             return;
         }
 
         try {
-            if (
-                (
-                    $currentState === OrderTransactionStates::STATE_AUTHORIZED &&
-                    $newState === OrderTransactionStates::STATE_PAID
-                ) ||
-                ($currentState === 'pending_review' && $newState === 'paid')
-            ) {
-                $this->logger->info(
-                    "Capturing transaction {$transactionId} for amount " .
-                    $orderTransaction->getAmount()->getTotalPrice()
-                );
-                $response = $this->capturePayment(
-                    $cyberSourceTransactionId,
-                    $cyberSourceUniqId,
-                    $orderTransaction,
-                    $context,
-                    $salesChannelId
-                );
-
-                if ($response['statusCode'] !== 201) {
-                    $this->revertTransactionState($transactionId, $currentState, $context);
-                    $this->logger->error("Failed to capture transaction: " . json_encode($response['body']));
-                    throw new StateMachineException(400, 'CYBERSOURCE_CAPTURE_FAILED', 'Failed to capture payment.');
-                }
-            } elseif (
-                $currentState === OrderTransactionStates::STATE_AUTHORIZED &&
-                ($newState === OrderTransactionStates::STATE_CANCELLED || $newState === 'cancel')
-            ) {
-                $this->logger->info(
-                    "Voiding transaction {$transactionId}."
-                );
-                $response = $this->voidPayment(
-                    $cyberSourceTransactionId,
-                    $cyberSourceUniqId,
-                    $orderTransaction,
-                    $context,
-                    $salesChannelId
-                );
-
-                if ($response['statusCode'] !== 201) {
-                    $this->revertTransactionState($transactionId, $currentState, $context);
-                    $this->logger->error("Failed to void transaction: " . json_encode($response['body']));
-                    throw new StateMachineException(400, 'CYBERSOURCE_VOID_FAILED', 'Failed to void payment.');
-                }
-            } elseif (
-                $currentState === OrderTransactionStates::STATE_PAID &&
-                ($newState === OrderTransactionStates::STATE_REFUNDED || $newState === 'refund')
-            ) {
-                $this->logger->info(
-                    "Refunding transaction {$transactionId} for amount " .
-                    $orderTransaction->getAmount()->getTotalPrice()
-                );
-                $response = $this->refundPayment(
-                    $cyberSourceTransactionId,
-                    $cyberSourceUniqId,
-                    $orderTransaction,
-                    $context,
-                    $salesChannelId
-                );
-
-                if ($response['statusCode'] !== 201) {
-                    $this->revertTransactionState($transactionId, $currentState, $context);
-                    $this->logger->error("Failed to refund transaction: " . json_encode($response['body']));
-                    throw new StateMachineException(400, 'CYBERSOURCE_REFUND_FAILED', 'Failed to refund payment.');
-                }
-            } elseif (
-                $currentState === OrderTransactionStates::STATE_PAID &&
-                $newState === OrderTransactionStates::STATE_CANCELLED
-            ) {
-                $this->logger->info(
-                    "Voiding transaction {$transactionId}."
-                );
-                $response = $this->voidPayment(
-                    $cyberSourceTransactionId,
-                    $cyberSourceUniqId,
-                    $orderTransaction,
-                    $context,
-                    $salesChannelId
-                );
-
-                if ($response['statusCode'] !== 201) {
-                    $this->revertTransactionState($transactionId, $currentState, $context);
-                    $this->logger->error("Failed to void transaction: " . json_encode($response['body']));
-                    throw new StateMachineException(400, 'CYBERSOURCE_VOID_FAILED', 'Failed to void payment.');
-                }
-            } elseif (
-                $currentState === 'pre_review' &&
-                $newState === OrderTransactionStates::STATE_AUTHORIZED
-            ) {
-                $this->logger->info(
-                    "Capturing transaction {$transactionId} for amount " .
-                    $orderTransaction->getAmount()->getTotalPrice()
-                );
-                $response = $this->capturePayment(
-                    $cyberSourceTransactionId,
-                    $cyberSourceUniqId,
-                    $orderTransaction,
-                    $context,
-                    $salesChannelId
-                );
-
-                if ($response['statusCode'] !== 201) {
-                    $this->revertTransactionState($transactionId, $currentState, $context);
-                    $this->logger->error("Failed to capture transaction: " . json_encode($response['body']));
-                    throw new StateMachineException(400, 'CYBERSOURCE_CAPTURE_FAILED', 'Failed to capture payment.');
-                }
-            } elseif (
-                $currentState === OrderTransactionStates::STATE_CANCELLED &&
-                $newState === OrderTransactionStates::STATE_PAID
-            ) {
-                $this->logger->info("Reverting transaction {$transactionId} from cancelled to paid.");
-                $this->revertTransactionState($transactionId, OrderTransactionStates::STATE_CANCELLED, $context);
-            } elseif ($currentState === 'pending_review' && $newState === 'cancel') {
-                $this->logger->info("Voiding transaction {$transactionId}.");
-                $response = $this->voidPayment(
-                    $cyberSourceTransactionId,
-                    $cyberSourceUniqId,
-                    $orderTransaction,
-                    $context,
-                    $salesChannelId
-                );
-
-                if ($response['statusCode'] !== 201) {
-                    $this->revertTransactionState($transactionId, $currentState, $context);
-                    $this->logger->error("Failed to void transaction: " . json_encode($response['body']));
-                    throw new StateMachineException(400, 'CYBERSOURCE_VOID_FAILED', 'Failed to void payment.');
-                }
-            } elseif ($currentState === 'pending_review' && $newState === 'paid') {
-                $this->logger->info(
-                    "Capturing transaction {$transactionId} for amount " .
-                    $orderTransaction->getAmount()->getTotalPrice() . "."
-                );
-                $response = $this->capturePayment(
-                    $cyberSourceTransactionId,
-                    $cyberSourceUniqId,
-                    $orderTransaction,
-                    $context,
-                    $salesChannelId
-                );
-
-                if ($response['statusCode'] !== 201) {
-                    $this->revertTransactionState($transactionId, $currentState, $context);
-                    $this->logger->error("Failed to capture transaction: " . json_encode($response['body']));
-                    throw new StateMachineException(400, 'CYBERSOURCE_CAPTURE_FAILED', 'Failed to capture payment.');
-                }
-            } elseif (
-                ($currentState === OrderTransactionStates::STATE_REFUNDED || $currentState === 'refund') &&
-                $newState === OrderTransactionStates::STATE_PAID
-            ) {
-                $this->logger->info("Reverting transaction {$transactionId} from refunded to paid.");
-                $this->revertTransactionState($transactionId, OrderTransactionStates::STATE_REFUNDED, $context);
+            $response = $this->cyberSourceApiClient->transitionOrderPayment(
+                $orderId,
+                $newState,
+                $currentState,
+                $context,
+                true
+            );
+            if (!$response['success']) {
+                $this->revertTransactionState($transactionId, $currentState, $context);
             }
         } catch (\Exception $e) {
-            $this->logger->error("Error processing CyberSource request: " . $e->getMessage());
+            $this->logger->error("Error transitioning CyberSource payment state: " . $e->getMessage());
             throw new StateMachineException(
                 200,
                 "205",
-                'Error processing CyberSource request: ' . $e->getMessage(),
+                'Error transitioning CyberSource payment state: ' . $e->getMessage(),
                 [],
                 $e
             );
         }
-    }
-
-    private function capturePayment(
-        string $transactionId,
-        ?string $cyberSourceUniqId,
-        OrderTransactionEntity $orderTransaction,
-        Context $context,
-        ?string $salesChannelId = null
-    ): array {
-        $order = $orderTransaction->getOrder();
-        if (!$order) {
-            $this->logger->error("Order not found for transaction: {$transactionId}");
-            throw new StateMachineException(400, 'ORDER_NOT_FOUND', 'Order not found.');
-        }
-        $currency = $order->getCurrency();
-        if (!$currency || !$currency->getIsoCode()) {
-            throw new StateMachineException(400, 'CURRENCY_NOT_FOUND', 'Currency not found.');
-        }
-        $payload = [
-            'clientReferenceInformation' => [
-                'code' => 'Order-' . ($cyberSourceUniqId ?? $transactionId),
-            ],
-            'orderInformation' => [
-                'amountDetails' => [
-                    'totalAmount' => (string)$orderTransaction->getAmount()->getTotalPrice(),
-                    'currency' => $currency->getIsoCode(),
-                ],
-            ],
-        ];
-
-        return $this->cyberSourceApiClient->capturePayment(
-            $transactionId,
-            $payload,
-            $orderTransaction->getId(),
-            $context,
-            $salesChannelId
-        );
-    }
-
-    private function voidPayment(
-        string $transactionId,
-        ?string $cyberSourceUniqId,
-        OrderTransactionEntity $orderTransaction,
-        Context $context,
-        ?string $salesChannelId = null
-    ): array {
-        $payload = [
-            'clientReferenceInformation' => [
-                'code' => 'Order-' . ($cyberSourceUniqId ?? $transactionId),
-            ],
-        ];
-
-        return $this->cyberSourceApiClient->voidPayment($transactionId, $payload, $orderTransaction->getId(), $context, $salesChannelId);
-    }
-
-    private function refundPayment(
-        string $transactionId,
-        ?string $cyberSourceUniqId,
-        OrderTransactionEntity $orderTransaction,
-        Context $context,
-        ?string $salesChannelId = null
-    ): array {
-        $order = $orderTransaction->getOrder();
-        if (!$order) {
-            $this->logger->error("Order not found for transaction: {$transactionId}");
-            throw new StateMachineException(400, 'ORDER_NOT_FOUND', 'Order not found.');
-        }
-        $currency = $order->getCurrency();
-        if (!$currency || !$currency->getIsoCode()) {
-            throw new StateMachineException(400, 'CURRENCY_NOT_FOUND', 'Currency not found.');
-        }
-        $payload = [
-            'clientReferenceInformation' => [
-                'code' => 'Order-' . ($cyberSourceUniqId ?? $transactionId),
-            ],
-            'orderInformation' => [
-                'amountDetails' => [
-                    'totalAmount' => (string)$orderTransaction->getAmount()->getTotalPrice(),
-                    'currency' => $currency->getIsoCode(),
-                ],
-            ],
-        ];
-        return $this->cyberSourceApiClient->refundPayment(
-            $transactionId,
-            $payload,
-            $orderTransaction->getId(),
-            $context,
-            $salesChannelId
-        );
     }
 
     private function revertTransactionState(string $transactionId, string $previousState, Context $context): bool

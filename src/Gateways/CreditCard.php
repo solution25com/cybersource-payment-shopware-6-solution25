@@ -11,6 +11,7 @@ use CyberSource\Shopware6\Exceptions\APIException;
 use Shopware\Core\Checkout\Payment\Cart\PaymentHandler\SynchronousPaymentHandlerInterface;
 use Shopware\Core\Checkout\Payment\Cart\SyncPaymentTransactionStruct;
 use Shopware\Core\Framework\Context;
+use Shopware\Core\Framework\Struct\ArrayStruct;
 use Shopware\Core\Framework\Validation\DataBag\RequestDataBag;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler;
@@ -55,19 +56,22 @@ final class CreditCard implements SynchronousPaymentHandlerInterface
                 'Missing CyberSource payment status.'
             );
         }
+        $salesChannelId = $salesChannelContext->getSalesChannel()->getId();
+        $transactionType = $this->configurationService->getTransactionType($salesChannelId);
         $cybersource_payment_data = $dataBag->get('cybersource_payment_data');
         $this->transactionLogger->logTransactionFromDataBag(
-            'Authorized',
+            $transactionType === 'auth' ? 'Authorized' : 'Payment',
             $cybersource_payment_data,
             $orderTransactionId,
             $context,
             $uniqid
         );
-
+        $templateVariables = new ArrayStruct([
+            'source' => 'CyberSourceService'
+        ]);
+        $context->addExtension('customPaymentUpdate', $templateVariables);
         switch ($status) {
             case 'AUTHORIZED':
-                $salesChannelId = $salesChannelContext->getSalesChannel()->getId();
-                $transactionType = $this->configurationService->getTransactionType($salesChannelId);
                 if ($transactionType === 'auth') {
                     $this->orderTransactionStateHandler->authorize($orderTransactionId, $context);
                 } else {

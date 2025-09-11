@@ -1665,8 +1665,10 @@ class CyberSourceApiClient
         string  $orderId,
         string  $state,
         string  $currentState,
-        Context $context
-    ): array {
+        Context $context,
+        bool    $skipTransition = false
+    ): array
+    {
         $criteria = new Criteria([$orderId]);
         $criteria->addAssociation('transactions');
         $criteria->addAssociation('currency');
@@ -1687,8 +1689,10 @@ class CyberSourceApiClient
         }
 
         $validTransitions = [
-            'authorized' => ['paid', 'cancel'],
-            'paid' => ['refund', 'cancel'],
+            'authorized' => ['paid', 'cancel', 'cancelled'],
+            'paid' => ['refund', 'refunded', 'cancel', 'cancelled'],
+            'pending_review' => ['paid', 'cancel', 'cancelled'],
+            'pre_review' => ['authorized', 'cancel', 'cancelled']
         ];
 
         $currentStateLower = strtolower($currentState);
@@ -1705,32 +1709,39 @@ class CyberSourceApiClient
             'paid' => OrderTransactionStates::STATE_PAID,
             'cancel' => OrderTransactionStates::STATE_CANCELLED,
             'refund' => OrderTransactionStates::STATE_REFUNDED,
+            'cancelled' => OrderTransactionStates::STATE_CANCELLED,
+            'refunded' => OrderTransactionStates::STATE_REFUNDED,
+            'authorized' => OrderTransactionStates::STATE_AUTHORIZED,
         ];
 
         $newStatus = $statusMapping[$stateLower];
-        $templateVariables = new ArrayStruct([
-            'source' => 'CyberSourceService'
-        ]);
-        $context->addExtension('customPaymentUpdate', $templateVariables);
-        switch ($newStatus) {
-            case OrderTransactionStates::STATE_PAID:
-                $this->orderTransactionStateHandler->paid($transaction->getId(), $context);
-                break;
-            case OrderTransactionStates::STATE_CANCELLED:
-                $this->orderTransactionStateHandler->cancel($transaction->getId(), $context);
-                break;
-            case OrderTransactionStates::STATE_REFUNDED:
-                $this->orderTransactionStateHandler->refund($transaction->getId(), $context);
-                break;
-            default:
-                $this->logger->error('Unsupported transition state: ' . $stateLower, ['orderId' => $orderId]);
-                return [
-                    'success' => false,
-                    'message' => 'Unsupported transition state: ' . $stateLower,
-                    'data' => []
-                ];
+        if (!$skipTransition) {
+            $templateVariables = new ArrayStruct([
+                'source' => 'CyberSourceService'
+            ]);
+            $context->addExtension('customPaymentUpdate', $templateVariables);
+            switch ($newStatus) {
+                case OrderTransactionStates::STATE_PAID:
+                    $this->orderTransactionStateHandler->paid($transaction->getId(), $context);
+                    break;
+                case OrderTransactionStates::STATE_CANCELLED:
+                    $this->orderTransactionStateHandler->cancel($transaction->getId(), $context);
+                    break;
+                case OrderTransactionStates::STATE_REFUNDED:
+                    $this->orderTransactionStateHandler->refund($transaction->getId(), $context);
+                    break;
+                case OrderTransactionStates::STATE_AUTHORIZED:
+                    $this->orderTransactionStateHandler->authorize($transaction->getId(), $context);
+                    break;
+                default:
+                    $this->logger->error('Unsupported transition state: ' . $stateLower, ['orderId' => $orderId]);
+                    return [
+                        'success' => false,
+                        'message' => 'Unsupported transition state: ' . $stateLower,
+                        'data' => []
+                    ];
+            }
         }
-
         $currencyEntity = $order->getCurrency();
         $currency = $currencyEntity instanceof CurrencyEntity ? $currencyEntity->getIsoCode() : 'USD';
         $totalAmount = round($order->getAmountTotal(), 2);
@@ -1764,6 +1775,7 @@ class CyberSourceApiClient
                     $logType = 'Payment';
                     break;
                 case 'CANCEL':
+                case 'CANCELLED':
                     $payload['reversalInformation'] = $orderInformation;
                     unset($payload['orderInformation']);
                     $response = $this->executeRequest(
@@ -1776,6 +1788,7 @@ class CyberSourceApiClient
                     $logType = 'Canceled';
                     break;
                 case 'REFUND':
+                case 'REFUNDED':
                     $response = $this->executeRequest(
                         'Post',
                         "/pts/v2/payments/{$cybersourceTransactionId}/refunds",
@@ -1784,6 +1797,15 @@ class CyberSourceApiClient
                         $salesChannelId
                     );
                     $logType = 'Refunded';
+                    break;
+                case 'AUTHORIZED':
+                    // No API call needed for authorization in this context
+                    $message = 'Order transition to ' . ucfirst($stateLower) . ' successful.';
+                    return [
+                        'success' => true,
+                        'message' => $message,
+                        'data' => null
+                    ];
                     break;
                 default:
                     throw new \RuntimeException('Unsupported transition state: ' . $state);
@@ -1839,11 +1861,15 @@ class CyberSourceApiClient
                     'data' => $response['body']
                 ];
             } else {
-                $this->orderTransactionStateHandler->process($transaction->getId(), $context);
+                if (!$skipTransition) {
+                    $this->orderTransactionStateHandler->process($transaction->getId(), $context);
+                }
                 throw new \RuntimeException('Transition failed: ' . ($response['body']['message'] ?? 'Unknown error'));
             }
         } catch (\RuntimeException $e) {
-            $this->revertTransactionState($transaction->getId(), $currentState, $context);
+            if (!$skipTransition) {
+                $this->revertTransactionState($transaction->getId(), $currentState, $context);
+            }
             $this->logger->error('Transition failed for order ' . $orderId, [
                 'state' => $state,
                 'currentState' => $currentState,

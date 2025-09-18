@@ -1,3 +1,7 @@
+## [1.5.3] - 2025-09-18
+
+- Enhance transaction logging; include created date in logs and remove redundant timezone handling
+
 ## [1.5.2] - 2025-09-11
 
 - Enhance CyberSource payment handling with improved state transitions and error logging, add support for additional transaction states, and refactor payment processing logic

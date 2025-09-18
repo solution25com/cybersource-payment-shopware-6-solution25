@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace CyberSource\Shopware6\Service;
 
 use Shopware\Core\Framework\Context;
-use Shopware\Core\Framework\Validation\DataBag\RequestDataBag;
-use Psr\Log\LoggerInterface;
 
 class TransactionLogger
 {
@@ -38,7 +36,7 @@ class TransactionLogger
             gatewayAuthorizationCode: $responseData['processorInformation']['approvalCode'] ?? null,
             gatewayToken: $responseData['tokenInformation']['paymentInstrument']['id'] ?? null,
             gatewayReference: $responseData['processorInformation']['transactionId'] ?? null,
-            lastUpdate: date('c'),
+            lastUpdate: $responseData['submitTimeUtc'] ?? date('c'),
             uniqid: $uniqid,
             amount: isset($responseData['orderInformation']['amountDetails']['totalAmount'])
                 ? (string)$responseData['orderInformation']['amountDetails']['totalAmount']
@@ -59,6 +57,7 @@ class TransactionLogger
         string $paymentDataJson,
         string $orderTransactionId,
         Context $context,
+        string $createdDate,
         ?string $uniqid = null
     ): void {
         $paymentData = json_decode($paymentDataJson, true);
@@ -75,7 +74,7 @@ class TransactionLogger
                 gatewayAuthorizationCode: $paymentData['gateway_authorization_code'],
                 gatewayToken: $paymentData['gateway_token'],
                 gatewayReference: $paymentData['gateway_reference'],
-                lastUpdate: date('c'),
+                lastUpdate: $createdDate ?? date('c'),
                 uniqid: $uniqid,
                 amount: $paymentData['amount'] ?? null,
                 currency: $paymentData['currency'],

@@ -27,6 +27,7 @@ use Shopware\Core\System\StateMachine\StateMachineRegistry;
 use Shopware\Core\System\StateMachine\Transition;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Shopware\Core\Checkout\Customer\CustomerCollection as CustomerEntityCollection;
 use Shopware\Core\Checkout\Order\OrderCollection as OrderEntityCollection;
@@ -52,6 +53,7 @@ class CyberSourceApiClient
     private StateMachineRegistry $stateMachineRegistry;
     private TransactionLogger $transactionLogger;
     private AmountService $amountService;
+    private RequestStack $requestStack;
     /**
      * @param EntityRepository<CustomerEntityCollection> $customerRepository
      * @param EntityRepository<OrderEntityCollection> $orderRepository
@@ -66,7 +68,8 @@ class CyberSourceApiClient
         TransactionLogger $transactionLogger,
         OrderTransactionStateHandler $orderTransactionStateHandler,
         StateMachineRegistry $stateMachineRegistry,
-        AmountService $amountService
+        AmountService $amountService,
+        RequestStack $requestStack,
     ) {
         $this->configurationService = $configurationService;
         $this->cartService = $cartService;
@@ -78,6 +81,7 @@ class CyberSourceApiClient
         $this->orderTransactionStateHandler = $orderTransactionStateHandler;
         $this->stateMachineRegistry = $stateMachineRegistry;
         $this->amountService = $amountService;
+        $this->requestStack = $requestStack;
     }
 
     /**
@@ -122,6 +126,15 @@ class CyberSourceApiClient
         if(!$salesChannelId){
             $salesChannelId = null;
         }
+
+        if (strtolower($method) === 'post' && !empty($payload)) {
+            $clientIp = $this->requestStack->getCurrentRequest()?->getClientIp();
+
+            if ($clientIp) {
+                $payload['deviceInformation']['ipAddress'] = $clientIp;
+            }
+        }
+
         $payloadJson = !empty($payload) ? json_encode($payload, JSON_PRETTY_PRINT) : '';
         if ($payloadJson === false) {
             throw new \RuntimeException('Failed to encode payload to JSON');

@@ -1,3 +1,8 @@
+## [1.5.5] - 2025-10-31
+- Refactored **payment form validation** for better reliability.
+- Improved **billing field error handling** with clearer feedback messages.
+- Removed **email input** from saved card checkout to streamline the process.
+
 ## [1.5.4] - 2025-10-31
 
 - Update CyberSource integration; enhance transaction logging, add created date to logs, and remove redundant timezone handling

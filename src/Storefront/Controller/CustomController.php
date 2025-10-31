@@ -73,7 +73,7 @@ class CustomController extends StorefrontController
         path: '/cybersource/get-saved-cards',
         name: 'cybersource.get_saved_cards',
         methods: ['GET'],
-        defaults: ['_routeScope' => ['storefront']]
+        defaults: ['_routeScope' => ['storefront'], '_loginRequired' => true]
     )]
     public function getSavedCards(SalesChannelContext $context): JsonResponse
     {
@@ -84,7 +84,8 @@ class CustomController extends StorefrontController
     #[Route(
         path: '/account/cybersource/saved-cards',
         name: 'frontend.cybersource.saved_cards',
-        methods: ['GET']
+        methods: ['GET'],
+        defaults: ['_loginRequired' => true]
     )]
     public function savedCards(Request $request, SalesChannelContext $context): Response
     {
@@ -94,7 +95,7 @@ class CustomController extends StorefrontController
         }
         $salesChannelId = $context->getSalesChannel()->getId();
         $page = $this->genericPageLoader->load($request, $context);
-        $cards = $this->apiClient->getSavedCards($context)['cards'] ?? ['cards' => [], null, $salesChannelId];
+        $cards = $this->apiClient->getSavedCards($context, null, $salesChannelId)['cards'] ?? [];
 
         $response = $this->renderStorefront('@Storefront/storefront/page/account/saved_cards.html.twig', [
             'page' => $page,
@@ -108,7 +109,8 @@ class CustomController extends StorefrontController
     #[Route(
         path: '/account/cybersource/add-card',
         name: 'frontend.cybersource.add_card',
-        methods: ['POST']
+        methods: ['POST'],
+        defaults: ['_loginRequired' => true]
     )]
     public function addCard(Request $request, SalesChannelContext $context): JsonResponse
     {
@@ -118,7 +120,8 @@ class CustomController extends StorefrontController
     #[Route(
         path: '/account/cybersource/delete-card',
         name: 'frontend.cybersource.delete_card',
-        methods: ['POST']
+        methods: ['POST'],
+        defaults: ['_loginRequired' => true]
     )]
     public function deleteCard(Request $request, SalesChannelContext $context): Response
     {

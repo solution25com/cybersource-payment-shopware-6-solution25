@@ -1,3 +1,7 @@
+## [1.5.4] - 2025-10-31
+
+- Update CyberSource integration; enhance transaction logging, add created date to logs, and remove redundant timezone handling
+
 ## [1.5.3] - 2025-09-18
 
 - Enhance transaction logging; include created date in logs and remove redundant timezone handling

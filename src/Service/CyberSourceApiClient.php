@@ -716,6 +716,7 @@ class CyberSourceApiClient
                 $billTo['administrativeArea'] = $shortCode;
             }
             unset($billTo['state']);
+            $billTo['email'] = $customer->getEmail();
         } else {
             $billTo = $this->buildBillTo($customer, $billingAddress);
         }
@@ -1431,7 +1432,7 @@ class CyberSourceApiClient
         }
 
         $response = new Response(
-            '<html><body><script>window.parent.postMessage({action: "close_frame", data: '
+            '<!DOCTYPE html><html lang="en"><body><script>window.parent.postMessage({action: "close_frame", data: '
             . json_encode($return)
             . '}, "*");</script></body></html>'
         );
@@ -1569,6 +1570,7 @@ class CyberSourceApiClient
                 $billTo['administrativeArea'] = $shortCode;
             }
             unset($billTo['state']);
+            $billTo['email'] = $customer->getEmail();
         } else {
             $billTo = $this->buildBillTo($customer, $billingAddress);
         }
@@ -1576,7 +1578,7 @@ class CyberSourceApiClient
 
         $payload = [
             'clientReferenceInformation' => [
-                'code' => 'AddCard-' . $uniqid,
+                'code' => 'AddCard-' . $uniqid . '-' . $customerId,
             ],
             'processingInformation' => [
                 'actionList' => ['TOKEN_CREATE'],

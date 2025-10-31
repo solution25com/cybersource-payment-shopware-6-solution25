@@ -156,23 +156,27 @@ const PaymentModule = (function () {
             errors.push({ field: 'expiry', message: translations.expirationDatePast || 'Expiration date cannot be in the past' });
         }
         if (!config.isPaymentForm) {
-            const firstName = document.getElementById('billingFirstName').value.trim();
-            const lastName = document.getElementById('billingLastName').value.trim();
-            const email = document.getElementById('billingEmail').value.trim();
-            const street = document.getElementById('billingStreet').value.trim();
-            const city = document.getElementById('billingCity').value.trim();
-            const zip = document.getElementById('billingZip').value.trim();
-            const country = document.getElementById('billingCountry').value.trim();
-            const state = document.getElementById('billingState').value.trim();
+            const firstNameEl = document.getElementById('billingFirstName');
+            const lastNameEl = document.getElementById('billingLastName');
+            const streetEl = document.getElementById('billingStreet');
+            const cityEl = document.getElementById('billingCity');
+            const zipEl = document.getElementById('billingZip');
+            const countryEl = document.getElementById('billingCountry');
+            const stateEl = document.getElementById('billingState');
+
+            const firstName = firstNameEl ? firstNameEl.value.trim() : '';
+            const lastName = lastNameEl ? lastNameEl.value.trim() : '';
+            const street = streetEl ? streetEl.value.trim() : '';
+            const city = cityEl ? cityEl.value.trim() : '';
+            const zip = zipEl ? zipEl.value.trim() : '';
+            const country = countryEl ? countryEl.value.trim() : '';
+            const state = stateEl ? stateEl.value.trim() : '';
 
             if (!firstName) {
                 errors.push({ field: 'billingFirstName', message: translations.pleaseEnterValidFirstName || 'Please enter a valid first name' });
             }
             if (!lastName) {
                 errors.push({ field: 'billingLastName', message: translations.pleaseEnterValidLastName || 'Please enter a valid last name' });
-            }
-            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                errors.push({ field: 'billingEmail', message: translations.pleaseEnterValidEmail || 'Please enter a valid email address' });
             }
             if (!street) {
                 errors.push({ field: 'billingStreet', message: translations.pleaseEnterValidStreet || 'Please enter a valid street address' });
@@ -186,7 +190,8 @@ const PaymentModule = (function () {
             if (!country) {
                 errors.push({ field: 'billingCountry', message: translations.pleaseEnterValidCountry || 'Please select a country' });
             }
-            if (document.getElementById('billingStateSection').style.display === 'block' && !state) {
+            const billingStateSection = document.getElementById('billingStateSection');
+            if (billingStateSection && billingStateSection.style.display === 'block' && !state) {
                 errors.push({ field: 'billingState', message: translations.pleaseEnterValidState || 'Please select a state' });
             }
         }
@@ -203,7 +208,7 @@ const PaymentModule = (function () {
     }
 
     function showError(errors) {
-        ['expMonth', 'expYear', 'billingFirstName', 'billingLastName', 'billingEmail', 'billingStreet', 'billingCity', 'billingZip', 'billingCountry', 'billingState'].forEach(field => {
+        ['expMonth', 'expYear', 'billingFirstName', 'billingLastName', 'billingStreet', 'billingCity', 'billingZip', 'billingCountry', 'billingState'].forEach(field => {
             const input = document.getElementById(field);
             let errorDiv = document.getElementById(`${field}-error`);
             if (field === 'expMonth' || field === 'expYear') {
@@ -471,15 +476,15 @@ const PaymentModule = (function () {
             return;
         }
         let bodyParams = { token, expirationMonth: month, expirationYear: year };
+        const billingStateEl = document.getElementById('billingState');
         bodyParams.billingAddress = {
             firstName: document.getElementById('billingFirstName').value,
             lastName: document.getElementById('billingLastName').value,
-            email: document.getElementById('billingEmail').value,
             address1: document.getElementById('billingStreet').value,
             locality: document.getElementById('billingCity').value,
             postalCode: document.getElementById('billingZip').value,
             country: document.getElementById('billingCountry').value,
-            state: document.getElementById('billingState').value,
+            state: billingStateEl ? billingStateEl.value : ''
         };
         fetch(config.apiEndpoints.addCard, {
             method: 'POST',

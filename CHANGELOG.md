@@ -1,3 +1,9 @@
+## [1.5.6] - 2025-11-05
+- Enhanced **CyberSource payment handling** for improved transaction reliability and stability.
+- Added **created timestamp logging** to improve traceability and auditing of payment processes.
+- Improved **error handling for date parsing**, ensuring smoother operations and clearer error messages.
+- Updated **order detail components** for better consistency and user experience in the administration panel.
+
 ## [1.5.5] - 2025-10-31
 - Refactored **payment form validation** for better reliability.
 - Improved **billing field error handling** with clearer feedback messages.

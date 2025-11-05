@@ -59,11 +59,13 @@ final class CreditCard implements SynchronousPaymentHandlerInterface
         $salesChannelId = $salesChannelContext->getSalesChannel()->getId();
         $transactionType = $this->configurationService->getTransactionType($salesChannelId);
         $cybersource_payment_data = $dataBag->get('cybersource_payment_data');
+        $createdAt = $transaction->getOrderTransaction()->getCreatedAt()->format('Y-m-d\TH:i:s\Z');
         $this->transactionLogger->logTransactionFromDataBag(
             $transactionType === 'auth' ? 'Authorized' : 'Payment',
             $cybersource_payment_data,
             $orderTransactionId,
             $context,
+            $createdAt,
             $uniqid
         );
         $templateVariables = new ArrayStruct([

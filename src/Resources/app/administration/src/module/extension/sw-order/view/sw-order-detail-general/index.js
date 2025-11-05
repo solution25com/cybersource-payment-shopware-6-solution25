@@ -100,7 +100,7 @@ Component.override('sw-order-detail-general', {
             this.isCyberSourcePayment = !(!paymentMethod || paymentMethod.handlerIdentifier !== 'CyberSource\\Shopware6\\Gateways\\CreditCard');
         },
         formatDate(dateString) {
-            if (!dateString) return '-';
+            if (!dateString || isNaN(Date.parse(dateString))) return '-';
 
             const date = new Date(dateString);
 

@@ -1,3 +1,9 @@
+## [1.5.7] - 2025-11-10
+- Added **device fingerprinting support** to strengthen fraud prevention and enhance payment security.  
+- Implemented **new configuration options** for flexible control over fingerprinting and session behavior.  
+- Integrated **fingerprint script loading** directly into the checkout flow for seamless device data collection.  
+- Enhanced **API client** to handle session identifiers, improving transaction consistency and tracking.  
+
 ## [1.5.6] - 2025-11-05
 - Enhanced **CyberSource payment handling** for improved transaction reliability and stability.
 - Added **created timestamp logging** to improve traceability and auditing of payment processes.

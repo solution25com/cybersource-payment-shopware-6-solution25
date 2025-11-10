@@ -84,6 +84,66 @@ class CyberSourceApiClient
         $this->requestStack = $requestStack;
     }
 
+    public function resolveFingerprintSessionToken(): ?string
+    {
+        try {
+            $request = $this->requestStack->getCurrentRequest();
+            if ($request instanceof Request) {
+                $token = $request->headers->get('sw-context-token')
+                    ?: $request->get('sw-context-token')
+                    ?: $request->cookies->get('sw-context-token');
+                if (!$token && $request->hasSession()) {
+                    $token = $request->getSession()->getId();
+                }
+                if ($token && is_string($token)) {
+                    return trim($token);
+                }
+            }
+            $sid = \function_exists('session_id') ? \session_id() : '';
+            return $sid ?: null;
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to resolve fingerprint session token', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    private function shouldAttachFingerprint(?string $salesChannelId = null): bool
+    {
+        if (!$this->configurationService->isFingerprintEnabled($salesChannelId)) {
+            return false;
+        }
+        $orgId = $this->configurationService->getFingerprintOrganizationId($salesChannelId);
+        $merchantId = $this->configurationService->getMerchantId($salesChannelId);
+        if (!$orgId || !$merchantId) {
+            $this->logger->warning('Fingerprinting enabled but organizationId or merchantId missing. Skipping.', [
+                'organizationId' => $orgId,
+                'merchantId' => $merchantId,
+            ]);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Build the same session_id value used in fingerprint URLs.
+     */
+    private function buildFingerprintSessionId(?string $salesChannelId = null): ?string
+    {
+        try {
+            $merchantId = $this->configurationService->getMerchantId($salesChannelId);
+            $sessionToken = $this->resolveFingerprintSessionToken();
+            if (!$merchantId || !$sessionToken) {
+                return null;
+            }
+            if (strpos($sessionToken, $merchantId) === 0) {
+                return $sessionToken;
+            }
+            return $merchantId . $sessionToken;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     /**
      * Generate headers for a request based on the HTTP method.
      */
@@ -127,11 +187,16 @@ class CyberSourceApiClient
             $salesChannelId = null;
         }
 
-        if (strtolower($method) === 'post' && !empty($payload)) {
+        if (strtolower($method) === 'post') {
             $clientIp = $this->requestStack->getCurrentRequest()?->getClientIp();
-
             if ($clientIp) {
                 $payload['deviceInformation']['ipAddress'] = $clientIp;
+            }
+            if ($this->shouldAttachFingerprint($salesChannelId)) {
+                $fpSessionId = $this->resolveFingerprintSessionToken();
+                if ($fpSessionId) {
+                    $payload['deviceInformation']['fingerprintSessionId'] = $fpSessionId;
+                }
             }
         }
 
@@ -1821,7 +1886,6 @@ class CyberSourceApiClient
                         'message' => $message,
                         'data' => null
                     ];
-                    break;
                 default:
                     throw new \RuntimeException('Unsupported transition state: ' . $state);
             }
@@ -1943,4 +2007,50 @@ class CyberSourceApiClient
             return false;
         }
     }
+
+    /**
+     * Build fingerprint configuration for the storefront.
+     */
+    public function getFingerprintConfig(SalesChannelContext $context): array
+    {
+        $salesChannelId = $context->getSalesChannel()->getId();
+        $enabled = $this->shouldAttachFingerprint($salesChannelId);
+        if (!$enabled) {
+            return [
+                'enabled' => false,
+                'scriptUrl' => null,
+                'pixelUrl' => null,
+                'iframeUrl' => null,
+            ];
+        }
+        $domain = $this->configurationService->getFingerprintDomain($salesChannelId);
+        $orgId = $this->configurationService->getFingerprintOrganizationId($salesChannelId);
+        $merchantId = $this->configurationService->getMerchantId($salesChannelId);
+        $sessionToken = $this->resolveFingerprintSessionToken();
+        if (!$domain || !$orgId || !$merchantId || !$sessionToken) {
+            $this->logger->warning('Fingerprint config incomplete; skipping script build', [
+                'domain' => $domain,
+                'orgId' => $orgId,
+                'merchantId' => $merchantId,
+                'sessionTokenPresent' => (bool)$sessionToken,
+            ]);
+            return [
+                'enabled' => false,
+                'scriptUrl' => null,
+                'pixelUrl' => null,
+                'iframeUrl' => null,
+            ];
+        }
+        $sessionIdParam = $this->buildFingerprintSessionId($salesChannelId) ?? ($merchantId . $sessionToken);
+        $scriptUrl = sprintf('https://%s/fp/tags.js?org_id=%s&session_id=%s', $domain, rawurlencode($orgId), rawurlencode($sessionIdParam));
+        $pixelUrl = sprintf('https://%s/fp/clear.png?org_id=%s&session_id=%s', $domain, rawurlencode($orgId), rawurlencode($sessionIdParam));
+        $iframeUrl = sprintf('https://%s/fp/tags?org_id=%s&session_id=%s', $domain, rawurlencode($orgId), rawurlencode($sessionIdParam));
+        return [
+            'enabled' => true,
+            'scriptUrl' => $scriptUrl,
+            'pixelUrl' => $pixelUrl,
+            'iframeUrl' => $iframeUrl,
+        ];
+    }
 }
+

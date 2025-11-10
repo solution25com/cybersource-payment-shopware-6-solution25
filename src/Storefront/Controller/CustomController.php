@@ -96,11 +96,13 @@ class CustomController extends StorefrontController
         $salesChannelId = $context->getSalesChannel()->getId();
         $page = $this->genericPageLoader->load($request, $context);
         $cards = $this->apiClient->getSavedCards($context, null, $salesChannelId)['cards'] ?? [];
+        $fingerprint = $this->apiClient->getFingerprintConfig($context);
 
         $response = $this->renderStorefront('@Storefront/storefront/page/account/saved_cards.html.twig', [
             'page' => $page,
             'cards' => $cards,
-            'paymentMethodId' => $context->getPaymentMethod()->getId()
+            'paymentMethodId' => $context->getPaymentMethod()->getId(),
+            'fingerprint' => $fingerprint,
         ]);
 
         return $response;
@@ -127,5 +129,17 @@ class CustomController extends StorefrontController
     {
         $this->apiClient->deleteCard($request, $context);
         return $this->redirectToRoute('frontend.cybersource.saved_cards');
+    }
+
+    #[Route(
+        path: '/cybersource/fingerprint-config',
+        name: 'custom.fingerprint_config',
+        methods: ['GET'],
+        defaults: ['_routeScope' => ['storefront']]
+    )]
+    public function getFingerprintConfig(SalesChannelContext $context): JsonResponse
+    {
+        $config = $this->apiClient->getFingerprintConfig($context);
+        return new JsonResponse($config);
     }
 }

@@ -177,8 +177,8 @@
                 <div class="form-group">
                     <label>{{ 'cybersource_shopware6.savedCards.expDate' | trans }}</label>
                     <div class="expiry-group">
-                        <input id="expMonth" type="text" placeholder="{{ 'cybersource_shopware6.credit_card.expiryDatePlaceholderText' | trans | split('/')[0] }}" maxlength="2" required>
-                        <input id="expYear" type="text" placeholder="{{ 'cybersource_shopware6.credit_card.expiryDatePlaceholderText' | trans | split('/')[1] }}" maxlength="4" required>
+                        <input id="expMonth" type="text" placeholder="{{ 'cybersource_shopware6.credit_card.expiryDatePlaceholderText' | trans | split('/') [0] }}" maxlength="2" required>
+                        <input id="expYear" type="text" placeholder="{{ 'cybersource_shopware6.credit_card.expiryDatePlaceholderText' | trans | split('/') [1] }}" maxlength="4" required>
                     </div>
                     <div id="expiry-error" class="error-message">{{ 'cybersource_shopware6.savedCards.pleaseEnterValidExpirationDate' | trans }}</div>
                 </div>
@@ -200,4 +200,10 @@
 
     <script src="{{ asset('bundles/cybersourceshopware6/js/payment.js') }}"></script>
     <script src="{{ asset('bundles/cybersourceshopware6/js/billing.js') }}"></script>
+    {% set fp = fingerprint is defined ? fingerprint : null %}
+    {% if fp and fp.enabled and fp.iframeUrl %}
+        <noscript>
+            <iframe src="{{ fp.iframeUrl }}" style="width: 100px; height: 100px; border: 0; position: absolute; top: -5000px;"></iframe>
+        </noscript>
+    {% endif %}
 {% endblock %}

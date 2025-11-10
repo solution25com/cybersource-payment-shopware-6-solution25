@@ -104,9 +104,29 @@
             <default>true</default>
         </input-field>
     </card>
+    <card>
+        <title>Device Fingerprinting</title>
+        <input-field type="bool">
+            <name>fingerprintEnabled</name>
+            <label>Enable Device Fingerprinting</label>
+            <helpText>Collect device data using CyberSource Device Fingerprinting (ParadoxLabs parity).</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+        <input-field>
+            <name>fingerprintDomain</name>
+            <label>Fingerprint Domain</label>
+            <helpText>Hostname for device profiling scripts</helpText>
+            <placeholder>h.online-metrix.net</placeholder>
+            <defaultValue>h.online-metrix.net</defaultValue>
+        </input-field>
+        <input-field>
+            <name>organizationId</name>
+            <label>Organization ID (for Fingerprinting)</label>
+            <helpText>Required when fingerprinting is enabled. Provided by CyberSource/Decision Manager.</helpText>
+        </input-field>
+    </card>
     <!-- TODO : JWT authentication implementation specific settings-->
     <!--
-    <card>
     <title>JWT Authentication Configuration</title>
         <title lang="de-DE">API Authentication Configuration</title>
         <component name="sw-media-field">
@@ -114,5 +134,5 @@
             <label>Select a P12 file to upload</label>
         </component>
     </card>
-    -->
+        -->
 </config>

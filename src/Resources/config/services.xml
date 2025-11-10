@@ -35,6 +35,7 @@
         <!-- Event Subscribers -->
         <service id="CyberSource\Shopware6\EventSubscriber\CheckoutConfirmEventSubscriber">
             <argument type="service" id="customer.repository"/>
+            <argument type="service" id="CyberSource\Shopware6\Service\CyberSourceApiClient"/>
             <tag name="kernel.event_subscriber"/>
         </service>
         <!-- End Event Subscribers -->

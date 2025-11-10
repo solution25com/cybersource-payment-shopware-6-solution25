@@ -203,6 +203,27 @@ class ConfigurationService
         return $this->systemConfig->getBool('CyberSourceShopware6.config.threeDS', $salesChannelId);
     }
 
+    public function isFingerprintEnabled(?string $salesChannelId = null): bool
+    {
+        return $this->systemConfig->getBool(self::CONFIGURATION_KEY . '.config.fingerprintEnabled', $salesChannelId);
+    }
+
+    public function getFingerprintDomain(?string $salesChannelId = null): string
+    {
+        $domain = $this->get('fingerprintDomain', $salesChannelId);
+        return $domain ?: 'h.online-metrix.net';
+    }
+
+    public function getFingerprintOrganizationId(?string $salesChannelId = null): ?string
+    {
+        return $this->get('organizationId', $salesChannelId);
+    }
+
+    public function getMerchantId(?string $salesChannelId = null): ?string
+    {
+        $merchantId = $this->getOrganizationID($salesChannelId);
+        return $merchantId ?: null;
+    }
 
     public function getSharedSecretKey(?string $salesChannelId = null): ?string
     {
@@ -214,6 +235,3 @@ class ConfigurationService
         return $this->systemConfig->getString('CyberSourceShopware6.config.sharedSecretKeyId', $salesChannelId);
     }
 }
-
-
-

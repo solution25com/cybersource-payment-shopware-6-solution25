@@ -1,3 +1,4 @@
+{% set fp = page.extensions.cybersource_shopware6.fingerprint is defined ? page.extensions.cybersource_shopware6.fingerprint : (fingerprint is defined ? fingerprint : null) %}
 <div data-jsData="{{ {
     'salesChannelAccessKey': context.salesChannel.accessKey,
     'translations': {
@@ -66,3 +67,8 @@
     </div>
 </div>
     <script src="{{ asset('bundles/cybersourceshopware6/js/payment.js') }}"></script>
+{% if fp and fp.enabled and fp.iframeUrl %}
+    <noscript>
+        <iframe src="{{ fp.iframeUrl }}" style="width: 100px; height: 100px; border: 0; position: absolute; top: -5000px;"></iframe>
+    </noscript>
+{% endif %}

@@ -3,6 +3,8 @@ const PaymentModule = (function () {
     let config = {};
     let translations = {};
     let salesChannelAccessKey = '';
+    let fingerprintScriptLoaded = false;
+    let fingerprintRequired = false;
 
     // Initialize the module with configuration
     function init(options) {
@@ -34,16 +36,55 @@ const PaymentModule = (function () {
                 authorizePayment: '/cybersource/authorize-payment',
                 proceedAuthentication: '/cybersource/proceed-authentication',
                 addCard: '/account/cybersource/add-card',
-                getSavedCards: '/cybersource/get-saved-cards'
+                getSavedCards: '/cybersource/get-saved-cards',
+                fingerprintConfig: '/cybersource/fingerprint-config'
             },
             ...options
         };
 
+        loadFingerprint();
         if (config.isPaymentForm) {
             loadSavedCards();
         }
         setupEventListeners();
         initializeMicroform();
+    }
+
+    function loadFingerprint() {
+        try {
+            if (fingerprintScriptLoaded) return;
+            fetch(config.apiEndpoints.fingerprintConfig)
+                .then(res => res.json())
+                .then(fp => {
+                    fingerprintRequired = !!(fp && fp.enabled);
+                    if (!fp || !fp.enabled || !fp.scriptUrl) return;
+                    const existing = document.querySelector('script[data-cs-fingerprint="1"]');
+                    if (existing) { fingerprintScriptLoaded = true; return; }
+                    const s = document.createElement('script');
+                    s.src = fp.scriptUrl;
+                    s.async = true;
+                    s.dataset.csFingerprint = '1';
+                    s.onload = () => { fingerprintScriptLoaded = true; };
+                    document.head.appendChild(s);
+                })
+                .catch(() => { fingerprintRequired = false; });
+        } catch (_) { }
+    }
+
+    function waitForFingerprint(timeoutMs = 1500) {
+        if (!fingerprintRequired) return Promise.resolve();
+        if (fingerprintScriptLoaded) return Promise.resolve();
+        return new Promise(resolve => {
+            const start = Date.now();
+            const tick = () => {
+                if (fingerprintScriptLoaded || Date.now() - start >= timeoutMs) {
+                    resolve();
+                } else {
+                    setTimeout(tick, 50);
+                }
+            };
+            tick();
+        });
     }
 
     // Load saved cards for payment form
@@ -148,7 +189,7 @@ const PaymentModule = (function () {
         const yearNum = parseInt(year, 10);
 
         // Validate expiration date
-        if (!month || !year || !/^\d{2}$/.test(month) || !/^\d{4}$/.test(year)) {
+        if (!month || !year || /^\d{2}$/.test(month) === false || /^\d{4}$/.test(year) === false) {
             errors.push({ field: 'expiry', message: translations.pleaseEnterValidExpirationDate || 'Please enter a valid expiration date' });
         } else if (monthNum < 1 || monthNum > 12) {
             errors.push({ field: 'expiry', message: translations.monthInvalid || 'Month must be between 01 and 12' });
@@ -362,7 +403,7 @@ const PaymentModule = (function () {
     }
 
     // Handle payment or card save
-    function handlePaymentOrSave(isPayment) {
+    async function handlePaymentOrSave(isPayment) {
         const buttonId = isPayment ? config.payButtonId : config.saveCardButtonId;
         showLoadingButton(true, buttonId);
 
@@ -375,6 +416,7 @@ const PaymentModule = (function () {
             if (savedCardsSelect) {
                 const subscriptionId = savedCardsSelect.value !== 'new' ? savedCardsSelect.value : null;
                 if (subscriptionId) {
+                    await waitForFingerprint();
                     authorizePayment(null, subscriptionId);
                     return;
                 }
@@ -387,6 +429,7 @@ const PaymentModule = (function () {
             showLoadingButton(false, buttonId);
             return;
         }
+        await waitForFingerprint();
         if (!microform) {
             alert(translations.cardFieldsNotLoaded || 'Card fields are not loaded yet. Please wait a few seconds.');
             showLoadingButton(false, buttonId);

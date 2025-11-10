@@ -15,18 +15,21 @@ use Shopware\Core\Checkout\Customer\CustomerCollection;
 use Shopware\Storefront\Page\Account\Order\AccountEditOrderPageLoadedEvent;
 use Shopware\Storefront\Page\Checkout\Confirm\CheckoutConfirmPageLoadedEvent;
 use Shopware\Core\Framework\Struct\ArrayStruct;
+use CyberSource\Shopware6\Service\CyberSourceApiClient;
 
 class CheckoutConfirmEventSubscriber implements EventSubscriberInterface
 {
     /** @var EntityRepository<CustomerCollection> */
     private EntityRepository $customerRepository;
+    private CyberSourceApiClient $apiClient;
 
     /**
      * @param EntityRepository<CustomerCollection> $customerRepository
      */
-    public function __construct(EntityRepository $customerRepository)
+    public function __construct(EntityRepository $customerRepository, CyberSourceApiClient $apiClient)
     {
         $this->customerRepository = $customerRepository;
+        $this->apiClient = $apiClient;
     }
 
     public static function getSubscribedEvents(): array
@@ -54,11 +57,13 @@ class CheckoutConfirmEventSubscriber implements EventSubscriberInterface
 
         $isGuestLogin = $customer->getGuest();
         $savedCards = $isGuestLogin ? [] : $this->getCustomerSavedCardTokens($event);
+        $fingerprint = $this->apiClient->getFingerprintConfig($salesChannelContext);
 
         $templateVariables = new ArrayStruct([
             'template' => '@Storefront/cybersource_shopware6/credit-card-iframe.html.twig',
             'savedCards' => $savedCards,
             'isGuestLogin' => $isGuestLogin,
+            'fingerprint' => $fingerprint,
         ]);
 
         $pageObject->addExtension(

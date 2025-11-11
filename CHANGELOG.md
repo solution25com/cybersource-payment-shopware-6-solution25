@@ -1,3 +1,7 @@
+## [1.5.8] - 2025-11-11
+- Updated **Cybersource API client** to improve request handling and compatibility.
+- Modified payload structure to **use customer number instead of customer ID**, ensuring consistent identification across API transactions and reporting.
+
 ## [1.5.7] - 2025-11-10
 - Added **device fingerprinting support** to strengthen fraud prevention and enhance payment security.  
 - Implemented **new configuration options** for flexible control over fingerprinting and session behavior.  

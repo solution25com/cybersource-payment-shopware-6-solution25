@@ -1623,6 +1623,7 @@ class CyberSourceApiClient
         }
 
         $customerId = $customer->getId();
+        $customerNo = $customer->getCustomerNumber();
         $billingAddress = $customer->getActiveBillingAddress();
         if ($billTo) {
             $shortCode = $billTo['state'];
@@ -1643,7 +1644,7 @@ class CyberSourceApiClient
 
         $payload = [
             'clientReferenceInformation' => [
-                'code' => 'AddCard-' . $uniqid . '-' . $customerId,
+                'code' => 'AddCard-' . $uniqid . '-' . $customerNo,
             ],
             'processingInformation' => [
                 'actionList' => ['TOKEN_CREATE'],

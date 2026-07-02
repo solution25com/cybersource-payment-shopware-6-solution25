@@ -11,3 +11,9 @@ validation:
     - message: 'file /ext/vendor/shopware/storefront/Resources/app/storefront/vendor/tiny-slider/src/.DS_Store is not allowed in the zip file'
     - message: 'the german description with length of 34 should have a length from 150 up to 185 characters.'
     - message: 'the english description with length of 34 should have a length from 150 up to 185 characters.'
+
+build:
+  zip:
+    assets:
+      enabled: true
+      enable_asset_caching: true

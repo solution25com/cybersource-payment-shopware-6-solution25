@@ -54,6 +54,9 @@ class CyberSourceApiClient
     private TransactionLogger $transactionLogger;
     private AmountService $amountService;
     private RequestStack $requestStack;
+    private PaymentProofSigner $paymentProofSigner;
+    private UrlService $urlService;
+    private LogSanitizer $logSanitizer;
     /**
      * @param EntityRepository<CustomerEntityCollection> $customerRepository
      * @param EntityRepository<OrderEntityCollection> $orderRepository
@@ -70,6 +73,9 @@ class CyberSourceApiClient
         StateMachineRegistry $stateMachineRegistry,
         AmountService $amountService,
         RequestStack $requestStack,
+        PaymentProofSigner $paymentProofSigner,
+        UrlService $urlService,
+        LogSanitizer $logSanitizer,
     ) {
         $this->configurationService = $configurationService;
         $this->cartService = $cartService;
@@ -82,6 +88,9 @@ class CyberSourceApiClient
         $this->stateMachineRegistry = $stateMachineRegistry;
         $this->amountService = $amountService;
         $this->requestStack = $requestStack;
+        $this->paymentProofSigner = $paymentProofSigner;
+        $this->urlService = $urlService;
+        $this->logSanitizer = $logSanitizer;
     }
 
     public function resolveFingerprintSessionToken(): ?string
@@ -171,11 +180,10 @@ class CyberSourceApiClient
     private function executeRequest(
         string $method,
         string $endpoint,
-        array  $payload = [],
+        array $payload = [],
         string $logContext = 'API Request',
-        string $salesChannelId = null
-    ): array
-    {
+        ?string $salesChannelId = null
+    ): array {
         $this->signer = $this->configurationService->getSignatureContract($salesChannelId);
         $this->baseUrl = $this->configurationService->getBaseUrl($salesChannelId)->value;
         $this->client = new Client([
@@ -183,7 +191,7 @@ class CyberSourceApiClient
             'timeout' => 10.0,
             'connect_timeout' => 5.0,
         ]);
-        if(!$salesChannelId){
+        if (!$salesChannelId) {
             $salesChannelId = null;
         }
 
@@ -227,13 +235,18 @@ class CyberSourceApiClient
                 ? $e->getResponse()->getBody()->getContents()
                 : $e->getMessage();
             $errorResponse = $this->formatCyberSourceError($errorResponse);
-            $this->logger->error("{$logContext} Failed: " . $e->getMessage(), [
+            $this->logger->error("{$logContext} Failed: " . $e->getMessage(), $this->sanitizeLogContext([
                 'endpoint' => $endpoint,
                 'payload' => $payload,
                 'response' => $errorResponse,
-            ]);
+            ]));
             throw new \RuntimeException("{$logContext} failed: " . $errorResponse);
         }
+    }
+
+    private function sanitizeLogContext(array $context): array
+    {
+        return $this->logSanitizer->sanitizeContext($context);
     }
 
     public function formatCyberSourceError(string|array $response): string
@@ -383,7 +396,7 @@ class CyberSourceApiClient
     /**
      * Retrieve transaction details by transaction ID.
      */
-    public function retrieveTransaction(string $cybersourcePaymentId, array $payload, string $salesChannelId = null): array
+    public function retrieveTransaction(string $cybersourcePaymentId, array $payload, ?string $salesChannelId = null): array
     {
         try {
             return $this->executeRequest(
@@ -404,7 +417,7 @@ class CyberSourceApiClient
     /**
      * Retrieve transaction details by transaction ID.
      */
-    public function retrieveTransientToken(string $transientToken, array $payload, string $salesChannelId = null): array
+    public function retrieveTransientToken(string $transientToken, array $payload, ?string $salesChannelId = null): array
     {
         try {
             return $this->executeRequest(
@@ -426,11 +439,11 @@ class CyberSourceApiClient
      * Capture a payment.
      */
     public function capturePayment(
-        string  $transactionId,
-        array   $payload,
-        string  $orderTransactionId,
+        string $transactionId,
+        array $payload,
+        string $orderTransactionId,
         Context $context,
-        string $salesChannelId = null
+        ?string $salesChannelId = null
     ): array {
         $response = $this->executeRequest(
             'Post',
@@ -455,9 +468,9 @@ class CyberSourceApiClient
      * Void a payment.
      */
     public function voidPayment(
-        string  $transactionId,
-        array   $payload,
-        string  $orderTransactionId,
+        string $transactionId,
+        array $payload,
+        string $orderTransactionId,
         Context $context,
         ?string $salesChannelId = null
     ): array {
@@ -485,9 +498,9 @@ class CyberSourceApiClient
      * Refund a payment.
      */
     public function refundPayment(
-        string  $transactionId,
-        array   $payload,
-        string  $orderTransactionId,
+        string $transactionId,
+        array $payload,
+        string $orderTransactionId,
         Context $context,
         ?string $salesChannelId = null
     ): array {
@@ -514,10 +527,10 @@ class CyberSourceApiClient
      * Process a payment action (capture, void, refund, re-authorize).
      */
     public function processPaymentAction(
-        string  $action,
-        string  $transactionId,
-        array   $payload,
-        string  $orderId,
+        string $action,
+        string $transactionId,
+        array $payload,
+        string $orderId,
         Context $context
     ): array {
         $criteria = new Criteria([$orderId]);
@@ -560,7 +573,6 @@ class CyberSourceApiClient
                 'orderId' => $orderId,
                 'orderTransactionId' => $orderTransactionId,
                 'action' => $action,
-                'customFields' => $customFields,
             ]);
             return [
                 'status' => 'error',
@@ -672,7 +684,7 @@ class CyberSourceApiClient
                 $this->logger->error(ucfirst(strtolower($action)) . ' failed', [
                     'orderId' => $orderId,
                     'orderTransactionId' => $orderTransactionId,
-                    'response' => $response['body'],
+                    'response' => $this->sanitizeLogContext(['response' => $response['body']])['response'],
                 ]);
                 return [
                     'status' => 'error',
@@ -707,10 +719,11 @@ class CyberSourceApiClient
     /**
      * Get capture context for Microform.
      */
-    public function getCaptureContext(string $salesChannelId = null): JsonResponse
+    public function getCaptureContext(SalesChannelContext $context): JsonResponse
     {
+        $salesChannelId = $context->getSalesChannel()->getId();
         $endpoint = '/microform/v2/sessions';
-        $domain = "https://" . $_SERVER['HTTP_HOST'];
+        $domain = $this->urlService->getTrustedOrigin($salesChannelId, $context->getContext());
         $payload = [
             'captureMethod' => 'TOKEN',
             'targetOrigins' => [$domain],
@@ -799,6 +812,21 @@ class CyberSourceApiClient
             $saveCard = false;
         }
 
+        $paymentProofPayload = [
+            'stage' => 'prepared',
+            'uniqid' => $uniqid,
+            'amount' => $this->normalizeAmount($amount),
+            'currency' => $currency,
+            'salesChannelId' => $salesChannelId,
+            'customerId' => $customerId,
+            'saveCard' => (bool) $saveCard,
+            'subscriptionId' => $subscriptionId,
+            'transientTokenJwt' => $token,
+            'expirationMonth' => $expirationMonth,
+            'expirationYear' => $expirationYear,
+            'orderInfo' => $orderInfo,
+        ];
+
         if (!$this->configurationService->isThreeDSEnabled($salesChannelId)) {
             return $this->completePayment(
                 $context,
@@ -852,10 +880,12 @@ class CyberSourceApiClient
                 'Authentication Setup',
                 $salesChannelId
             );
+            $paymentProofPayload['authenticationSetup'] = $response['body']['consumerAuthenticationInformation'] ?? [];
             return new JsonResponse([
                 'success' => true,
                 'action' => 'setup',
                 'uniqid' => $uniqid,
+                'paymentProof' => $this->paymentProofSigner->sign($paymentProofPayload),
                 'consumerAuthenticationInformation' => $response['body']['consumerAuthenticationInformation'],
             ]);
         } catch (\RuntimeException $e) {
@@ -869,56 +899,36 @@ class CyberSourceApiClient
     public function proceedAuthentication(Request $request, SalesChannelContext $context): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
-        $token = $data['token'] ?? null;
-        $subscriptionId = $data['subscriptionId'] ?? null;
-        $saveCard = $data['saveCard'] ?? false;
-        $expirationMonth = $data['expirationMonth'] ?? null;
-        $expirationYear = $data['expirationYear'] ?? null;
-        $setupResponse = $data['setupResponse'] ?? null;
         $callbackData = $data['callbackData'] ?? null;
-        $uniqid = $data['uniqid'] ?? null;
-        $billTo = $data['billingAddress'] ?? null;
+        $paymentProofToken = $data['paymentProof'] ?? null;
         $salesChannelId = $context->getSalesChannel()->getId();
-        if (!$token && !$subscriptionId) {
-            return new JsonResponse(['error' => 'Missing token or subscriptionId'], 400);
-        }
-        if (!$setupResponse || !$callbackData || !$uniqid) {
-            return new JsonResponse(['error' => 'Missing setup response, callback data, or uniqid'], 400);
+        if (!$callbackData || !is_string($paymentProofToken) || $paymentProofToken === '') {
+            return new JsonResponse(['error' => 'Missing callback data or payment proof'], 400);
         }
 
-        $setupResponse = is_string($setupResponse) ? json_decode($setupResponse, true) : $setupResponse;
         $callbackData = is_string($callbackData) ? json_decode($callbackData, true) : $callbackData;
 
-        $cart = $this->cartService->getCart($context->getToken(), $context);
-        $customer = $context->getCustomer();
-        if (!$customer) {
-            return new JsonResponse(['error' => 'Customer not found'], 403);
+        $paymentProof = $this->paymentProofSigner->verify($paymentProofToken);
+        if (
+            $paymentProof === null ||
+            ($paymentProof['stage'] ?? null) !== 'prepared' ||
+            ($paymentProof['salesChannelId'] ?? null) !== $salesChannelId
+        ) {
+            return new JsonResponse(['error' => 'Invalid payment proof'], 403);
         }
-        $customerId = $customer->getId();
-        $billingAddress = $customer->getActiveBillingAddress();
-        $amount = (string)$this->amountService->getAmount($cart);
-        $currency = $context->getCurrency()->getIsoCode();
-        if ($billTo) {
-            $shortCode = $billTo['state'];
-            if (strpos($shortCode, '-') !== false) {
-                $shortCode = explode('-', $shortCode);
-                if (count($shortCode) > 1) {
-                    $billTo['administrativeArea'] = $shortCode[1];
-                }
-            } elseif ($shortCode) {
-                $billTo['administrativeArea'] = $shortCode;
-            }
-            unset($billTo['state']);
-        } else {
-            $billTo = $this->buildBillTo($customer, $billingAddress);
+
+        $uniqid = $paymentProof['uniqid'] ?? null;
+        $orderInfo = $paymentProof['orderInfo'] ?? null;
+        $setupInfo = $paymentProof['authenticationSetup'] ?? null;
+        $token = $paymentProof['transientTokenJwt'] ?? null;
+        $subscriptionId = $paymentProof['subscriptionId'] ?? null;
+        $saveCard = (bool) ($paymentProof['saveCard'] ?? false);
+        $expirationMonth = $paymentProof['expirationMonth'] ?? null;
+        $expirationYear = $paymentProof['expirationYear'] ?? null;
+        $customerId = $paymentProof['customerId'] ?? null;
+        if (!$uniqid || !$orderInfo || !$setupInfo || (!$token && !$subscriptionId)) {
+            return new JsonResponse(['error' => 'Payment proof is incomplete'], 400);
         }
-        $orderInfo = [
-            'amountDetails' => [
-                'totalAmount' => $amount,
-                'currency' => $currency,
-            ],
-            'billTo' => $billTo,
-        ];
 
         $payload = [
             'clientReferenceInformation' => [
@@ -927,14 +937,15 @@ class CyberSourceApiClient
             'orderInformation' => $orderInfo,
             'consumerAuthenticationInformation' => [
                 'authenticationType' => '01',
-                'referenceId' => $setupResponse['consumerAuthenticationInformation']['referenceId'] ?? null,
-                'returnUrl' => 'https://' . $_SERVER['HTTP_HOST'] . '/cybersource/3ds-callback',
+                'referenceId' => $setupInfo['referenceId'] ?? null,
+                'returnUrl' => $this->urlService->getTrustedOrigin($salesChannelId, $context->getContext())
+                    . '/cybersource/3ds-callback',
             ],
         ];
 
-        if (!empty($setupResponse['consumerAuthenticationInformation']['accessToken'])) {
+        if (!empty($setupInfo['accessToken'])) {
             $payload['consumerAuthenticationInformation']['accessToken'] =
-                $setupResponse['consumerAuthenticationInformation']['accessToken'];
+                $setupInfo['accessToken'];
         }
 
         if ($subscriptionId) {
@@ -973,6 +984,9 @@ class CyberSourceApiClient
                 $cardType = $responseData['paymentInformation']['card']['type'] ?? null;
 
                 if ($acsUrl && $pareq && $accessToken) {
+                    $paymentProof['stage'] = 'authentication_pending';
+                    $paymentProof['cardType'] = $cardType;
+                    $paymentProof['authenticationTransactionId'] = $authenticationTransactionId;
                     return new JsonResponse([
                         'success' => true,
                         'action' => '3ds',
@@ -982,14 +996,7 @@ class CyberSourceApiClient
                         'pareq' => $pareq,
                         'uniqid' => $uniqid,
                         'accessToken' => $accessToken,
-                        'cardType' => $cardType,
-                        'orderInfo' => $orderInfo,
-                        'transientTokenJwt' => $token,
-                        'subscriptionId' => $subscriptionId,
-                        'expirationMonth' => $expirationMonth,
-                        'expirationYear' => $expirationYear,
-                        'saveCard' => $saveCard,
-                        'customerId' => $customerId,
+                        'paymentProof' => $this->paymentProofSigner->sign($paymentProof),
                     ]);
                 }
                 return new JsonResponse([
@@ -1090,10 +1097,10 @@ class CyberSourceApiClient
             $payload['processingInformation']['commerceIndicator'] = 'internet';
         } else {
             if (!$transientTokenJwt) {
-                $this->logger->error('transientTokenJwt is missing in completePayment', [
+                $this->logger->error('transientTokenJwt is missing in completePayment', $this->sanitizeLogContext([
                     'authResponse' => $authResponse,
                     'subscriptionId' => $subscriptionId,
-                ]);
+                ]));
                 return new JsonResponse([
                     'success' => false,
                     'action' => 'notify',
@@ -1133,9 +1140,9 @@ class CyberSourceApiClient
                         $salesChannelId
                     );
                     if (!$paymentInstrumentId) {
-                        $this->logger->warning('Failed to save card', [
+                        $this->logger->warning('Failed to save card', $this->sanitizeLogContext([
                             'instrumentIdentifierId' => $instrumentIdentifierId,
-                        ]);
+                        ]));
                     }
                 }
             }
@@ -1191,21 +1198,33 @@ class CyberSourceApiClient
                 }
             }
             if (!$paymentData['card_last_4']) {
-                for ($i = 0; $i < 3; $i++) {
-                    if ($i > 0) {
-                        sleep(2); // wait for 2 second before retrying
-                    }
-                    $transactionDetails = $this->retrieveTransaction($transactionId, [], $salesChannelId);
-                    if (
-                        $transactionDetails['statusCode'] === 200 &&
-                        isset($transactionDetails['body']['paymentInformation']['card']['suffix'])
-                    ) {
-                        $paymentData['card_last_4'] =
-                            substr($transactionDetails['body']['paymentInformation']['card']['suffix'], -4);
-                        break;
-                    }
+                $transactionDetails = $this->retrieveTransaction($transactionId, [], $salesChannelId);
+                if (
+                    $transactionDetails['statusCode'] === 200 &&
+                    isset($transactionDetails['body']['paymentInformation']['card']['suffix'])
+                ) {
+                    $paymentData['card_last_4'] =
+                        substr($transactionDetails['body']['paymentInformation']['card']['suffix'], -4);
                 }
             }
+
+            $paymentProof = $this->paymentProofSigner->sign([
+                'stage' => 'completed',
+                'uniqid' => $uniqid,
+                'transactionId' => $transactionId,
+                'status' => $status,
+                'amount' => $this->normalizeAmount($orderInfo['amountDetails']['totalAmount'] ?? null),
+                'currency' => $orderInfo['amountDetails']['currency'] ?? null,
+                'salesChannelId' => $salesChannelId,
+                'customerId' => $customerId,
+                'saveCard' => $saveCard,
+                'subscriptionId' => $subscriptionId,
+                'transientTokenJwt' => $transientTokenJwt,
+                'expirationMonth' => $expirationMonth,
+                'expirationYear' => $expirationYear,
+                'orderInfo' => $orderInfo,
+                'paymentData' => $paymentData,
+            ]);
 
             switch ($status) {
                 case 'AUTHORIZED':
@@ -1216,6 +1235,7 @@ class CyberSourceApiClient
                         'transactionId' => $transactionId,
                         'uniqid' => $uniqid,
                         'message' => 'Payment authorized successfully.',
+                        'paymentProof' => $paymentProof,
                         'paymentData' => $paymentData,
                     ]);
                 case 'PARTIAL_AUTHORIZED':
@@ -1226,6 +1246,7 @@ class CyberSourceApiClient
                         'transactionId' => $transactionId,
                         'uniqid' => $uniqid,
                         'message' => 'Payment partially authorized. Please contact support.',
+                        'paymentProof' => $paymentProof,
                         'paymentData' => $paymentData,
                     ]);
                 case 'AUTHORIZED_PENDING_REVIEW':
@@ -1236,6 +1257,7 @@ class CyberSourceApiClient
                         'transactionId' => $transactionId,
                         'uniqid' => $uniqid,
                         'message' => 'Payment authorized but pending review.',
+                        'paymentProof' => $paymentProof,
                         'paymentData' => $paymentData,
                     ]);
                 case 'DECLINED':
@@ -1254,13 +1276,13 @@ class CyberSourceApiClient
                         'paymentData' => $paymentData,
                     ]);
             }
-        } catch (\RuntimeException $e) {
+        } catch (\RuntimeException | \JsonException $e) {
             $errorResponse = json_decode($e->getMessage(), true) ?? ['error' => $e->getMessage()];
-            $this->logger->error('Payment failed', [
+            $this->logger->error('Payment failed', $this->sanitizeLogContext([
                 'error' => $e->getMessage(),
                 'payload' => $payload,
                 'response' => $errorResponse,
-            ]);
+            ]));
             return new JsonResponse([
                 'error' => 'Payment failed',
                 'message' => $errorResponse['message'] ?? $e->getMessage(),
@@ -1269,32 +1291,53 @@ class CyberSourceApiClient
         }
     }
 
+    private function normalizeAmount(mixed $amount): ?string
+    {
+        if ($amount === null || $amount === '') {
+            return null;
+        }
+
+        return number_format((float) $amount, 2, '.', '');
+    }
+
+    private function build3dsCallbackResponse(array|string $payload): Response
+    {
+        $decodedPayload = $payload;
+        if (is_string($payload)) {
+            $decoded = json_decode($payload, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $decodedPayload = $decoded;
+            }
+        }
+
+        $response = new Response(
+            '<!DOCTYPE html><html lang="en"><body><script>window.parent.postMessage({action: "close_frame", data: '
+            . json_encode($decodedPayload)
+            . '}, window.location.origin);</script></body></html>'
+        );
+        $response->headers->set('Content-Security-Policy', "frame-ancestors 'self' *.cardinalcommerce.com");
+        $response->headers->set('X-Frame-Options', 'ALLOW-FROM *.cardinalcommerce.com');
+
+        return $response;
+    }
+
     /**
      * Get saved cards for a customer.
      */
     public function getSavedCards(SalesChannelContext $context, ?string $customerId = null, ?string $salesChannelId = null): array
     {
-        $customer = $context->getCustomer();
+        $customer = $this->resolveCustomerEntity($context, $customerId);
         if (!$customer) {
-            $criteria = new Criteria();
-            $criteria->addFilter(new EqualsFilter('id', $customerId));
-            $criteria->addAssociation('defaultBillingAddress');
-            $criteria->addAssociation('defaultBillingAddress.country');
-            $criteria->addAssociation('defaultBillingAddress.countryState');
-            $customer = $this->customerRepository->search($criteria, $context->getContext())->first();
-            if (!$customer) {
-                return ['cards' => []];
-            }
+            return ['cards' => []];
         }
-        $customerTokenId = $customer->getCustomFields()['cybersource_customer_token'] ?? null;
+        $customerTokenId = $this->getCustomerTokenId($context, $customerId);
         if (!$customerTokenId) {
             $this->logger->warning('No customer token found for customer', [
                 'customerId' => $customer->getId(),
-                'customFields' => $customer->getCustomFields(),
             ]);
             return ['cards' => []];
         }
-        if(!$salesChannelId){
+        if (!$salesChannelId) {
             $salesChannelId = $context->getSalesChannel()->getId();
         }
         try {
@@ -1307,7 +1350,7 @@ class CyberSourceApiClient
             );
             $cards = $response['body']['_embedded']['paymentInstruments'] ?? [];
 
-            $cardsToReturn = array_map(function ($card) use ($customerTokenId) {
+            $cardsToReturn = array_map(function ($card) {
                 return [
                     'id' => $card['id'],
                     'cardNumber' => $card['_embedded']['instrumentIdentifier']['card']['number'] ?? 'N/A',
@@ -1315,7 +1358,6 @@ class CyberSourceApiClient
                     'expirationYear' => $card['card']['expirationYear'] ?? 'N/A',
                     'type' => $card['card']['type'] ?? 'N/A',
                     'billingAddress' => $card['billTo'] ?? [],
-                    'customerId' => $customerTokenId,
                     'default' => $card['default'] ?? false,
                     'state' => $card['state'] ?? 'N/A',
                 ];
@@ -1344,8 +1386,11 @@ class CyberSourceApiClient
             $this->logger->error('Expiration month or year is missing.');
             return null;
         }
-        $criteria = new Criteria();
-        $criteria->addFilter(new EqualsFilter('id', $customerId));
+        if (!$customerId) {
+            $this->logger->warning('No customer ID provided to save card');
+            return null;
+        }
+        $criteria = (new Criteria())->setIds([$customerId]);
         $criteria->addAssociation('defaultBillingAddress');
         $criteria->addAssociation('defaultBillingAddress.country');
         $criteria->addAssociation('defaultBillingAddress.countryState');
@@ -1434,29 +1479,60 @@ class CyberSourceApiClient
         $data = is_string($data) ? json_decode($data, true) : [];
         $salesChannelId = $context->getSalesChannel()->getId();
         $authenticationTransactionId = $data['authenticationTransactionId'] ?? null;
-        $orderInfo = $data['orderInfo'] ?? null;
-        $uniqid = $data['uniqid'] ?? null;
-        $transientTokenJwt = $data['transientTokenJwt'] ?? null;
-        $subscriptionId = $data['subscriptionId'] ?? null;
-        $expirationMonth = $data['expirationMonth'] ?? null;
-        $expirationYear = $data['expirationYear'] ?? null;
-        $cardType = $data['cardType'] ?? null;
-        $customerId = $data['customerId'] ?? null;
-        $saveCard = filter_var($data['saveCard'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $paymentProofToken = $data['paymentProof'] ?? null;
+        if (!$authenticationTransactionId || !is_string($paymentProofToken) || $paymentProofToken === '') {
+            return $this->build3dsCallbackResponse([
+                'success' => false,
+                'action' => 'notify',
+                'message' => '3DS authentication callback is missing required data.',
+            ]);
+        }
+
+        $paymentProof = $this->paymentProofSigner->verify($paymentProofToken);
+        if (
+            $paymentProof === null ||
+            ($paymentProof['stage'] ?? null) !== 'authentication_pending' ||
+            ($paymentProof['salesChannelId'] ?? null) !== $salesChannelId
+        ) {
+            return $this->build3dsCallbackResponse([
+                'success' => false,
+                'action' => 'notify',
+                'message' => '3DS payment proof could not be resolved.',
+            ]);
+        }
+
+        $orderInfo = $paymentProof['orderInfo'] ?? null;
+        $uniqid = $paymentProof['uniqid'] ?? null;
+        $transientTokenJwt = $paymentProof['transientTokenJwt'] ?? null;
+        $subscriptionId = $paymentProof['subscriptionId'] ?? null;
+        $expirationMonth = $paymentProof['expirationMonth'] ?? null;
+        $expirationYear = $paymentProof['expirationYear'] ?? null;
+        $cardType = $paymentProof['cardType'] ?? null;
+        $customerId = $paymentProof['customerId'] ?? null;
+        $saveCard = (bool) ($paymentProof['saveCard'] ?? false);
+        if (!$orderInfo || !$uniqid || (!$transientTokenJwt && !$subscriptionId)) {
+            return $this->build3dsCallbackResponse([
+                'success' => false,
+                'action' => 'notify',
+                'message' => '3DS payment proof is incomplete.',
+            ]);
+        }
 
         $payload = [
             'clientReferenceInformation' => [
                 'code' => 'Order-' . $uniqid,
             ],
-            'paymentInformation' => [
-                'card' => [
-                    'type' => $cardType,
-                ],
-            ],
             'consumerAuthenticationInformation' => [
                 'authenticationTransactionId' => $authenticationTransactionId,
             ],
         ];
+        if ($cardType) {
+            $payload['paymentInformation'] = [
+                'card' => [
+                    'type' => $cardType,
+                ],
+            ];
+        }
 
         try {
             $response = $this->executeRequest(
@@ -1496,21 +1572,14 @@ class CyberSourceApiClient
             ];
         }
 
-        $response = new Response(
-            '<!DOCTYPE html><html lang="en"><body><script>window.parent.postMessage({action: "close_frame", data: '
-            . json_encode($return)
-            . '}, "*");</script></body></html>'
-        );
-        $response->headers->set('Content-Security-Policy', "frame-ancestors 'self' *.cardinalcommerce.com");
-        $response->headers->set('X-Frame-Options', 'ALLOW-FROM *.cardinalcommerce.com');
-        return $response;
+        return $this->build3dsCallbackResponse($return);
     }
 
     /**
      * Set a payment instrument as the default for a customer.
      */
     public function setDefaultPaymentInstrument(
-        string $customerId,
+        string $customerTokenId,
         string $paymentInstrumentId,
         SalesChannelContext $context
     ): bool {
@@ -1522,18 +1591,18 @@ class CyberSourceApiClient
             $salesChannelId = $context->getSalesChannel()->getId();
             $response = $this->executeRequest(
                 'Patch',
-                "/tms/v2/customers/{$customerId}/payment-instruments/{$paymentInstrumentId}",
+                "/tms/v2/customers/{$customerTokenId}/payment-instruments/{$paymentInstrumentId}",
                 $payload,
                 'Set Default Payment Instrument',
                 $salesChannelId
             );
             return $response['statusCode'] === 200;
         } catch (\RuntimeException $e) {
-            $this->logger->error('Failed to set default payment instrument', [
-                'customerId' => $customerId,
+            $this->logger->error('Failed to set default payment instrument', $this->sanitizeLogContext([
+                'customerTokenId' => $customerTokenId,
                 'paymentInstrumentId' => $paymentInstrumentId,
                 'error' => $e->getMessage(),
-            ]);
+            ]));
             return false;
         }
     }
@@ -1544,15 +1613,20 @@ class CyberSourceApiClient
     public function deleteCard(Request $request, SalesChannelContext $context): JsonResponse
     {
         $instrumentId = $request->request->get('instrumentId');
-        $customerId = $request->request->get('customerId');
         $salesChannelId = $context->getSalesChannel()->getId();
-        if (!$instrumentId || !$customerId) {
-            return new JsonResponse(['error' => 'Missing instrumentId or customerId'], 400);
+        if (!$instrumentId || !is_string($instrumentId)) {
+            return new JsonResponse(['error' => 'Missing instrumentId'], 400);
         }
-        if (!is_string($customerId)) {
+        $customer = $context->getCustomer();
+        if (!$customer) {
             return new JsonResponse(['error' => 'Customer not found'], 403);
         }
-        $cardsResponse = $this->getSavedCards($context, $customerId, $salesChannelId);
+        $customerTokenId = $this->getCustomerTokenId($context, $customer->getId());
+        if (!$customerTokenId) {
+            return new JsonResponse(['error' => 'Customer token not found'], 403);
+        }
+
+        $cardsResponse = $this->getSavedCards($context, $customer->getId(), $salesChannelId);
         $cards = $cardsResponse['cards'] ?? [];
         $targetCard = null;
         $otherCards = [];
@@ -1571,7 +1645,7 @@ class CyberSourceApiClient
 
         if ($targetCard['default'] && !empty($otherCards)) {
             $newDefaultCard = $otherCards[0];
-            $success = $this->setDefaultPaymentInstrument($customerId, $newDefaultCard['id'], $context);
+            $success = $this->setDefaultPaymentInstrument($customerTokenId, $newDefaultCard['id'], $context);
             if (!$success) {
                 return new JsonResponse(['error' => 'Failed to set new default card'], 500);
             }
@@ -1580,18 +1654,18 @@ class CyberSourceApiClient
         try {
             $response = $this->executeRequest(
                 'Delete',
-                "/tms/v2/customers/{$customerId}/payment-instruments/{$instrumentId}",
+                "/tms/v2/customers/{$customerTokenId}/payment-instruments/{$instrumentId}",
                 [],
                 'Delete Card',
                 $salesChannelId
             );
             return new JsonResponse(['success' => $response['statusCode'] === 204]);
         } catch (\RuntimeException $e) {
-            $this->logger->error('Failed to delete card', [
-                'customerId' => $customerId,
+            $this->logger->error('Failed to delete card', $this->sanitizeLogContext([
+                'customerTokenId' => $customerTokenId,
                 'instrumentId' => $instrumentId,
                 'error' => $e->getMessage(),
-            ]);
+            ]));
             return new JsonResponse(['error' => 'Failed to delete card: ' . $e->getMessage()], 500);
         }
     }
@@ -1608,11 +1682,11 @@ class CyberSourceApiClient
         $billTo = $data['billingAddress'] ?? null;
         $salesChannelId = $context->getSalesChannel()->getId();
         if (!$token || !$expirationMonth || !$expirationYear) {
-            $this->logger->error('Missing required fields for adding card', [
+            $this->logger->error('Missing required fields for adding card', $this->sanitizeLogContext([
                 'token' => $token,
                 'expirationMonth' => $expirationMonth,
                 'expirationYear' => $expirationYear,
-            ]);
+            ]));
             return new JsonResponse(['message' => 'Missing token, expirationMonth, or expirationYear'], 400);
         }
 
@@ -1679,7 +1753,10 @@ class CyberSourceApiClient
                 'AUTHORIZED_PENDING_REVIEW',
             ];
             if (!in_array($status, $successStatus)) {
-                $this->logger->error('Card authorization failed', ['status' => $status, 'response' => $responseData]);
+                $this->logger->error('Card authorization failed', $this->sanitizeLogContext([
+                    'status' => $status,
+                    'response' => $responseData,
+                ]));
                 return new JsonResponse(['message' => 'Card authorization failed: ' . $status], 400);
             }
 
@@ -1687,7 +1764,9 @@ class CyberSourceApiClient
             $cardType = $responseData['paymentInformation']['card']['type'] ?? null;
 
             if (!$instrumentIdentifierId) {
-                $this->logger->error('No instrumentIdentifier returned', ['response' => $responseData]);
+                $this->logger->error('No instrumentIdentifier returned', $this->sanitizeLogContext([
+                    'response' => $responseData,
+                ]));
                 return new JsonResponse(['message' => 'Failed to retrieve instrument identifier'], 500);
             }
 
@@ -1703,10 +1782,10 @@ class CyberSourceApiClient
             );
 
             if (!$paymentInstrumentId) {
-                $this->logger->error('Failed to save card to TMS', [
+                $this->logger->error('Failed to save card to TMS', $this->sanitizeLogContext([
                     'instrumentIdentifierId' => $instrumentIdentifierId,
                     'customerId' => $customerId,
-                ]);
+                ]));
                 return new JsonResponse(['message' => 'Failed to save card'], 500);
             }
 
@@ -1719,7 +1798,7 @@ class CyberSourceApiClient
     private function getCardCustomerId(
         mixed $subscriptionId,
         SalesChannelContext $context,
-        string $customerId = null
+        ?string $customerId = null
     ): ?string {
         $salesChannelId = $context->getSalesChannel()->getId();
         $cardsResponse = $this->getSavedCards($context, $customerId, $salesChannelId);
@@ -1732,24 +1811,55 @@ class CyberSourceApiClient
             }
         }
         if ($validCard) {
-            return $validCard['customerId'];
+            return $this->getCustomerTokenId($context, $customerId);
         } else {
-            $this->logger->error('No valid payment instrument found for customer', [
+            $this->logger->error('No valid payment instrument found for customer', $this->sanitizeLogContext([
                 'subscriptionId' => $subscriptionId,
                 'cards' => $cards,
-            ]);
+            ]));
             return null;
         }
     }
 
-    public function transitionOrderPayment(
-        string  $orderId,
-        string  $state,
-        string  $currentState,
-        Context $context,
-        bool    $skipTransition = false
-    ): array
+    private function resolveCustomerEntity(SalesChannelContext $context, ?string $customerId = null): ?CustomerEntity
     {
+        $customer = $context->getCustomer();
+        if ($customer instanceof CustomerEntity) {
+            return $customer;
+        }
+        if ($customerId === null) {
+            return null;
+        }
+
+        $criteria = (new Criteria())->setIds([$customerId]);
+        $criteria->addAssociation('defaultBillingAddress');
+        $criteria->addAssociation('defaultBillingAddress.country');
+        $criteria->addAssociation('defaultBillingAddress.countryState');
+
+        $customer = $this->customerRepository->search($criteria, $context->getContext())->first();
+
+        return $customer instanceof CustomerEntity ? $customer : null;
+    }
+
+    private function getCustomerTokenId(SalesChannelContext $context, ?string $customerId = null): ?string
+    {
+        $customer = $this->resolveCustomerEntity($context, $customerId);
+        if (!$customer) {
+            return null;
+        }
+
+        $customerTokenId = $customer->getCustomFields()['cybersource_customer_token'] ?? null;
+
+        return is_string($customerTokenId) && $customerTokenId !== '' ? $customerTokenId : null;
+    }
+
+    public function transitionOrderPayment(
+        string $orderId,
+        string $state,
+        string $currentState,
+        Context $context,
+        bool $skipTransition = false
+    ): array {
         $criteria = new Criteria([$orderId]);
         $criteria->addAssociation('transactions');
         $criteria->addAssociation('currency');
@@ -2054,4 +2164,3 @@ class CyberSourceApiClient
         ];
     }
 }
-

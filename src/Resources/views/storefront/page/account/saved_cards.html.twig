@@ -101,7 +101,6 @@
                     <div class="card-actions">
                         <form method="post" action="{{ path('frontend.cybersource.delete_card') }}" style="display:inline;">
                             <input type="hidden" name="instrumentId" value="{{ card.id }}">
-                            <input type="hidden" name="customerId" value="{{ card.customerId }}">
                             <button type="submit" class="delete-card-btn">
                                 {{ 'cybersource_shopware6.savedCards.deleteCard' | trans }}
                             </button>

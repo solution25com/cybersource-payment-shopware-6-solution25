@@ -187,7 +187,9 @@ class CyberSourceController extends AbstractController
         Request $request
     ): JsonResponse {
         $rawRequestBody = $request->getContent();
-        if (!json_validate($rawRequestBody)) {
+        try {
+            $requestBody = json_decode($rawRequestBody, false, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
             throw PaymentException::refundInterrupted(
                 $cybersourceTransactionId,
                 $this->translator->trans(
@@ -195,7 +197,6 @@ class CyberSourceController extends AbstractController
                 )
             );
         }
-        $requestBody = json_decode($rawRequestBody);
         if (!isset($requestBody->newTotalAmount)) {
             throw PaymentException::refundInterrupted(
                 $cybersourceTransactionId,

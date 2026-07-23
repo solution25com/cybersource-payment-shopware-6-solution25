@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CyberSource\Shopware6\Command;
 
 use CyberSource\Shopware6\Service\WebhookService;
+use Shopware\Core\Framework\Api\Context\SystemSource;
 use Shopware\Core\Framework\Context;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -32,7 +33,7 @@ class CreateWebhookCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
         $name = 'ShopwarePaymentWebhook' . time();
-        $context = Context::createDefaultContext();
+        $context = new Context(new SystemSource());
         $webhookUrl = $this->webhookService->getWebhookUrl($context);
         $healthCheckUrl = $this->webhookService->getHealthCheckUrl($context);
 

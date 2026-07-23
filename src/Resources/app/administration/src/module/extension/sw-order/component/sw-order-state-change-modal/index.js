@@ -25,10 +25,8 @@ Shopware.Component.register('sw-order-state-change-modal', {
     watch: {
         initialSelectedState(newValue) {
             this.selectedState = newValue;
-            console.log('initialSelectedState updated:', newValue);
         },
-        selectedState(newValue) {
-            console.log('selectedState updated:', newValue);
+        selectedState() {
         },
     },
 
@@ -49,17 +47,14 @@ Shopware.Component.register('sw-order-state-change-modal', {
 
         openModal() {
             this.selectedState = this.initialSelectedState || '';
-            console.log(`Modal opened for ${this.stateType} with selectedState:`, this.selectedState);
             this.debugStateSelect();
         },
 
         closeModal() {
-            console.log('Modal close event emitted');
             this.$emit('modal-close');
         },
 
         async onChangeState() {
-            console.log(`onChangeState triggered for ${this.stateType} with selectedState:`, this.selectedState);
             if (!this.selectedState || this.selectedState.trim() === '') {
                 this.createNotificationError({ message: 'Please select a valid state for the transition.' });
                 this.closeModal();
@@ -84,13 +79,11 @@ Shopware.Component.register('sw-order-state-change-modal', {
 
         async debugStateSelect() {
             const repository = this.repositoryFactory.create('state_machine_state');
-            const result = await repository.search(this.stateCriteria, Shopware.Context.api);
-            console.log(`State machine states for ${this.stateType}:`, JSON.stringify(result, null, 2));
+            await repository.search(this.stateCriteria, Shopware.Context.api);
         },
     },
 
     mounted() {
-        console.log('sw-order-state-change-modal mounted');
         this.debugStateSelect();
     },
 });

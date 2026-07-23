@@ -77,7 +77,7 @@ class CardValidator
                     'minMessage' => $securityErrorMessage,
                     'maxMessage' => $securityErrorMessage
                 ]),
-                new Assert\Type(['type' => 'digit', 'message' => $securityErrorMessage]),
+                new Assert\Type(type: 'digit', message: $securityErrorMessage),
             ],
         ]);
 

@@ -74,7 +74,7 @@ class TransactionLogger
                 gatewayAuthorizationCode: $paymentData['gateway_authorization_code'],
                 gatewayToken: $paymentData['gateway_token'],
                 gatewayReference: $paymentData['gateway_reference'],
-                lastUpdate: $createdDate ?? date('c'),
+                lastUpdate: $createdDate,
                 uniqid: $uniqid,
                 amount: $paymentData['amount'] ?? null,
                 currency: $paymentData['currency'],

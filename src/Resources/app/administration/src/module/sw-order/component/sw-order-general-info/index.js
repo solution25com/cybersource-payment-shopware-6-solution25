@@ -1,6 +1,6 @@
 import template from './sw-order-general-info.html.twig';
 
-const { Component, Mixin } = Shopware;
+const { Component } = Shopware;
 
 Component.override('sw-order-general-info', {
 template,

@@ -205,7 +205,7 @@ class WebhookService
                 return false;
             }
         }
-
+        /* @phpstan-ignore-next-line */
         if (!is_string($webhookId)) {
             $io->error('Webhook ID is not a valid string.');
             return false;

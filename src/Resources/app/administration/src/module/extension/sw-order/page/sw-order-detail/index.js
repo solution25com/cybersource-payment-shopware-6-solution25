@@ -1,6 +1,6 @@
 import template from './sw-order-detail.html.twig';
 
-const { Component, Mixin } = Shopware;
+const { Component } = Shopware;
 const { Criteria } = Shopware.Data;
 
 Component.override('sw-order-detail', {
@@ -38,9 +38,5 @@ Component.override('sw-order-detail', {
 
             return ['open', 'paid'].includes(transaction.stateMachineState.technicalName);
         },
-    },
-
-    created() {
-        console.log('sw-order-detail created');
     },
 });

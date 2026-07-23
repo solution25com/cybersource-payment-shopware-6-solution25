@@ -47,6 +47,7 @@ class OrderMapper
         $lineItemNumber = 1;
         $orderLineItemData = [];
         foreach ($lineItems as $lineItem) {
+            /* @phpstan-ignore-next-line */
             if (!$lineItem instanceof OrderLineItemEntity) {
                 continue;
             }

@@ -1,5 +1,3 @@
-const { Application } = Shopware;
-
 export default class CybersourceOrderService {
     constructor(httpClient, loginService) {
         this.httpClient = httpClient;

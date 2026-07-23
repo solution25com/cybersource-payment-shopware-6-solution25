@@ -17,10 +17,10 @@ use CyberSource\Shopware6\Service\CyberSourceApiClient;
 class CustomController extends StorefrontController
 {
     private GenericPageLoader $genericPageLoader;
-    private CybersourceApiClient $apiClient;
+    private CyberSourceApiClient $apiClient;
     public function __construct(
         GenericPageLoader $genericPageLoader,
-        CybersourceApiClient $cybersourceApiClient,
+        CyberSourceApiClient $cybersourceApiClient,
     ) {
         $this->genericPageLoader = $genericPageLoader;
         $this->apiClient = $cybersourceApiClient;
@@ -33,8 +33,7 @@ class CustomController extends StorefrontController
     )]
     public function getCaptureContext(SalesChannelContext $context): JsonResponse
     {
-        $salesChannelId = $context->getSalesChannel()->getId();
-        return $this->apiClient->getCaptureContext($salesChannelId);
+        return $this->apiClient->getCaptureContext($context);
     }
 
     #[Route(

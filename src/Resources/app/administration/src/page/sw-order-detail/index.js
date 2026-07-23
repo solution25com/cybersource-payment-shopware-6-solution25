@@ -1,6 +1,6 @@
 import template from './sw-order-detail.html.twig';
 
-const { Component, Mixin, Data: { Criteria } } = Shopware;
+const { Component, Mixin } = Shopware;
 
 Component.override('sw-order-detail', {
     template,
@@ -121,7 +121,7 @@ Component.override('sw-order-detail', {
                 totalAmount: lineItem.totalPrice,
                 quantity: lineItem.quantity,
                 taxAmount: lineItem.price.calculatedTaxes.reduce(
-                    (totalTax, taxItem) => (totalTax += taxItem.tax),
+                    (totalTax, taxItem) => totalTax + taxItem.tax,
                     0
                 ),
                 productSku: lineItem.payload.productNumber,
@@ -167,7 +167,6 @@ Component.override('sw-order-detail', {
             } else {
                 this.selectedState = this.order?.stateMachineState?.technicalName || '';
             }
-            console.log(`Opening state change modal for ${stateType} with initial selectedState:`, this.selectedState);
             this.$refs.orderStateModal?.openModal();
         },
     },

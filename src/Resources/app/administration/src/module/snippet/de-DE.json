@@ -10,7 +10,8 @@
         },
         "exception": {
             "API_ERROR": "Das Autorisierungssystem oder das Ausstellersystem ist nicht funktionsfähig",
-            "REFUND_TRANSACTION_NOT_ALLOWED": "Eine Rückerstattung ist nur für Bestellungen mit dem Zahlungsstatus „Bezahlt“ möglich."
+            "REFUND_TRANSACTION_NOT_ALLOWED": "Eine Rückerstattung ist nur für Bestellungen mit dem Zahlungsstatus „Bezahlt“ möglich.",
+            "CYBERSOURCE_REFUND_AMOUNT_INCORRECT": "Der Rückerstattungsbetrag der Bestellung ist ungültig."
         },
         "orderSave": {
             "buttonTitle": "Save"

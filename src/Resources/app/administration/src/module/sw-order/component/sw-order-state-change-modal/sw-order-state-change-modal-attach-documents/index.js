@@ -54,7 +54,6 @@ Component.override('sw-order-state-change-modal-attach-documents', {
                     return;
                 }
 
-                console.log("currentState:", stateType, "targetState:", selectedState);
                 const paymentMethod = this.getPaymentMethod(transaction.paymentMethodId);
                 const cybersourceTransactionId = await this.getCybersourceTransactionId(this.order.id);
                 if (cybersourceTransactionId != null && paymentMethod?.handlerIdentifier === 'CyberSource\\Shopware6\\Gateways\\CreditCard') {
@@ -80,7 +79,7 @@ Component.override('sw-order-state-change-modal-attach-documents', {
                 const transaction = this.order.transactions.find(t => t.paymentMethodId === paymentMethodId);
                 if (transaction && transaction.paymentMethod) return transaction.paymentMethod;
                 return null;
-            } catch (error) {
+            } catch {
                 this.createNotificationError({ message: 'Failed to retrieve payment method.' });
                 return null;
             }
@@ -134,7 +133,7 @@ Component.override('sw-order-state-change-modal-attach-documents', {
                     this.createNotificationError({ message: response.message || `Failed to transition to ${targetState}.` });
                     this.$emit('modal-close');
                 }
-            } catch (error) {
+            } catch {
                 this.createNotificationError({ message: 'Transition error. Please try again.' });
                 this.$emit('modal-close');
             } finally {

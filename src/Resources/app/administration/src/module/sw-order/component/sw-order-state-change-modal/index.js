@@ -1,6 +1,6 @@
 import template from './sw-order-state-change-modal.html.twig';
 
-const { Component, Mixin } = Shopware;
+const { Component } = Shopware;
 
 Component.override('sw-order-state-change-modal', {
 template,

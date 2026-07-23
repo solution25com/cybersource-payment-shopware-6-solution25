@@ -29,6 +29,8 @@
             <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler" />
             <argument type="service" id="Shopware\Core\System\StateMachine\StateMachineRegistry"/>
             <argument type="service" id="CyberSource\Shopware6\Service\TransactionLogger"/>
+            <argument type="service" id="order_transaction.repository"/>
+            <argument type="service" id="CyberSource\Shopware6\Service\PaymentProofSigner"/>
             <tag name="shopware.payment.method.sync" />
         </service>
 
@@ -54,9 +56,11 @@
         </service>
         <service id="CyberSource\Shopware6\Controllers\WebHookController" public="true">
             <argument type="service" id="CyberSource\Shopware6\Service\OrderService"/>
+            <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler"/>
             <argument type="service" id="Shopware\Core\System\StateMachine\StateMachineRegistry"/>
             <argument type="service" id="logger"/>
             <argument type="service" id="CyberSource\Shopware6\Service\ConfigurationService"/>
+            <argument type="service" id="CyberSource\Shopware6\Service\WebhookSignatureValidator"/>
             <call method="setContainer">
                 <argument type="service" id="service_container"/>
             </call>
@@ -87,6 +91,12 @@
             <argument type="service" id="Shopware\Core\System\StateMachine\StateMachineRegistry"/>
             <argument type="service" id="CyberSource\Shopware6\Service\AmountService"/>
             <argument type="service" id="request_stack"/>
+            <argument type="service" id="CyberSource\Shopware6\Service\PaymentProofSigner"/>
+            <argument type="service" id="CyberSource\Shopware6\Service\UrlService"/>
+            <argument type="service" id="CyberSource\Shopware6\Service\LogSanitizer"/>
+        </service>
+        <service id="CyberSource\Shopware6\Service\PaymentProofSigner">
+            <argument>%kernel.secret%</argument>
         </service>
         <service id="CyberSource\Shopware6\Service\AmountService" />
         <service id="CyberSource\Shopware6\Service\TransactionLogger">
@@ -103,10 +113,13 @@
         <service id="CyberSource\Shopware6\Service\UrlService">
             <argument type="service" id="sales_channel.repository"/>
             <argument type="service" id="sales_channel_domain.repository"/>
+            <argument type="service" id="request_stack"/>
         </service>
+        <service id="CyberSource\Shopware6\Service\LogSanitizer"/>
         <service id="CyberSource\Shopware6\Service\OrderService">
             <argument type="service" id="order_transaction.repository"/>
             <argument type="service" id="translator"/>
+            <argument type="service" id="Doctrine\DBAL\Connection"/>
         </service>
 
         <service id="CyberSource\Shopware6\Command\CreateWebhookCommand">
@@ -143,6 +156,9 @@
             <argument type="service" id="CyberSource\Shopware6\Service\CyberSourceApiClient"/>
             <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
             <argument type="service" id="CyberSource\Shopware6\Service\UrlService"/>
+        </service>
+        <service id="CyberSource\Shopware6\Service\WebhookSignatureValidator">
+            <argument type="service" id="logger"/>
         </service>
      </services>
 </container>

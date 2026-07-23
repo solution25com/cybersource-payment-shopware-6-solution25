@@ -22,8 +22,16 @@ document.addEventListener("DOMContentLoaded", function() {
     paymentUniqidInput.name = 'cybersource_payment_uniqid';
     paymentUniqidInput.value = '';
 
+    // Create hidden input for cybersource_payment_proof
+    const paymentProofInput = document.createElement('input');
+    paymentProofInput.type = 'hidden';
+    paymentProofInput.id = 'cybersource_payment_proof';
+    paymentProofInput.name = 'cybersource_payment_proof';
+    paymentProofInput.value = '';
+
     // Append the inputs to the form
     form.appendChild(transactionIdInput);
     form.appendChild(paymentStatusInput);
     form.appendChild(paymentUniqidInput);
+    form.appendChild(paymentProofInput);
 });

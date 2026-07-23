@@ -20,7 +20,8 @@
             "headline": "Warning",
             "increased": {
                 "description":"It seems the total price has been updated with increased value, please revert price to original as it's not possible to capture",
-                "cancelButton": "Ok"
+                "cancelButton": "Ok",
+                "confirmButton": "Yes"
             },
             "decreased": {
                 "description":"It seems the price has been decreased from ${previousTotalAmount}, do you want to process refund for the difference?",

@@ -10,9 +10,7 @@ use Shopware\Core\Checkout\Payment\PaymentMethodEntity;
 use Shopware\Core\Checkout\Payment\PaymentMethodCollection;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\ContainsFilter;
-use Shopware\Core\System\CustomField\Aggregate\CustomFieldSet\CustomFieldSetEntity;
 use Shopware\Core\System\CustomField\Aggregate\CustomFieldSet\CustomFieldSetCollection;
-use Shopware\Core\System\CustomField\Aggregate\CustomFieldSetRelation\CustomFieldSetRelationEntity;
 use Shopware\Core\System\CustomField\Aggregate\CustomFieldSetRelation\CustomFieldSetRelationCollection;
 use Shopware\Core\Framework\Plugin;
 use Shopware\Core\Framework\Context;
@@ -25,12 +23,13 @@ use Shopware\Core\Framework\Plugin\Context\UninstallContext;
 use Shopware\Core\Framework\Plugin\Context\DeactivateContext;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
+use Shopware\Core\System\SystemConfig\SystemConfigCollection;
+use Shopware\Core\System\SystemConfig\SystemConfigService;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Process\Process;
-use Symfony\Component\Process\Exception\ProcessFailedException;
 use Doctrine\DBAL\Connection;
+
 class CyberSourceShopware6 extends Plugin
 {
     public function install(InstallContext $installContext): void
@@ -52,8 +51,6 @@ class CyberSourceShopware6 extends Plugin
         if ($uninstallContext->keepUserData()) {
             return;
         }
-        $this->deleteWebhookResources($uninstallContext->getContext());
-        $this->deletePaymentMethods($uninstallContext->getContext());
         $this->getCustomFieldsInstaller()->remove($uninstallContext->getContext());
         $this->deleteSystemConfig($uninstallContext->getContext());
         $this->dropPluginTables();
@@ -64,22 +61,7 @@ class CyberSourceShopware6 extends Plugin
             $this->setPaymentMethodIsActive(true, $activateContext->getContext(), new $paymentMethod());
         }
         $this->getCustomFieldsInstaller()->createCustomFields($activateContext->getContext());
-
-        if ($this->container === null) {
-            throw new \RuntimeException('Container is not initialized.');
-        }
-        /** @var WebhookService $webhookService */
-        $webhookService = $this->container->get(WebhookService::class);
-        $io = new SymfonyStyle(new ArrayInput([]), new ConsoleOutput());
-
-        $webhookService->createKey($io);
-        $webhookService->createWebhook(
-            'ShopwarePaymentWebhook' . time(),
-            $webhookService->getWebhookUrl($activateContext->getContext()),
-            $webhookService->getHealthCheckUrl($activateContext->getContext()),
-            $io
-        );
-        $webhookService->updateWebhookStatus(true, $io);
+        $this->provisionWebhookResources($activateContext->getContext());
 
         parent::activate($activateContext);
     }
@@ -89,62 +71,57 @@ class CyberSourceShopware6 extends Plugin
         foreach (PaymentMethods\PaymentMethods::PAYMENT_METHODS as $paymentMethod) {
             $this->setPaymentMethodIsActive(false, $deactivateContext->getContext(), new $paymentMethod());
         }
-        $this->deleteWebhookResources($deactivateContext->getContext());
         parent::deactivate($deactivateContext);
     }
-    private const CONFIG_KEY_PREFIX = 'CyberSourceShopware6.'; // adjust if different
 
-    private function deletePaymentMethods(Context $context): void
+    private function provisionWebhookResources(Context $context): void
     {
-        try {
-            /** @var EntityRepository<PaymentMethodCollection> $paymentRepository */
-            $paymentRepository = $this->getDependency('payment_method.repository');
+        if ($this->container === null) {
+            throw new \RuntimeException('Container is not initialized.');
+        }
 
-            foreach (PaymentMethods\PaymentMethods::PAYMENT_METHODS as $paymentMethod) {
-                /** @var Identity $pm */
-                $pm = new $paymentMethod();
-                $id = $this->getPaymentMethodId($pm->getPaymentHandler(), $context);
-                if ($id) {
-                    $paymentRepository->delete([['id' => $id]], $context);
+        /** @var WebhookService $webhookService */
+        $webhookService = $this->container->get(WebhookService::class);
+        /** @var SystemConfigService $systemConfigService */
+        $systemConfigService = $this->container->get(SystemConfigService::class);
+        $io = new SymfonyStyle(new ArrayInput([]), new ConsoleOutput());
+
+        $webhookId = $systemConfigService->get('CyberSourceShopware6.config.webhookId');
+        if (!is_string($webhookId) || $webhookId === '') {
+            $sharedSecretKeyId = $systemConfigService->get('CyberSourceShopware6.config.sharedSecretKeyId');
+            if (!is_string($sharedSecretKeyId) || $sharedSecretKeyId === '') {
+                if (!$webhookService->createKey($io)) {
+                    return;
                 }
             }
+
+            if (!$webhookService->createWebhook(
+                'ShopwarePaymentWebhook' . time(),
+                $webhookService->getWebhookUrl($context),
+                $webhookService->getHealthCheckUrl($context),
+                $io
+            )) {
+                return;
+            }
         }
-        catch (\Exception $e) {
-            // Log the exception or handle it as needed
-        }
+
+        $webhookService->updateWebhookStatus(true, $io);
     }
 
     private function deleteSystemConfig(Context $context): void
     {
         try {
-            /** @var EntityRepository $configRepo */
+            /** @var EntityRepository<SystemConfigCollection> $configRepo */
             $configRepo = $this->getDependency('system_config.repository');
 
             $criteria = new Criteria();
             $criteria->addFilter(new ContainsFilter('configurationKey', 'CyberSourceShopware6'));
             $ids = $configRepo->searchIds($criteria, $context)->getIds();
             if ($ids !== []) {
-                $payload = array_map(static fn(string $id) => ['id' => $id], $ids);
+                $payload = array_map(static fn($id) => ['id' => $id], $ids);
                 $configRepo->delete($payload, $context);
             }
-        }
-        catch (\Exception $e) {
-            // Log the exception or handle it as needed
-        }
-    }
-
-    private function deleteWebhookResources(Context $context): void
-    {
-        try {
-            if ($this->container === null) {
-                throw new \RuntimeException('Container is not initialized.');
-            }
-            /** @var WebhookService $webhookService */
-            $webhookService = $this->container->get(WebhookService::class);
-            $io = new SymfonyStyle(new ArrayInput([]), new ConsoleOutput());
-            $webhookService->deleteWebhook($io);
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             // Log the exception or handle it as needed
         }
     }
@@ -165,8 +142,7 @@ class CyberSourceShopware6 extends Plugin
                     );
                 }
             }
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             // Log the exception or handle it as needed
         }
     }
@@ -270,5 +246,10 @@ class CyberSourceShopware6 extends Plugin
         $customFieldSetRelationRepository = $this->container->get('custom_field_set_relation.repository');
 
         return new CustomFieldService($customFieldSetRepository, $customFieldSetRelationRepository);
+    }
+
+    public function executeComposerCommands(): bool
+    {
+        return true;
     }
 }

@@ -30,8 +30,8 @@
       "en-GB": "CyberSource for Shopware6"
     },
     "description": {
-      "de-DE": "Cybersource Payment für Shopware 6",
-      "en-GB": "CyberSource Payment for Shopware 6"
+      "de-DE": "Sichere Kreditkartenzahlungen für Shopware 6 mit Cybersource, inklusive Gastkauf, gespeicherten Karten, Echtzeit-Tracking, PCI-Konformität sowie flexiblen Refundoptionen",
+      "en-GB": "Secure credit card payments for Shopware 6 with Cybersource, offering guest checkout, saved cards, real-time transaction tracking, PCI compliance and flexible refunds options"
     },
     "manufacturerLink": {
       "de-DE": "https://solution25.com/",
@@ -43,7 +43,7 @@
     }
   },
   "require-dev": {
-    "squizlabs/php_codesniffer": "^3.5",
+    "squizlabs/php_codesniffer": "^4.0",
     "phpunit/phpunit": "^9",
     "phpstan/phpstan": "^1.10",
     "mockery/mockery": "^1.6",

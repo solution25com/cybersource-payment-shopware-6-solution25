@@ -7,6 +7,7 @@ namespace CyberSource\Shopware6\Service;
 use CyberSource\Shopware6\Exceptions\OrderTransactionNotFoundException;
 use CyberSource\Shopware6\Mappers\OrderClientReferenceMapper;
 use CyberSource\Shopware6\Mappers\OrderMapper;
+use Doctrine\DBAL\Connection;
 use Shopware\Core\Checkout\Order\Aggregate\OrderLineItem\OrderLineItemCollection;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionEntity;
 use Shopware\Core\Checkout\Order\OrderEntity;
@@ -25,19 +26,23 @@ class OrderService
      */
     private EntityRepository $orderTransactionRepository;
     private TranslatorInterface $translator;
+    private Connection $connection;
     /**
      * @param EntityRepository<OrderTransactionCollection> $orderTransactionRepository
      */
     public function __construct(
         EntityRepository $orderTransactionRepository,
         TranslatorInterface $translator,
+        Connection $connection,
     ) {
         $this->orderTransactionRepository = $orderTransactionRepository;
         $this->translator = $translator;
+        $this->connection = $connection;
     }
     public function getOrderTransaction(string $transactionId, Context $context): ?OrderTransactionEntity
     {
         $criteria = (new Criteria([$transactionId]))
+            ->addAssociation('order')
             ->addAssociation('paymentMethod')
             ->addAssociation('stateMachineState')
             ->addAssociation('order.currency');
@@ -86,11 +91,42 @@ class OrderService
         Context $context
     ): ?OrderTransactionEntity {
         $criteria = new Criteria();
+        $criteria->addAssociation('order');
+        $criteria->addAssociation('order.currency');
+        $criteria->addAssociation('stateMachineState');
         $criteria->addFilter(new EqualsFilter(
             'customFields.cybersource_payment_details.transaction_id',
             $transactionId
         ));
-        return $this->orderTransactionRepository->search($criteria, $context)->first();
+        $orderTransaction = $this->orderTransactionRepository->search($criteria, $context)->first();
+        if ($orderTransaction instanceof OrderTransactionEntity) {
+            return $orderTransaction;
+        }
+
+
+        $transactionPrimaryKey = $this->connection->createQueryBuilder()
+            ->select('LOWER(HEX(id))')
+            ->from('order_transaction')
+            ->where(
+                'JSON_SEARCH(
+                    custom_fields,
+                    "one",
+                    :transactionId,
+                    NULL,
+                    "$.cybersource_payment_details.transactions[*].transaction_id"
+                ) IS NOT NULL'
+            )
+            ->orderBy('created_at', 'DESC')
+            ->setMaxResults(1)
+            ->setParameter('transactionId', $transactionId)
+            ->executeQuery()
+            ->fetchOne();
+
+        if (!is_string($transactionPrimaryKey) || $transactionPrimaryKey === '') {
+            return null;
+        }
+
+        return $this->getOrderTransaction($transactionPrimaryKey, $context);
     }
     public function updateOrderTransactionCustomFields(
         array $newTransaction,
@@ -155,5 +191,27 @@ class OrderService
             return $details['transactions'][0]['payment_id'] ?? null;
         }
         return null;
+    }
+
+    public function updateWebhookMetadata(string $orderTransactionId, array $metadata, Context $context): void
+    {
+        $orderTransaction = $this->getOrderTransaction($orderTransactionId, $context);
+        if (!$orderTransaction instanceof OrderTransactionEntity) {
+            return;
+        }
+
+        $customFields = $orderTransaction->getCustomFields() ?? [];
+        $existingMetadata = $customFields['cybersource_webhook'] ?? [];
+        if (!is_array($existingMetadata)) {
+            $existingMetadata = [];
+        }
+
+        $customFields['cybersource_webhook'] = array_merge($existingMetadata, $metadata);
+        $this->update([
+            [
+                'id' => $orderTransactionId,
+                'customFields' => $customFields,
+            ],
+        ], $context);
     }
 }

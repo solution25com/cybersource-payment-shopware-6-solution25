@@ -89,6 +89,7 @@ const PaymentModule = (function () {
 
     // Load saved cards for payment form
     function loadSavedCards() {
+        toggleCardForm();
         fetch(config.apiEndpoints.getSavedCards)
             .then(res => res.json())
             .then(data => {
@@ -111,7 +112,10 @@ const PaymentModule = (function () {
                 }
                 toggleCardForm();
             })
-            .catch(err => console.error('Failed to load saved cards:', err));
+            .catch(err => {
+                toggleCardForm();
+                console.error('Failed to load saved cards:', err);
+            });
     }
 
     // Toggle new card form visibility
@@ -490,10 +494,10 @@ const PaymentModule = (function () {
 
                 if (data.action === 'setup') {
                     collectDeviceData(data, (callbackData) => {
-                        proceedWithAuthentication(token, subscriptionId, saveCard, month, year, data, callbackData);
+                        proceedWithAuthentication(data.paymentProof, callbackData);
                     });
                 } else {
-                    updateHiddenFields(data, token, subscriptionId, month, year);
+                    updateHiddenFields(data);
                     if (data.action === 'complete') {
                         document.getElementById('cybersource_transaction_id').value = data.transactionId;
                         document.getElementById('confirmOrderForm').submit();
@@ -586,16 +590,10 @@ const PaymentModule = (function () {
     }
 
     // Proceed with 3DS authentication
-    function proceedWithAuthentication(token, subscriptionId, saveCard, month, year, setupData, callbackData) {
+    function proceedWithAuthentication(paymentProof, callbackData) {
         let bodyParams = {
-            token,
-            subscriptionId,
-            saveCard,
-            expirationMonth: month,
-            expirationYear: year,
-            setupResponse: setupData,
             callbackData: callbackData,
-            uniqid: setupData.uniqid
+            paymentProof: paymentProof
         };
 
         fetch(config.apiEndpoints.proceedAuthentication, {
@@ -643,16 +641,7 @@ const PaymentModule = (function () {
                     mdInput.name = 'MD';
                     mdInput.value = JSON.stringify({
                         authenticationTransactionId: data.authenticationTransactionId,
-                        uniqid: data.uniqid,
-                        pareq: data.pareq,
-                        cardType: data.cardType,
-                        orderInfo: data.orderInfo,
-                        saveCard: saveCard,
-                        transientTokenJwt: token,
-                        subscriptionId: subscriptionId,
-                        expirationMonth: month,
-                        expirationYear: year,
-                        customerId: data.customerId
+                        paymentProof: data.paymentProof
                     });
 
                     stepUpForm.appendChild(pareqInput);
@@ -661,7 +650,7 @@ const PaymentModule = (function () {
                     stepUp.appendChild(stepUpForm);
                     stepUpForm.submit();
                 } else {
-                    updateHiddenFields(data, token, subscriptionId, month, year);
+                    updateHiddenFields(data);
                     if (data.action === 'complete') {
                         document.getElementById('cybersource_transaction_id').value = data.transactionId;
                         togglePageOverlay(true);
@@ -680,13 +669,23 @@ const PaymentModule = (function () {
     }
 
     // Update hidden form fields
-    function updateHiddenFields(data, token, subscriptionId, month, year) {
+    function updateHiddenFields(data, token = '', subscriptionId = '', month = '', year = '') {
         document.getElementById('cybersource_payment_status').value = data.status;
         document.getElementById('cybersource_payment_uniqid').value = data.uniqid;
         document.getElementById('cybersource_transient_token_jwt').value = token || '';
         document.getElementById('cybersource_subscription_id').value = subscriptionId || '';
-        document.getElementById('cybersource_expiration_month').value = month;
-        document.getElementById('cybersource_expiration_year').value = year;
+        document.getElementById('cybersource_expiration_month').value = month || '';
+        document.getElementById('cybersource_expiration_year').value = year || '';
+
+        let paymentProofInput = document.getElementById('cybersource_payment_proof');
+        if (!paymentProofInput) {
+            paymentProofInput = document.createElement('input');
+            paymentProofInput.type = 'hidden';
+            paymentProofInput.id = 'cybersource_payment_proof';
+            paymentProofInput.name = 'cybersource_payment_proof';
+            document.getElementById('confirmOrderForm').appendChild(paymentProofInput);
+        }
+        paymentProofInput.value = data.paymentProof || '';
 
         let paymentDataInput = document.getElementById('cybersource_payment_data');
         if (!paymentDataInput) {
@@ -749,9 +748,8 @@ const PaymentModule = (function () {
             });
         }
         window.addEventListener('message', (event) => {
-            const origin = event.origin;
-            const currentDomain = window.location.origin;
-            if (!origin.includes('cybersource.com') && !origin.includes(currentDomain)) {
+            const currentOrigin = window.location.origin;
+            if (event.origin !== currentOrigin) {
                 return;
             }
 
@@ -771,6 +769,15 @@ const PaymentModule = (function () {
 
                 document.getElementById('cybersource_payment_status').value = data.status;
                 document.getElementById('cybersource_payment_uniqid').value = data.uniqid;
+                let paymentProofInput = document.getElementById('cybersource_payment_proof');
+                if (!paymentProofInput) {
+                    paymentProofInput = document.createElement('input');
+                    paymentProofInput.type = 'hidden';
+                    paymentProofInput.id = 'cybersource_payment_proof';
+                    paymentProofInput.name = 'cybersource_payment_proof';
+                    document.getElementById('confirmOrderForm').appendChild(paymentProofInput);
+                }
+                paymentProofInput.value = data.paymentProof || '';
                 let paymentDataInput = document.getElementById('cybersource_payment_data');
                 if (!paymentDataInput) {
                     paymentDataInput = document.createElement('input');

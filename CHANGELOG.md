@@ -1,3 +1,17 @@
+## [1.6.0] - 2026-07-23
+
+  - Enhanced **checkout security**: payments are now verified server-side before an order is marked as paid, preventing client-side tampering with checkout confirmation
+  data.
+  - Hardened **3D Secure (3DS) session handling** for improved reliability and security, without changing the customer-facing checkout flow.
+  - Strengthened **webhook signature validation** to ensure only genuine, verified notifications from CyberSource are processed.
+  - Improved **webhook transaction lookup and state synchronization**, so order and payment statuses stay correctly in sync with CyberSource notifications.
+  - Enhanced **log data protection** and enforced stricter server-side ownership checks for saved payment cards.
+  - Improved **plugin lifecycle stability**, removing destructive side effects during install/uninstall and resolving checkout hot-path blockers.
+  - Fixed a **plugin activation issue** caused by an incorrect internal service reference.
+  - Fixed a **webhook reliability issue** where certain incoming notifications were not being correctly matched to their corresponding orders.
+  - Various internal code quality and static analysis improvements.
+
+
 ## [1.5.8] - 2025-11-11
 - Updated **Cybersource API client** to improve request handling and compatibility.
 - Modified payload structure to **use customer number instead of customer ID**, ensuring consistent identification across API transactions and reporting.
